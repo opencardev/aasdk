@@ -1,10 +1,10 @@
 cmake_minimum_required(VERSION 3.5.1)
 
-set (AASDK_VERSION_MAJOR 2)
-set (AASDK_VERSION_MINOR 1)
-set (AASDK_VERSION_PATCH 0)
+set (aasdk_VERSION_MAJOR 2)
+set (aasdk_VERSION_MINOR 1)
+set (aasdk_VERSION_PATCH 0)
 project(aasdk
-VERSION ${AASDK_VERSION_MAJOR}.${AASDK_VERSION_MINOR}.${AASDK_VERSION_PATCH}
+VERSION ${aasdk_VERSION_MAJOR}.${aasdk_VERSION_MINOR}.${aasdk_VERSION_PATCH}
 LANGUAGES CXX)
 
 find_program(CCACHE_PROGRAM ccache)
@@ -35,6 +35,10 @@ set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 
 add_definitions(-DBOOST_ALL_DYN_LINK)
+
+include(${base_directory}/cmake_modules/gitversion.cmake)
+set (aasdk_VERSION_PATCH ${_commit_timestamp})
+set (CMAKE_PROJECT_VERSION_PATCH ${aasdk_VERSION_PATCH})
 
 if(WIN32)
     set(WINSOCK2_LIBRARIES "ws2_32")
@@ -82,9 +86,9 @@ target_link_libraries(aasdk
                         ${OPENSSL_LIBRARIES}
                         ${WINSOCK2_LIBRARIES})
 
-set(AASDK_VERSION_STRING ${AASDK_VERSION_MAJOR}.${AASDK_VERSION_MINOR}.${AASDK_VERSION_PATCH})
-set_target_properties(aasdk PROPERTIES VERSION ${AASDK_VERSION_STRING}
-                                          SOVERSION ${AASDK_VERSION_MAJOR})
+set(aasdk_VERSION_STRING ${aasdk_VERSION_MAJOR}.${aasdk_VERSION_MINOR}.${aasdk_VERSION_PATCH})
+set_target_properties(aasdk PROPERTIES VERSION ${aasdk_VERSION_STRING}
+                                          SOVERSION ${aasdk_VERSION_MAJOR})
 
 install(TARGETS aasdk DESTINATION lib COMPONENT libraries)
 install(DIRECTORY include/aasdk DESTINATION include COMPONENT headers)
