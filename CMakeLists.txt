@@ -37,7 +37,7 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 add_definitions(-DBOOST_ALL_DYN_LINK)
 
 include(${base_directory}/cmake_modules/gitversion.cmake)
-set (aasdk_VERSION_PATCH ${_commit_timestamp})
+set (aasdk_VERSION_PATCH ${_build_version})
 set (CMAKE_PROJECT_VERSION_PATCH ${aasdk_VERSION_PATCH})
 
 if(WIN32)
