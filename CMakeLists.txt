@@ -87,6 +87,7 @@ target_link_libraries(aasdk
                         ${WINSOCK2_LIBRARIES})
 
 set(aasdk_VERSION_STRING ${aasdk_VERSION_MAJOR}.${aasdk_VERSION_MINOR}.${aasdk_VERSION_PATCH})
+message(INFO " Project Version: ${aasdk_VERSION_STRING}")
 set_target_properties(aasdk PROPERTIES VERSION ${aasdk_VERSION_STRING}
                                           SOVERSION ${aasdk_VERSION_MAJOR})
 
