@@ -1,8 +1,20 @@
 cmake_minimum_required(VERSION 3.5.1)
 
+if( TARGET_ARCH STREQUAL "amd64" )
+    message("Building for amd64")
+elseif( TARGET_ARCH STREQUAL "armhf" )
+    message("Building for armhf")
+    set(CMAKE_C_COMPILER /usr/bin/arm-linux-gnueabihf-gcc-8)
+    set(CMAKE_CXX_COMPILER /usr/bin/arm-linux-gnueabihf-g++-8)
+else()
+    message("Unknown target architecture. Exiting")
+    return()
+endif()
+
 set (aasdk_VERSION_MAJOR 2)
 set (aasdk_VERSION_MINOR 1)
 set (aasdk_VERSION_PATCH 0)
+
 project(aasdk
 VERSION ${aasdk_VERSION_MAJOR}.${aasdk_VERSION_MINOR}.${aasdk_VERSION_PATCH}
 LANGUAGES CXX)
