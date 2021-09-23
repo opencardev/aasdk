@@ -30,8 +30,7 @@ jobs:
               arch: "amd64",
               type: "release"
             }
-	name: 'Upload release:  ${{ matrix.config.name }}'
-	steps:
+	  steps:
 	  - 
 	    name: 'Build ${{ matrix.config.arch }} Debian package'
-        run: docker run -v "${PWD}/release":/${{ matrix.config.type }} aasdk_builder:latest ${{ matrix.config.arch }}
+      run: docker run -v "${PWD}/release":/${{ matrix.config.type }} aasdk_builder:latest ${{ matrix.config.arch }}
