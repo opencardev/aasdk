@@ -15,7 +15,7 @@ COPY / /src
 WORKDIR /src
 
 # Import resources
-COPY ./buildenv/patch-libboost-log-deb.sh /src/resources
+COPY ./buildenv/patch-libboost-log-deb.sh /src/resources/patch-libboost-log-deb.sh
 COPY ./buildenv/entrypoint.sh /entrypoint.sh
 
 # Patch libboost-log-dev and install
