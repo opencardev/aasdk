@@ -12,7 +12,7 @@ else()
     return()
 endif()
 
-set (aasdk_VERSION_MAJOR 2)
+set (aasdk_VERSION_MAJOR 3)
 set (aasdk_VERSION_MINOR 1)
 set (aasdk_VERSION_PATCH 0)
 

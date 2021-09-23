@@ -146,8 +146,8 @@ jobs:
         run: |
           ARTIFACT_PATHNAME=$(ls ${{ matrix.config.arch }}/*.deb | head -n 1)
           ARTIFACT_NAME=$(basename $ARTIFACT_PATHNAME)
-          echo ::set-output name=ARTIFACT_NAME::"${ARTIFACT_NAME}"
-          echo ::set-output name=ARTIFACT_PATHNAME::"${ARTIFACT_PATHNAME}"
+          echo ::set-output name=artifact_filename::${ARTIFACT_NAME}
+          echo ::set-output name=artifact_path::${ARTIFACT_PATHNAME}
       - 
         name: Upload zip to release
         id: upload_zip
