@@ -9,7 +9,7 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build the Docker image
       run: docker build -t aasdk_builder --file Dockerfile .
-  compile:	  
+  compile:    
     runs-on: ${{ matrix.host }}
     strategy:
       fail-fast: false
@@ -30,7 +30,9 @@ jobs:
               arch: "amd64",
               type: "release"
             }
-	  steps:
-	  - 
-	    name: 'Build ${{ matrix.config.arch }} Debian package'
-      run: docker run -v "${PWD}/release":/${{ matrix.config.type }} aasdk_builder:latest ${{ matrix.config.arch }}
+
+    name: 'Upload release:  ${{ matrix.config.name }}'
+    steps:
+      - 
+        name: 'Build ${{ matrix.config.arch }} Debian package'
+        run: docker run -v "${PWD}/release":/${{ matrix.config.type }} aasdk_builder:latest ${{ matrix.config.arch }}
