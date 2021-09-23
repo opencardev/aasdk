@@ -10,13 +10,13 @@ RUN apt-get -y install gcc-8-base:armhf libc6:armhf libgcc1:armhf libicu63:armhf
 RUN apt-get install -y libprotobuf-dev libusb-1.0.0-dev libssl-dev libboost-dev libboost-system-dev libboost-atomic1.67.0 libboost-chrono1.67.0 libboost-date-time1.67.0 libboost-filesystem1.67.0 libboost-regex1.67.0 libboost-thread1.67.0 libboost-filesystem1.67-dev libboost-thread1.67-dev libboost-date-time1.67-dev
 RUN apt-get install -y libprotobuf-dev:armhf libusb-1.0.0-dev:armhf libssl-dev:armhf libboost-dev:armhf libboost-system-dev:armhf libboost-atomic1.67.0:armhf libboost-chrono1.67.0:armhf libboost-date-time1.67.0:armhf libboost-filesystem1.67.0:armhf libboost-regex1.67.0:armhf libboost-system1.67.0:armhf libboost-thread1.67.0:armhf libboost-filesystem1.67-dev:armhf libboost-thread1.67-dev:armhf libboost-date-time1.67-dev:armhf
 
-COPY ../ /src
+COPY / /src
 
 WORKDIR /src
 
 # Import resources
-COPY ./patch-libboost-log-deb.sh /src/resources
-COPY ./entrypoint.sh /entrypoint.sh
+COPY ./buildenv/patch-libboost-log-deb.sh /src/resources
+COPY ./buildenv/entrypoint.sh /entrypoint.sh
 
 # Patch libboost-log-dev and install
 RUN chmod +x ./resources/patch-libboost-log-deb.sh
