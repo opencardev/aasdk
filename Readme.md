@@ -4,22 +4,8 @@
 ### Brief description
 C++ object-oriented library containing implementation of core AndroidAuto(tm) functionalities needed to build headunit software.
 
-### Build Guide
-#### Local build instructions for Raspberry Pi
-
-```
-sudo apt-get update
-sudo apt-get -y install cmake build-essential git
-
-sudo apt-get install -y protobuf-compiler libprotobuf-dev libusb-1.0.0-dev libssl-dev libboost-dev libboost-system-dev libboost-log-dev
-
-git clone https://github.com/OpenDsh/aasdk
-
-cd aasdk
-cmake -DCMAKE_BUILD_TYPE=Release .
-make -j2
-sudo make install
-```
+### Changes
+Added recent changes by the OpenDsh team
 
 ### Supported functionalities
  - AOAP (Android Open Accessory Protocol)
