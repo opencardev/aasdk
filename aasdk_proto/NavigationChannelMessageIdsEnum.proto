@@ -18,19 +18,15 @@
 
 syntax="proto2";
 
-package aasdk.proto.enums;
+package aasdk.proto.ids;
 
-message VideoResolution
+message NavigationChannelMessage
 {
-    enum Enum
+   enum Enum
     {
-        NONE = 0;
-        _480p = 1;
-        _720p = 2;
-       _1080p = 3;
-       _1440p = 4;
-       _720p_p = 5;
-       _1080pp = 6;
-       _108s0p_p = 7;
+        NONE = 0x0000;
+        STATUS = 0x8003;
+        TURN_EVENT = 0x8004;
+        DISTANCE_EVENT = 0x8005;
     }
 }

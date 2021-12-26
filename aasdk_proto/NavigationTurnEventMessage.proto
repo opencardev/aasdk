@@ -18,19 +18,17 @@
 
 syntax="proto2";
 
-package aasdk.proto.enums;
+import "ManeuverTypeEnum.proto";
+import "ManeuverDirectionEnum.proto";
 
-message VideoResolution
+package aasdk.proto.messages;
+
+message NavigationTurnEvent
 {
-    enum Enum
-    {
-        NONE = 0;
-        _480p = 1;
-        _720p = 2;
-       _1080p = 3;
-       _1440p = 4;
-       _720p_p = 5;
-       _1080pp = 6;
-       _108s0p_p = 7;
-    }
+    required string street_name = 1;
+    required enums.ManeuverDirection.Enum maneuverDirection = 2;
+    required enums.ManeuverType.Enum maneuverType = 3;
+    required bytes turnImage = 4;
+    required uint32 roundaboutExitNumber = 5;
+    required uint32 roundaboutExitAngle = 6;
 }

@@ -16,44 +16,35 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
+#pragma once
+
+#include <memory>
+#include <aasdk_proto/ChannelOpenResponseMessage.pb.h>
 #include <aasdk/Messenger/ChannelId.hpp>
+#include <aasdk/Channel/Promise.hpp>
+#include <aasdk/Channel/Navigation/INavigationStatusServiceChannelEventHandler.hpp>
 
 
 namespace aasdk
 {
-namespace messenger
+namespace channel
+{
+namespace navigation
 {
 
-std::string channelIdToString(ChannelId channelId)
+class INavigationStatusServiceChannel
 {
-    switch(channelId)
-    {
-    case ChannelId::CONTROL:
-        return "CONTROL";
-    case ChannelId::INPUT:
-        return "INPUT";
-    case ChannelId::SENSOR:
-        return "SENSOR";
-    case ChannelId::VIDEO:
-        return "VIDEO";
-    case ChannelId::MEDIA_AUDIO:
-        return "MEDIA_AUDIO";
-    case ChannelId::SPEECH_AUDIO:
-        return "SPEECH_AUDIO";
-    case ChannelId::SYSTEM_AUDIO:
-        return "SYSTEM_AUDIO";
-    case ChannelId::AV_INPUT:
-        return "AV_INPUT";
-    case ChannelId::BLUETOOTH:
-        return "BLUETOOTH";
-    case ChannelId::NAVIGATION:
-        return "NAVIGATION";
-    case ChannelId::NONE:
-        return "NONE";
-    default:
-        return "(null)";
-    }
+public:
+    typedef std::shared_ptr<INavigationStatusServiceChannel> Pointer;
+
+    INavigationStatusServiceChannel() = default;
+    virtual ~INavigationStatusServiceChannel() = default;
+
+    virtual void receive(INavigationStatusServiceChannelEventHandler::Pointer eventHandler) = 0;
+    virtual void sendChannelOpenResponse(const proto::messages::ChannelOpenResponse& response, SendPromise::Pointer promise) = 0;
+    virtual messenger::ChannelId getId() const = 0;
+};
+
 }
-
 }
 }

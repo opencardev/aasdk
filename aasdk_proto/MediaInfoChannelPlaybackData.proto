@@ -18,19 +18,22 @@
 
 syntax="proto2";
 
-package aasdk.proto.enums;
+package aasdk.proto.messages;
 
-message VideoResolution
+message MediaInfoChannelPlaybackData
 {
-    enum Enum
+    enum PlaybackState
     {
-        NONE = 0;
-        _480p = 1;
-        _720p = 2;
-       _1080p = 3;
-       _1440p = 4;
-       _720p_p = 5;
-       _1080pp = 6;
-       _108s0p_p = 7;
+        NONE = 0x0000;
+        TRACK_CHANGE = 1;
+        PLAY = 2;
+        PAUSE = 3;
     }
+    required PlaybackState playback_state = 1;
+    required string media_source = 2;
+    required int32 track_progress = 3;
+    required int32 unknown1 = 4;
+    required int32 unknown2 = 5;
+    required int32 unknown3 = 6;
+
 }

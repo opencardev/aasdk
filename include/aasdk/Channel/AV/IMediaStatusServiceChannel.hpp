@@ -18,31 +18,33 @@
 
 #pragma once
 
-#include <string>
+#include <memory>
+#include <aasdk_proto/ChannelOpenResponseMessage.pb.h>
+#include <aasdk/Messenger/ChannelId.hpp>
+#include <aasdk/Channel/Promise.hpp>
+#include <aasdk/Channel/AV/IMediaStatusServiceChannelEventHandler.hpp>
 
 
 namespace aasdk
 {
-namespace messenger
+namespace channel
+{
+namespace av
 {
 
-enum class ChannelId
+class IMediaStatusServiceChannel
 {
-    CONTROL,
-    INPUT,
-    SENSOR,
-    VIDEO,
-    MEDIA_AUDIO,
-    SPEECH_AUDIO,
-    SYSTEM_AUDIO,
-    AV_INPUT,
-    BLUETOOTH,
-    NAVIGATION,
-    MEDIA_STATUS,
-    NONE = 255
+public:
+    typedef std::shared_ptr<IMediaStatusServiceChannel> Pointer;
+
+    IMediaStatusServiceChannel() = default;
+    virtual ~IMediaStatusServiceChannel() = default;
+
+    virtual void receive(IMediaStatusServiceChannelEventHandler::Pointer eventHandler) = 0;
+    virtual void sendChannelOpenResponse(const proto::messages::ChannelOpenResponse& response, SendPromise::Pointer promise) = 0;
+    virtual messenger::ChannelId getId() const = 0;
 };
 
-std::string channelIdToString(ChannelId channelId);
-
+}
 }
 }

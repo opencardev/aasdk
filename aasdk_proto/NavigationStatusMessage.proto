@@ -18,19 +18,16 @@
 
 syntax="proto2";
 
-package aasdk.proto.enums;
+package aasdk.proto.messages;
 
-message VideoResolution
+message NavigationStatus
 {
+    required Enum status = 1;
     enum Enum
     {
-        NONE = 0;
-        _480p = 1;
-        _720p = 2;
-       _1080p = 3;
-       _1440p = 4;
-       _720p_p = 5;
-       _1080pp = 6;
-       _108s0p_p = 7;
+        UNAVAILABLE = 0;
+        ACTIVE = 1;
+        INACTIVE = 2;
+        REROUTING = 3;
     }
 }

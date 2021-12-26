@@ -27,7 +27,7 @@ import "AVInputChannelData.proto";
 import "BluetoothChannelData.proto";
 import "NavigationChannelData.proto";
 import "VendorExtensionChannelData.proto";
-import "MediaChannelData.proto";
+import "MediaInfoChannelData.proto";
 import "WifiChannelData.proto";
 
 package aasdk.proto.data;

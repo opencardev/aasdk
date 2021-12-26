@@ -18,19 +18,15 @@
 
 syntax="proto2";
 
-package aasdk.proto.enums;
+import "DistanceUnitEnum.proto";
 
-message VideoResolution
+package aasdk.proto.messages;
+
+message NavigationDistanceEvent
 {
-    enum Enum
-    {
-        NONE = 0;
-        _480p = 1;
-        _720p = 2;
-       _1080p = 3;
-       _1440p = 4;
-       _720p_p = 5;
-       _1080pp = 6;
-       _108s0p_p = 7;
-    }
+    required uint32 meters = 1;
+    required uint32 timeToStepSeconds = 2;
+    required uint32 distanceToStepMillis = 3;
+    required enums.DistanceUnit.Enum distanceUnit = 4;
+
 }

@@ -20,17 +20,17 @@ syntax="proto2";
 
 package aasdk.proto.enums;
 
-message VideoResolution
+message DistanceUnit
 {
     enum Enum
     {
-        NONE = 0;
-        _480p = 1;
-        _720p = 2;
-       _1080p = 3;
-       _1440p = 4;
-       _720p_p = 5;
-       _1080pp = 6;
-       _108s0p_p = 7;
+        UNKNOWN = 0;
+        METERS = 1;
+        KILOMETERS = 2;
+        KILOMETERS_PARTIAL = 3;
+        MILES = 4;
+        MILES_PARTIAL = 5;
+        FEET = 6;
+        YARDS = 7;
     }
 }

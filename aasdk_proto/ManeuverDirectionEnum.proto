@@ -20,17 +20,13 @@ syntax="proto2";
 
 package aasdk.proto.enums;
 
-message VideoResolution
+message ManeuverDirection
 {
     enum Enum
     {
-        NONE = 0;
-        _480p = 1;
-        _720p = 2;
-       _1080p = 3;
-       _1440p = 4;
-       _720p_p = 5;
-       _1080pp = 6;
-       _108s0p_p = 7;
+        UNKNOWN = 0;
+        LEFT = 1;
+        RIGHT = 2;
+        UNSPECIFIED = 3;
     }
 }
