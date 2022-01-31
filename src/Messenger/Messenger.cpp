@@ -42,7 +42,10 @@ void Messenger::enqueueReceive(ChannelId channelId, ReceivePromise::Pointer prom
     receiveStrand_.dispatch([this, self = this->shared_from_this(), channelId, promise = std::move(promise)]() mutable {
         if(!channelReceiveMessageQueue_.empty(channelId))
         {
-            this->parseMessage(channelReceiveMessageQueue_.pop(channelId), promise);
+            //TODO: Use this to check on the Frame/Channel Id?
+            //this->parseMessage(channelReceiveMessageQueue_.pop(channelId), promise);
+            promise->resolve(std::move(channelReceiveMessageQueue_.pop(channelId)));
+            //TODO: Problem with resolving like this, is that if we resolve an interleave frame, our resolve goes to the wrong channel - eg Audio on VideoServiceChannel
         }
         else
         {
@@ -54,6 +57,11 @@ void Messenger::enqueueReceive(ChannelId channelId, ReceivePromise::Pointer prom
                 inStreamPromise->then(std::bind(&Messenger::inStreamMessageHandler, this->shared_from_this(), std::placeholders::_1),
                                      std::bind(&Messenger::rejectReceivePromiseQueue, this->shared_from_this(), std::placeholders::_1));
                 messageInStream_->startReceive(std::move(inStreamPromise));
+
+                auto randomInStreamPromise = ReceivePromise::defer(receiveStrand_);
+                randomInStreamPromise->then(std::bind(&Messenger::randomInStreamMessageHandler, this->shared_from_this(), std::placeholders::_1),
+                                            std::bind(&Messenger::randomRejectReceivePromiseQueue, this->shared_from_this(), std::placeholders::_1));
+                messageInStream_->setInterleavedHandler(std::move(randomInStreamPromise));
             }
         }
     });
@@ -80,7 +88,8 @@ void Messenger::inStreamMessageHandler(Message::Pointer message)
 
     if(channelReceivePromiseQueue_.isPending(channelId))
     {
-        this->parseMessage(message, channelReceivePromiseQueue_.pop(channelId));
+        //this->parseMessage(message, channelReceivePromiseQueue_.pop(channelId));
+        channelReceivePromiseQueue_.pop(channelId)->resolve(std::move(message));
     }
     else
     {
@@ -94,6 +103,17 @@ void Messenger::inStreamMessageHandler(Message::Pointer message)
                              std::bind(&Messenger::rejectReceivePromiseQueue, this->shared_from_this(), std::placeholders::_1));
         messageInStream_->startReceive(std::move(inStreamPromise));
     }
+}
+
+void Messenger::randomInStreamMessageHandler(Message::Pointer message)
+{
+    //AASDK_LOG(debug) << "Interleaved Message Pushed to Queue";;
+    channelReceiveMessageQueue_.push(std::move(message));
+
+    auto randomInStreamPromise = ReceivePromise::defer(receiveStrand_);
+    randomInStreamPromise->then(std::bind(&Messenger::randomInStreamMessageHandler, this->shared_from_this(), std::placeholders::_1),
+                          std::bind(&Messenger::randomRejectReceivePromiseQueue, this->shared_from_this(), std::placeholders::_1));
+    messageInStream_->setInterleavedHandler(std::move(randomInStreamPromise));
 }
 
 void Messenger::parseMessage(Message::Pointer message, ReceivePromise::Pointer promise) {
@@ -130,6 +150,11 @@ void Messenger::rejectReceivePromiseQueue(const error::Error& e)
     {
         channelReceivePromiseQueue_.pop()->reject(e);
     }
+}
+
+void Messenger::randomRejectReceivePromiseQueue(const error::Error& e)
+{
+    // Dummy
 }
 
 void Messenger::rejectSendPromiseQueue(const error::Error& e)
