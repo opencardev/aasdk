@@ -122,6 +122,7 @@ void MessageInStream::receiveFrameSizeHandler(const common::DataConstBuffer& buf
         });
 
     FrameSize frameSize(buffer);
+    frameSize_ = (int) frameSize.getSize();
     transport_->receive(frameSize.getSize(), std::move(transportPromise));
 }
 
@@ -131,7 +132,7 @@ void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer& 
     {
         try
         {
-            cryptor_->decrypt(message_->getPayload(), buffer);
+            cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
         }
         catch(const error::Error& e)
         {

@@ -51,6 +51,8 @@ private:
     FrameType recentFrameType_;
     ReceivePromise::Pointer promise_;
     Message::Pointer message_;
+    int frameSize_;
+
 
     std::map<messenger::ChannelId, Message::Pointer> channel_assembly_buffers;
 };
