@@ -82,7 +82,7 @@ void MessageInStream::receiveFrameHeaderHandler(const common::DataConstBuffer& b
     // If Frame Channel does not match Message Channel, store Existing Message in Buffer.
     if(message_ != nullptr && message_->getChannelId() != frameHeader.getChannelId())
     {
-        AASDK_LOG(debug) << "[MessageInStream] ChannelId mismatch -- Frame " << channelIdToString(frameHeader_.getChannelId()) << " -- Message -- " << channelIdToString(message_.getChannelId());
+        AASDK_LOG(debug) << "[MessageInStream] ChannelId mismatch -- Frame " << channelIdToString(frameHeader.getChannelId()) << " -- Message -- " << channelIdToString(message_->getChannelId());
         isInterleaved_ = true;
 
         messageBuffer_[message_->getChannelId()] = message_;
@@ -186,11 +186,13 @@ void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer& 
     {
         // If this isn't an interleaved frame, then we can resolve the promise
         if (!isInterleaved_) {
+            AASDK_LOG(debug) << "[MessageInStream] Resolving message.";
             isResolved = true;
             promise_->resolve(std::move(message_));
             promise_.reset();
         } else {
             // Otherwise resolve through our random promise
+            AASDK_LOG(debug) << "[MessageInStream] Resolving interleaved frame";
             interleavedPromise_->resolve(std::move(message_));
         }
     }
