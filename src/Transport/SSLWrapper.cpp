@@ -22,7 +22,7 @@
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
 #include <aasdk/Transport/SSLWrapper.hpp>
-
+#include <aasdk/Common/Log.hpp>
 
 namespace aasdk
 {
@@ -48,6 +48,8 @@ SSLWrapper::~SSLWrapper()
     ERR_remove_state(0);
 #endif
     ERR_free_strings();
+    ERR_load_crypto_strings();
+    ERR_load_ERR_strings();
 }
 
 X509* SSLWrapper::readCertificate(const std::string& certificate)
@@ -187,6 +189,9 @@ int SSLWrapper::sslWrite(SSL *ssl, const void *buf, int num)
 
 int SSLWrapper::getError(SSL* ssl, int returnCode)
 {
+    while (auto err = ERR_get_error()) {
+        AASDK_LOG(error) << "[SSLWrapper] SSL Error " << ERR_error_string(err, NULL);
+    }
     return SSL_get_error(ssl, returnCode);
 }
 
