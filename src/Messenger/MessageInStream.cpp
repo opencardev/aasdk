@@ -129,7 +129,7 @@ void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer& 
     {
         try
         {
-            cryptor_->decrypt(message_->getPayload(), buffer);
+            cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
         }
         catch(const error::Error& e)
         {
