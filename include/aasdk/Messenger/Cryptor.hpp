@@ -37,7 +37,7 @@ public:
     void deinit() override;
     bool doHandshake() override;
     size_t encrypt(common::Data& output, const common::DataConstBuffer& buffer) override;
-    size_t decrypt(common::Data& output, const common::DataConstBuffer& buffer) override;
+    size_t decrypt(common::Data& output, const common::DataConstBuffer& buffer, int length) override;
 
     common::Data readHandshakeBuffer() override;
     void writeHandshakeBuffer(const common::DataConstBuffer& buffer) override;

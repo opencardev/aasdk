@@ -20,7 +20,7 @@
 #include <functional>
 #include <aasdk/Messenger/Cryptor.hpp>
 #include <aasdk/Error/Error.hpp>
-
+#include <aasdk/Common/Log.hpp>
 
 namespace aasdk
 {
@@ -178,18 +178,23 @@ size_t Cryptor::encrypt(common::Data& output, const common::DataConstBuffer& buf
     return this->read(output);
 }
 
-size_t Cryptor::decrypt(common::Data& output, const common::DataConstBuffer& buffer)
+size_t Cryptor::decrypt(common::Data& output, const common::DataConstBuffer& buffer, int frameLength)
 {
+    int overhead = 29;
+    int length = frameLength - overhead;
     std::lock_guard<decltype(mutex_)> lock(mutex_);
 
     this->write(buffer);
     const size_t beginOffset = output.size();
-    output.resize(beginOffset + 1);
 
-    size_t availableBytes = 1;
-    size_t totalReadSize = 0;
+    size_t totalReadSize = 0;                                                                               // Initialise
+    size_t availableBytes = length;
+    size_t readBytes = (length - totalReadSize) > 2048 ? 2048 : length - totalReadSize;                     // Calculate How many Bytes to Read
+    output.resize(output.size() + readBytes);                                                               // Resize Output to match the bytes we want to read
 
-    while(availableBytes > 0)
+    // We try to be a bit more explicit here, using the frame length from the frame itself rather than just blindly reading from the SSL buffer.
+
+    while(readBytes > 0)
     {
         const auto& currentBuffer = common::DataBuffer(output, totalReadSize + beginOffset);
         auto readSize = sslWrapper_->sslRead(ssl_, currentBuffer.data, currentBuffer.size);
@@ -201,7 +206,8 @@ size_t Cryptor::decrypt(common::Data& output, const common::DataConstBuffer& buf
 
         totalReadSize += readSize;
         availableBytes = sslWrapper_->getAvailableBytes(ssl_);
-        output.resize(output.size() + availableBytes);
+        readBytes = (length - totalReadSize) > 2048 ? 2048 : length - totalReadSize;
+        output.resize(output.size() + readBytes);
     }
 
     return totalReadSize;
