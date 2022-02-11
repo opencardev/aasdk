@@ -119,7 +119,8 @@ void MessageInStream::receiveFrameSizeHandler(const common::DataConstBuffer& buf
         });
 
     FrameSize frameSize(buffer);
-    transport_->receive(frameSize.getSize(), std::move(transportPromise));
+    frameSize_ = (int) frameSize.getFrameSize();
+    transport_->receive(frameSize.getFrameSize(), std::move(transportPromise));
 }
 
 void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer& buffer)
