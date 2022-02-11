@@ -35,7 +35,8 @@ public:
     FrameSize(const common::DataConstBuffer& buffer);
 
     common::Data getData() const;
-    size_t getSize() const;
+    size_t getFrameSize() const;
+    size_t getTotalSize() const;
 
     static size_t getSizeOf(FrameSizeType type);
 

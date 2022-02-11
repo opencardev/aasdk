@@ -47,6 +47,7 @@ FrameSize::FrameSize(const common::DataConstBuffer& buffer)
     {
         frameSizeType_ = FrameSizeType::SHORT;
         frameSize_ = boost::endian::big_to_native(reinterpret_cast<const uint16_t&>(buffer.cdata[0]));
+        totalSize_ = frameSize_;
     }
 
     if(buffer.size >= 6)
@@ -74,10 +75,16 @@ common::Data FrameSize::getData() const
     return data;
 }
 
-size_t FrameSize::getSize() const
+size_t FrameSize::getFrameSize() const
 {
     return frameSize_;
 }
+
+size_t FrameSize::getTotalSize() const
+{
+    return totalSize_;
+}
+
 
 size_t FrameSize::getSizeOf(FrameSizeType type)
 {
