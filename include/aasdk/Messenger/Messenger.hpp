@@ -47,7 +47,9 @@ private:
     void inStreamMessageHandler(Message::Pointer message);
     void outStreamMessageHandler(ChannelSendQueue::iterator queueElement);
     void rejectReceivePromiseQueue(const error::Error& e);
+    void interleavedMessageHandler(Message::Pointer message);
     void rejectSendPromiseQueue(const error::Error& e);
+    void rejectInterleavedMessageHandler(const error::Error& e);
 
     boost::asio::io_service::strand receiveStrand_;
     boost::asio::io_service::strand sendStrand_;
@@ -57,6 +59,9 @@ private:
     ChannelReceivePromiseQueue channelReceivePromiseQueue_;
     ChannelReceiveMessageQueue channelReceiveMessageQueue_;
     ChannelSendQueue channelSendPromiseQueue_;
+
+    int currentPromiseIndex_;
+    int currentMessageIndex_;
 };
 
 }
