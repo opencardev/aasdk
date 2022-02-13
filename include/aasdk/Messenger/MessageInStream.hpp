@@ -37,8 +37,7 @@ class MessageInStream: public IMessageInStream, public std::enable_shared_from_t
 public:
     MessageInStream(boost::asio::io_service& ioService, transport::ITransport::Pointer transport, ICryptor::Pointer cryptor);
 
-    void startReceive(ReceivePromise::Pointer promise, ChannelId channelId, int promiseIndex, int messageIndex) override;
-    void setInterleavedHandler(ReceivePromise::Pointer promise) override;
+    void startReceive(ReceivePromise::Pointer promise) override;
 
 private:
     using std::enable_shared_from_this<MessageInStream>::shared_from_this;
@@ -59,9 +58,7 @@ private:
     std::map<messenger::ChannelId, Message::Pointer> messageBuffer_;
 
     int frameSize_;
-    bool isInterleaved_;
     bool isValidFrame_;
-    int currentMessageIndex_;
 };
 
 }

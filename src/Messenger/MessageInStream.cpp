@@ -31,13 +31,11 @@ MessageInStream::MessageInStream(boost::asio::io_service& ioService, transport::
     , transport_(std::move(transport))
     , cryptor_(std::move(cryptor))
 {
-    currentMessageIndex_ = 0;
+
 }
 
-void MessageInStream::startReceive(ReceivePromise::Pointer promise, ChannelId channelId, int promiseIndex, int messageIndex)
+void MessageInStream::startReceive(ReceivePromise::Pointer promise)
 {
-    AASDK_LOG(debug) << "[MessageInStream] 1. Start Receive called with channel " << channelIdToString(channelId) << " PI " << std::to_string(promiseIndex) << " MI " << std::to_string(messageIndex);
-
     strand_.dispatch([this, self = this->shared_from_this(), promise = std::move(promise)]() mutable {
         if (promise_ == nullptr) {
             promise_ = std::move(promise);
@@ -47,68 +45,47 @@ void MessageInStream::startReceive(ReceivePromise::Pointer promise, ChannelId ch
                         this->receiveFrameHeaderHandler(common::DataConstBuffer(data));
                     },
                     [this, self = this->shared_from_this()](const error::Error &e) mutable {
-                        AASDK_LOG(debug) << "[MessageInStream] 2. Error Here?";
                         promise_->reject(e);
                         promise_.reset();
                     });
 
             transport_->receive(FrameHeader::getSizeOf(), std::move(transportPromise));
         } else {
-            AASDK_LOG(debug) << "[MessageInStream] 3. Operation in Progress.";
             promise->reject(error::Error(error::ErrorCode::OPERATION_IN_PROGRESS));
         }
     });
-}
-
-void MessageInStream::setInterleavedHandler(ReceivePromise::Pointer promise)
-{
-    interleavedPromise_ = std::move(promise);
 }
 
 void MessageInStream::receiveFrameHeaderHandler(const common::DataConstBuffer& buffer)
 {
     FrameHeader frameHeader(buffer);
 
-    AASDK_LOG(debug) << "[MessageInStream] 5. Processing Frame Header: Ch " << channelIdToString(frameHeader.getChannelId()) << " Fr " << frameTypeToString(frameHeader.getType());
+    AASDK_LOG(debug) << "[MessageInStream] Processing Frame Header: Ch " << channelIdToString(frameHeader.getChannelId()) << " Fr " << frameTypeToString(frameHeader.getType());
 
     isValidFrame_ = true;
-    isInterleaved_ = false;
 
-    // New Promise or Interleaved
-    if(message_ != nullptr && message_->getChannelId() != frameHeader.getChannelId()) {
-        // We have an existing message but the channels don't match...
-        AASDK_LOG(debug) << "[MessageInStream] 6. Interleaved ChannelId MisMatch - F: " << channelIdToString(frameHeader.getChannelId()) << " M: " << channelIdToString(message_->getChannelId());
+    auto bufferedMessage = messageBuffer_.find(frameHeader.getChannelId());
+    if (bufferedMessage != messageBuffer_.end()) {
+        // We have found a message...
+        message_ = std::move(bufferedMessage->second);
+        messageBuffer_.erase(bufferedMessage);
 
-        isInterleaved_ = true;
+        AASDK_LOG(debug) << "[MessageInStream] Found existing message.";
 
-        // Store message in buffer;
-        messageBuffer_[message_->getChannelId()] = message_;
-        message_.reset();
-    }
-
-    // Look for Buffered Message
-    if ((message_ == nullptr) && (frameHeader.getType() == FrameType::MIDDLE || frameHeader.getType() == FrameType::LAST)) {
-        AASDK_LOG(debug) << "[MessageInStream] 7. Null Message but Middle or Last Frame.";
-        auto bufferedMessage = messageBuffer_.find(frameHeader.getChannelId());
-        if (bufferedMessage != messageBuffer_.end()) {
-            AASDK_LOG(debug) << "[MessageInStream] 8. Found Existing Message on Channel.";
-
-            message_ = bufferedMessage->second;
-            messageBuffer_.erase(bufferedMessage);
-
-            isInterleaved_ = false;
-        }
-    }
-
-    if (message_ == nullptr) {
         if (frameHeader.getType() == FrameType::FIRST || frameHeader.getType() == FrameType::BULK) {
-            AASDK_LOG(debug) << "[MessageInStream] 11. New message created with Index " << std::to_string(currentMessageIndex_);
-            currentMessageIndex_++;
-        } else {
-            // This will be an invalid message, but we still need to read from the buffer.
+            // If it's first or bulk, we need to override the message anyhow, so we will start again.
+            // Need to start a new message anyhow
+            message_ = std::make_shared<Message>(frameHeader.getChannelId(), frameHeader.getEncryptionType(), frameHeader.getMessageType());
+        }
+    } else {
+        AASDK_LOG(debug) << "[MessageInStream] Could not find existing message.";
+        // No Message Found in Buffers and this is a middle or last frame, this an error.
+        // Still need to process the frame, but we will not resolve at the end.
+        message_ = std::make_shared<Message>(frameHeader.getChannelId(), frameHeader.getEncryptionType(), frameHeader.getMessageType());
+        if (frameHeader.getType() == FrameType::MIDDLE || frameHeader.getType() == FrameType::LAST) {
+            // This is an error
             isValidFrame_ = false;
         }
-        message_ = std::make_shared<Message>(frameHeader.getChannelId(), frameHeader.getEncryptionType(), frameHeader.getMessageType());
     }
 
     thisFrameType_ = frameHeader.getType();
@@ -172,17 +149,15 @@ void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer& 
     // If this is the LAST frame or a BULK frame...
     if((thisFrameType_ == FrameType::BULK || thisFrameType_ == FrameType::LAST) && isValidFrame_)
     {
-        if (!isInterleaved_) {
-            AASDK_LOG(debug) << "[MessageInStream] 12. Resolving Normal message. " << std::to_string(currentMessageIndex_);
-            promise_->resolve(std::move(message_));
-            promise_.reset();
-            isResolved = true;
-        } else {
-            AASDK_LOG(debug) << "[MessageInStream] 13. Resolving Interleaved Message. " << std::to_string(currentMessageIndex_);
-            interleavedPromise_->resolve(std::move(message_));
-        }
+        AASDK_LOG(debug) << "[MessageInStream] Resolving message.";
+        promise_->resolve(std::move(message_));
+        promise_.reset();
+        isResolved = true;
+
         currentMessageIndex_--;
-        message_.reset();
+    } else {
+        // First or Middle message, we'll store in our buffer...
+        messageBuffer_[message_->getChannelId()] = std::move(message_);
     }
 
     // If the main promise isn't resolved, then carry on retrieving frame headers.
