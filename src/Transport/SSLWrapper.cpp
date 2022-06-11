@@ -41,9 +41,9 @@ SSLWrapper::SSLWrapper()
 SSLWrapper::~SSLWrapper()
 {
 #if OPENSSL_VERSION_NUMBER >= 0x30000000L
-	EVP_default_properties_enable_fips(nullptr, 0);
+    EVP_default_properties_enable_fips(nullptr, 0);
 #else
-	FIPS_mode_set(0);
+    FIPS_mode_set(0);
 #endif
     ENGINE_cleanup();
     CONF_modules_unload(1);
