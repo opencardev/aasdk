@@ -154,7 +154,7 @@ void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer& 
         promise_.reset();
         isResolved = true;
 
-        currentMessageIndex_--;
+        //currentMessageIndex_--;
     } else {
         // First or Middle message, we'll store in our buffer...
         messageBuffer_[message_->getChannelId()] = std::move(message_);
