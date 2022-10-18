@@ -22,5 +22,5 @@ package aasdk.proto.messages;
 
 message PingRequest
 {
-    required int64 timestamp = 1;
+    optional int64 timestamp = 1;
 }
