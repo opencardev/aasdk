@@ -1,0 +1,42 @@
+/*
+*  This file is part of aasdk library project.
+*  Copyright (C) 2018 f1x.studio (Michal Szwaj)
+*
+*  aasdk is free software: you can redistribute it and/or modify
+*  it under the terms of the GNU General Public License as published by
+*  the Free Software Foundation; either version 3 of the License, or
+*  (at your option) any later version.
+
+*  aasdk is distributed in the hope that it will be useful,
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*  GNU General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
+*/
+
+syntax = "proto2";
+
+package aasdk.proto.messages;
+
+message WifiInfoResponse {
+    optional string ip_address = 1;
+    optional uint32 port = 2;
+    required Status status = 3;
+
+    enum Status {
+        STATUS_UNSOLICITED_MESSAGE = 1;
+        STATUS_SUCCESS = 0;
+        STATUS_NO_COMPATIBLE_VERSION = -1;
+        STATUS_WIFI_INACCESSIBLE_CHANNEL = -2;
+        STATUS_WIFI_INCORRECT_CREDENTIALS = -3;
+        STATUS_PROJECTION_ALREADY_STARTED = -4;
+        STATUS_WIFI_DISABLED = -5;
+        STATUS_WIFI_NOT_YET_STARTED = -6;
+        STATUS_INVALID_HOST = -7;
+        STATUS_NO_SUPPORTED_WIFI_CHANNELS = -8;
+        STATUS_INSTRUCT_USER_TO_CHECK_THE_PHONE = -9;
+        STATUS_PHONE_WIFI_DISABLED = -10;
+    }
+} 

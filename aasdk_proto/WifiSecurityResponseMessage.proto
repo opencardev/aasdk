@@ -1,0 +1,47 @@
+/*
+*  This file is part of aasdk library project.
+*  Copyright (C) 2018 f1x.studio (Michal Szwaj)
+*
+*  aasdk is free software: you can redistribute it and/or modify
+*  it under the terms of the GNU General Public License as published by
+*  the Free Software Foundation; either version 3 of the License, or
+*  (at your option) any later version.
+
+*  aasdk is distributed in the hope that it will be useful,
+*  but WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+*  GNU General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
+*/
+
+syntax = "proto2";
+
+package aasdk.proto.messages;
+
+message WifiSecurityReponse {
+    required string ssid = 1; //mo15384a
+    required string key = 2; //mo15385b
+    required string bssid = 3; //mo15386c
+    required SecurityMode security_mode = 4;
+    required AccessPointType access_point_type = 5;
+
+    enum SecurityMode {
+        UNKNOWN_SECURITY_MODE = 0;
+        OPEN = 1;
+        WEP_64 = 2;
+        WEP_128 = 3;
+        WPA_PERSONAL = 4;
+        WPA2_PERSONAL = 8;
+        WPA_WPA2_PERSONAL = 12;
+        WPA_ENTERPRISE = 20;
+        WPA2_ENTERPRISE = 24;
+        WPA_WPA2_ENTERPRISE = 28;
+    }
+
+    enum AccessPointType {
+        STATIC = 0;
+        DYNAMIC = 1;
+    }
+} 
