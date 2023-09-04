@@ -29,7 +29,7 @@ set(base_directory ${CMAKE_CURRENT_SOURCE_DIR})
 set(sources_directory ${base_directory}/src)
 
 set(include_directory ${base_directory}/include)
-set(include_ut_directory ${base_directory}/include_ut)
+set(include_ut_directory ${base_directory}/unit_test)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${base_directory}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${base_directory}/lib)
