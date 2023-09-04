@@ -30,6 +30,7 @@ namespace ut
 {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::SaveArg;
 
 class TCPEndpointUnitTest

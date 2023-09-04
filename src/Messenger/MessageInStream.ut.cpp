@@ -32,6 +32,7 @@ namespace ut
 {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::SaveArg;
 using ::testing::SetArgReferee;
 using ::testing::Return;
@@ -133,7 +134,7 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_ReceiveEncryptedMessage, MessageInStream
     EXPECT_CALL(transportMock_, receive(framePayload.size(), _)).WillOnce(SaveArg<1>(&framePayloadTransportPromise));
 
     common::Data decryptedPayload(500, 0x5F);
-    EXPECT_CALL(cryptorMock_, decrypt(_, _)).WillOnce(DoAll(SetArgReferee<0>(decryptedPayload), Return(decryptedPayload.size())));
+    EXPECT_CALL(cryptorMock_, decrypt(_, _, _)).WillOnce(DoAll(SetArgReferee<0>(decryptedPayload), Return(decryptedPayload.size())));
     frameSizeTransportPromise->resolve(frameSize.getData());
 
     ioService_.run();
@@ -180,7 +181,7 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_MessageDecryptionFailed, MessageInStream
     EXPECT_CALL(transportMock_, receive(framePayload.size(), _)).WillOnce(SaveArg<1>(&framePayloadTransportPromise));
 
     common::Data decryptedPayload(500, 0x5F);
-    EXPECT_CALL(cryptorMock_, decrypt(_, _)).WillOnce(ThrowSSLReadException());
+    EXPECT_CALL(cryptorMock_, decrypt(_, _, _)).WillOnce(ThrowSSLReadException());
     frameSizeTransportPromise->resolve(frameSize.getData());
 
     ioService_.run();

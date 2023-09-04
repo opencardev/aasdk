@@ -33,6 +33,7 @@ namespace ut
 using ::testing::ReturnRef;
 using ::testing::SaveArg;
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::AtLeast;
 
 class TCPTransportUnitTest
