@@ -32,6 +32,7 @@ namespace ut
 {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::SetArgReferee;
 using ::testing::Return;
 using ::testing::SaveArg;

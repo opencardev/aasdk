@@ -31,6 +31,7 @@ namespace ut
 {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::SaveArg;
 using ::testing::NotNull;
 
