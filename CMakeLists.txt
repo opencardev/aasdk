@@ -63,7 +63,7 @@ endif(AASDK_TEST)
 
 add_subdirectory(aasdk_proto)
 
-find_package(Boost REQUIRED COMPONENTS system log OPTIONAL_COMPONENTS unit_test_framework)
+find_package(Boost REQUIRED COMPONENTS system log)
 find_package(libusb-1.0 REQUIRED)
 find_package(Protobuf REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -117,6 +117,8 @@ if(AASDK_TEST)
     add_dependencies(aasdk_ut aasdk)
     target_link_libraries(aasdk_ut
                             aasdk
+                            ${GMOCK_MAIN_LIBRARY_PATH}
+                            ${GTEST_MAIN_LIBRARY_PATH}
                             ${GMOCK_LIBRARY_PATH}
                             ${GTEST_LIBRARY_PATH})
 

@@ -16,7 +16,6 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/UT/USBEndpoint.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryPromiseHandler.mock.hpp>
@@ -35,7 +34,7 @@ using ::testing::DoAll;
 using ::testing::SaveArg;
 using ::testing::NotNull;
 
-class AccessoryModeStartQueryUnitTest
+class AccessoryModeStartQueryUnitTest : public testing::Test
 {
 protected:
     AccessoryModeStartQueryUnitTest()
@@ -58,7 +57,7 @@ protected:
     static constexpr uint32_t ACC_REQ_START = 53;
 };
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeStartQuery_Start, AccessoryModeStartQueryUnitTest)
+TEST_F(AccessoryModeStartQueryUnitTest, AccessoryModeStartQuery_Start)
 {
     common::DataBuffer buffer;
     IUSBEndpoint::Promise::Pointer usbEndpointPromise;
@@ -77,7 +76,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeStartQuery_Start, AccessoryModeStartQueryUn
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeStartQuery_TransferError, AccessoryModeStartQueryUnitTest)
+TEST_F(AccessoryModeStartQueryUnitTest, AccessoryModeStartQuery_TransferError)
 {
     common::DataBuffer buffer;
     IUSBEndpoint::Promise::Pointer usbEndpointPromise;
@@ -97,7 +96,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeStartQuery_TransferError, AccessoryModeStar
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeStartQuery_RejectWhenInProgress, AccessoryModeStartQueryUnitTest)
+TEST_F(AccessoryModeStartQueryUnitTest, AccessoryModeStartQuery_RejectWhenInProgress)
 {
     common::DataBuffer buffer;
     IUSBEndpoint::Promise::Pointer usbEndpointPromise;

@@ -16,7 +16,7 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 #include <aasdk/Transport/UT/Transport.mock.hpp>
 #include <aasdk/Messenger/UT/Cryptor.mock.hpp>
 #include <aasdk/Messenger/UT/SendPromiseHandler.mock.hpp>
@@ -37,7 +37,7 @@ using ::testing::SaveArg;
 using ::testing::SetArgReferee;
 using ::testing::Return;
 
-class MessageOutStreamUnitTest
+class MessageOutStreamUnitTest : public testing::Test
 {
 protected:
     MessageOutStreamUnitTest()
@@ -63,7 +63,7 @@ ACTION(ThrowSSLWriteException)
     throw error::Error(error::ErrorCode::SSL_WRITE, 32);
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageOutStream_SendPlainMessage, MessageOutStreamUnitTest)
+TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendPlainMessage)
 {
     const FrameHeader frameHeader(ChannelId::INPUT, FrameType::BULK, EncryptionType::PLAIN, MessageType::CONTROL);
     const common::Data payload(1000, 0x5E);
@@ -93,7 +93,7 @@ BOOST_FIXTURE_TEST_CASE(MessageOutStream_SendPlainMessage, MessageOutStreamUnitT
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageOutStream_SendEncryptedMessage, MessageOutStreamUnitTest)
+TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendEncryptedMessage)
 {
     const FrameHeader frameHeader(ChannelId::VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
     const common::Data encryptedPayload(2000, 0x5F);
@@ -127,7 +127,7 @@ BOOST_FIXTURE_TEST_CASE(MessageOutStream_SendEncryptedMessage, MessageOutStreamU
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageOutStream_MessageEncryptionFailed, MessageOutStreamUnitTest)
+TEST_F(MessageOutStreamUnitTest, MessageOutStream_MessageEncryptionFailed)
 {
     Message::Pointer message(std::make_shared<Message>(ChannelId::VIDEO, EncryptionType::ENCRYPTED, MessageType::CONTROL));
     const common::Data payload(1000, 0x5E);
@@ -142,7 +142,7 @@ BOOST_FIXTURE_TEST_CASE(MessageOutStream_MessageEncryptionFailed, MessageOutStre
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageOutStream_SendError, MessageOutStreamUnitTest)
+TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendError)
 {
     Message::Pointer message(std::make_shared<Message>(ChannelId::VIDEO, EncryptionType::PLAIN, MessageType::CONTROL));
     const common::Data payload(1000, 0x5E);
@@ -164,7 +164,7 @@ BOOST_FIXTURE_TEST_CASE(MessageOutStream_SendError, MessageOutStreamUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageOutStream_SendSplittedMessage, MessageOutStreamUnitTest)
+TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendSplittedMessage)
 {
     const size_t maxFramePayloadSize = 0x4000;
 

@@ -16,7 +16,7 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 #include <aasdk/TCP/UT/TCPWrapper.mock.hpp>
 #include <aasdk/TCP/UT/TCPEndpointPromiseHandler.mock.hpp>
 #include <aasdk/TCP/TCPEndpoint.hpp>
@@ -33,7 +33,7 @@ using ::testing::_;
 using ::testing::DoAll;
 using ::testing::SaveArg;
 
-class TCPEndpointUnitTest
+class TCPEndpointUnitTest : public testing::Test
 {
 protected:
     TCPEndpointUnitTest()
@@ -51,7 +51,7 @@ protected:
     ITCPEndpoint::Promise::Pointer promise_;
 };
 
-BOOST_FIXTURE_TEST_CASE(TCPEndpoint_Receive, TCPEndpointUnitTest)
+TEST_F(TCPEndpointUnitTest, TCPEndpoint_Receive)
 {
     auto tcpEndpoint = std::make_shared<TCPEndpoint>(tcpWrapperMock_, std::move(socket_));
 
@@ -71,10 +71,10 @@ BOOST_FIXTURE_TEST_CASE(TCPEndpoint_Receive, TCPEndpointUnitTest)
 
     ioService_.run();
 
-    BOOST_CHECK_EQUAL_COLLECTIONS(actualData.begin(), actualData.end(), expectedData.begin(), expectedData.end());
+    EXPECT_THAT(actualData, testing::ContainerEq(expectedData));
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPEndpoint_ReceiveError, TCPEndpointUnitTest)
+TEST_F(TCPEndpointUnitTest, TCPEndpoint_ReceiveError)
 {
     auto tcpEndpoint = std::make_shared<TCPEndpoint>(tcpWrapperMock_, std::move(socket_));
 
@@ -92,7 +92,7 @@ BOOST_FIXTURE_TEST_CASE(TCPEndpoint_ReceiveError, TCPEndpointUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPEndpoint_Send, TCPEndpointUnitTest)
+TEST_F(TCPEndpointUnitTest, TCPEndpoint_Send)
 {
     auto tcpEndpoint = std::make_shared<TCPEndpoint>(tcpWrapperMock_, std::move(socket_));
 
@@ -109,7 +109,7 @@ BOOST_FIXTURE_TEST_CASE(TCPEndpoint_Send, TCPEndpointUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPEndpoint_SendError, TCPEndpointUnitTest)
+TEST_F(TCPEndpointUnitTest, TCPEndpoint_SendError)
 {
     auto tcpEndpoint = std::make_shared<TCPEndpoint>(tcpWrapperMock_, std::move(socket_));
 
