@@ -16,7 +16,6 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/UT/USBEndpoint.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryPromiseHandler.mock.hpp>
@@ -35,7 +34,7 @@ using ::testing::DoAll;
 using ::testing::SaveArg;
 using ::testing::NotNull;
 
-class AccessoryModeSendStringQueryUnitTest
+class AccessoryModeSendStringQueryUnitTest : public testing::Test
 {
 protected:
     AccessoryModeSendStringQueryUnitTest()
@@ -58,7 +57,7 @@ protected:
     static constexpr uint32_t ACC_REQ_SEND_STRING = 52;
 };
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeSendStringQuery_SendString, AccessoryModeSendStringQueryUnitTest)
+TEST_F(AccessoryModeSendStringQueryUnitTest, AccessoryModeSendStringQuery_SendString)
 {
     common::DataBuffer buffer;
     IUSBEndpoint::Promise::Pointer usbEndpointPromise;
@@ -73,9 +72,9 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeSendStringQuery_SendString, AccessoryModeSe
     ioService_.run();
     ioService_.reset();
 
-    BOOST_TEST(buffer.size == expectedQueryString.size() + 1 + 8);
+    EXPECT_TRUE(buffer.size == expectedQueryString.size() + 1 + 8);
     const std::string actualQueryString(buffer.data + 8, buffer.data + buffer.size - 1);
-    BOOST_TEST(actualQueryString == expectedQueryString);
+    EXPECT_TRUE(actualQueryString == expectedQueryString);
 
     usbEndpointPromise->resolve(buffer.size);
 
@@ -84,7 +83,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeSendStringQuery_SendString, AccessoryModeSe
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeSendStringQuery_TransferError, AccessoryModeSendStringQueryUnitTest)
+TEST_F(AccessoryModeSendStringQueryUnitTest, AccessoryModeSendStringQuery_TransferError)
 {
     common::DataBuffer buffer;
     IUSBEndpoint::Promise::Pointer usbEndpointPromise;
@@ -107,7 +106,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeSendStringQuery_TransferError, AccessoryMod
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeSendStringQuery_RejectWhenInProgress, AccessoryModeSendStringQueryUnitTest)
+TEST_F(AccessoryModeSendStringQueryUnitTest, AccessoryModeSendStringQuery_RejectWhenInProgress)
 {
     common::DataBuffer buffer;
     IUSBEndpoint::Promise::Pointer usbEndpointPromise;

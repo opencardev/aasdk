@@ -16,7 +16,7 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 #include <aasdk/Transport/UT/Transport.mock.hpp>
 #include <aasdk/Messenger/UT/Cryptor.mock.hpp>
 #include <aasdk/Messenger/UT/ReceivePromiseHandler.mock.hpp>
@@ -37,7 +37,7 @@ using ::testing::SaveArg;
 using ::testing::SetArgReferee;
 using ::testing::Return;
 
-class MessageInStreamUnitTest
+class MessageInStreamUnitTest : public testing::Test
 {
 protected:
     MessageInStreamUnitTest()
@@ -64,7 +64,7 @@ ACTION(ThrowSSLReadException)
     throw error::Error(error::ErrorCode::SSL_READ, 123);
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_ReceivePlainMessage, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_ReceivePlainMessage)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
@@ -100,15 +100,15 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_ReceivePlainMessage, MessageInStreamUnit
 
     ioService_.run();
 
-    BOOST_CHECK(message->getChannelId() == ChannelId::BLUETOOTH);
-    BOOST_CHECK(message->getEncryptionType() == EncryptionType::PLAIN);
-    BOOST_CHECK(message->getType() == MessageType::SPECIFIC);
+    EXPECT_TRUE(message->getChannelId() == ChannelId::BLUETOOTH);
+    EXPECT_TRUE(message->getEncryptionType() == EncryptionType::PLAIN);
+    EXPECT_TRUE(message->getType() == MessageType::SPECIFIC);
 
     const auto& payload = message->getPayload();
-    BOOST_CHECK_EQUAL_COLLECTIONS(payload.begin(), payload.end(), framePayload.begin(), framePayload.end());
+    EXPECT_THAT(payload, testing::ContainerEq(framePayload));
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_ReceiveEncryptedMessage, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_ReceiveEncryptedMessage)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
@@ -147,15 +147,15 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_ReceiveEncryptedMessage, MessageInStream
 
     ioService_.run();
 
-    BOOST_CHECK(message->getChannelId() == ChannelId::VIDEO);
-    BOOST_CHECK(message->getEncryptionType() == EncryptionType::ENCRYPTED);
-    BOOST_CHECK(message->getType() == MessageType::CONTROL);
+    EXPECT_TRUE(message->getChannelId() == ChannelId::VIDEO);
+    EXPECT_TRUE(message->getEncryptionType() == EncryptionType::ENCRYPTED);
+    EXPECT_TRUE(message->getType() == MessageType::CONTROL);
 
     const auto& payload = message->getPayload();
-    BOOST_CHECK_EQUAL_COLLECTIONS(payload.begin(), payload.end(), decryptedPayload.begin(), decryptedPayload.end());
+    EXPECT_THAT(payload, testing::ContainerEq(decryptedPayload));
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_MessageDecryptionFailed, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_MessageDecryptionFailed)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
@@ -194,7 +194,7 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_MessageDecryptionFailed, MessageInStream
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_FramePayloadReceiveFailed, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_FramePayloadReceiveFailed)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
@@ -231,7 +231,7 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_FramePayloadReceiveFailed, MessageInStre
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_FramePayloadSizeReceiveFailed, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_FramePayloadSizeReceiveFailed)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
@@ -259,7 +259,7 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_FramePayloadSizeReceiveFailed, MessageIn
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_FrameHeaderReceiveFailed, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_FrameHeaderReceiveFailed)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
@@ -280,7 +280,7 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_FrameHeaderReceiveFailed, MessageInStrea
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_ReceiveSplittedMessage, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_ReceiveSplittedMessage)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
     FrameHeader frame1Header(ChannelId::BLUETOOTH, FrameType::FIRST, EncryptionType::PLAIN, MessageType::SPECIFIC);
@@ -342,15 +342,15 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_ReceiveSplittedMessage, MessageInStreamU
 
     ioService_.run();
 
-    BOOST_CHECK(message->getChannelId() == ChannelId::BLUETOOTH);
-    BOOST_CHECK(message->getEncryptionType() == EncryptionType::PLAIN);
-    BOOST_CHECK(message->getType() == MessageType::SPECIFIC);
+    EXPECT_TRUE(message->getChannelId() == ChannelId::BLUETOOTH);
+    EXPECT_TRUE(message->getEncryptionType() == EncryptionType::PLAIN);
+    EXPECT_TRUE(message->getType() == MessageType::SPECIFIC);
 
     const auto& payload = message->getPayload();
-    BOOST_CHECK_EQUAL_COLLECTIONS(payload.begin(), payload.end(), expectedPayload.begin(), expectedPayload.end());
+    EXPECT_THAT(payload, testing::ContainerEq(expectedPayload));
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_IntertwinedChannels, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_IntertwinedChannels)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
     FrameHeader frame1Header(ChannelId::BLUETOOTH, FrameType::FIRST, EncryptionType::PLAIN, MessageType::SPECIFIC);
@@ -395,7 +395,7 @@ BOOST_FIXTURE_TEST_CASE(MessageInStream_IntertwinedChannels, MessageInStreamUnit
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(MessageInStream_RejectWhenInProgress, MessageInStreamUnitTest)
+TEST_F(MessageInStreamUnitTest, MessageInStream_RejectWhenInProgress)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 

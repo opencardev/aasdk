@@ -16,7 +16,6 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
 #include <aasdk/Messenger/UT/MessageInStream.mock.hpp>
 #include <aasdk/Messenger/UT/MessageOutStream.mock.hpp>
 #include <aasdk/Messenger/UT/ReceivePromiseHandler.mock.hpp>
@@ -36,7 +35,7 @@ using ::testing::DoAll;
 using ::testing::SaveArg;
 using ::testing::Return;
 
-class MessengerUnitTest
+class MessengerUnitTest : public testing::Test
 {
 protected:
     MessengerUnitTest()
@@ -63,7 +62,7 @@ protected:
     SendPromise::Pointer sendPromise_;
 };
 
-BOOST_FIXTURE_TEST_CASE(Messenger_Receive, MessengerUnitTest)
+TEST_F(MessengerUnitTest, Messenger_Receive)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
     themessenger->enqueueReceive(ChannelId::MEDIA_AUDIO, std::move(receivePromise_));
@@ -82,7 +81,7 @@ BOOST_FIXTURE_TEST_CASE(Messenger_Receive, MessengerUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(Messenger_DirectReceive, MessengerUnitTest)
+TEST_F(MessengerUnitTest, Messenger_DirectReceive)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
     themessenger->enqueueReceive(ChannelId::MEDIA_AUDIO, std::move(receivePromise_));
@@ -118,7 +117,7 @@ BOOST_FIXTURE_TEST_CASE(Messenger_DirectReceive, MessengerUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(Messenger_OnlyOneReceiveAtATime, MessengerUnitTest)
+TEST_F(MessengerUnitTest, Messenger_OnlyOneReceiveAtATime)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
     themessenger->enqueueReceive(ChannelId::MEDIA_AUDIO, std::move(receivePromise_));
@@ -146,7 +145,7 @@ BOOST_FIXTURE_TEST_CASE(Messenger_OnlyOneReceiveAtATime, MessengerUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(Messenger_Send, MessengerUnitTest)
+TEST_F(MessengerUnitTest, Messenger_Send)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
 
@@ -166,7 +165,7 @@ BOOST_FIXTURE_TEST_CASE(Messenger_Send, MessengerUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(Messenger_OnlyOneSendAtATime, MessengerUnitTest)
+TEST_F(MessengerUnitTest, Messenger_OnlyOneSendAtATime)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
 
@@ -197,7 +196,7 @@ BOOST_FIXTURE_TEST_CASE(Messenger_OnlyOneSendAtATime, MessengerUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(Messenger_SendFailed, MessengerUnitTest)
+TEST_F(MessengerUnitTest, Messenger_SendFailed)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
 

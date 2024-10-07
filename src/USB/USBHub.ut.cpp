@@ -16,7 +16,7 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryChainFactory.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryChain.mock.hpp>
@@ -37,7 +37,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::SetArgReferee;
 
-class USBHubUnitTest
+class USBHubUnitTest : public testing::Test
 {
 protected:
     USBHubUnitTest()
@@ -71,7 +71,7 @@ protected:
     static constexpr uint16_t cAOAPWithAdbId = 0x2D01;
 };
 
-BOOST_FIXTURE_TEST_CASE(USBHub_QueryDevice, USBHubUnitTest)
+TEST_F(USBHubUnitTest, USBHub_QueryDevice)
 {
     void* userData = nullptr;
     EXPECT_CALL(usbWrapperMock_, hotplugRegisterCallback(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_ENUMERATE,
@@ -107,7 +107,7 @@ BOOST_FIXTURE_TEST_CASE(USBHub_QueryDevice, USBHubUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBHub_AOAPDeviceConnected, USBHubUnitTest)
+TEST_F(USBHubUnitTest, USBHub_AOAPDeviceConnected)
 {
     void* userData = nullptr;
     EXPECT_CALL(usbWrapperMock_, hotplugRegisterCallback(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_ENUMERATE,
@@ -138,7 +138,7 @@ BOOST_FIXTURE_TEST_CASE(USBHub_AOAPDeviceConnected, USBHubUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBHub_GetDeviceDescriptorFailed, USBHubUnitTest)
+TEST_F(USBHubUnitTest, USBHub_GetDeviceDescriptorFailed)
 {
     void* userData = nullptr;
     EXPECT_CALL(usbWrapperMock_, hotplugRegisterCallback(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_ENUMERATE,
@@ -165,7 +165,7 @@ BOOST_FIXTURE_TEST_CASE(USBHub_GetDeviceDescriptorFailed, USBHubUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBHub_OpenDeviceFailed, USBHubUnitTest)
+TEST_F(USBHubUnitTest, USBHub_OpenDeviceFailed)
 {
     void* userData = nullptr;
     EXPECT_CALL(usbWrapperMock_, hotplugRegisterCallback(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_ENUMERATE,
@@ -193,7 +193,7 @@ BOOST_FIXTURE_TEST_CASE(USBHub_OpenDeviceFailed, USBHubUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBHub_CancelAllQueryChains, USBHubUnitTest)
+TEST_F(USBHubUnitTest, USBHub_CancelAllQueryChains)
 {
     void* userData = nullptr;
     EXPECT_CALL(usbWrapperMock_, hotplugRegisterCallback(LIBUSB_HOTPLUG_EVENT_DEVICE_ARRIVED, LIBUSB_HOTPLUG_ENUMERATE,

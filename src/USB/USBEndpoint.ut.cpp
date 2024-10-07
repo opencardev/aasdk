@@ -16,7 +16,7 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/UT/USBEndpoint.mock.hpp>
 #include <aasdk/USB/UT/USBEndpointPromiseHandler.mock.hpp>
@@ -36,7 +36,7 @@ using ::testing::DoAll;
 using ::testing::Return;
 using ::testing::SaveArg;
 
-class USBEndpointUnitTest
+class USBEndpointUnitTest : public testing::Test
 {
 protected:
     USBEndpointUnitTest()
@@ -55,7 +55,7 @@ protected:
     IUSBEndpoint::Promise::Pointer promise_;
 };
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_ControlTransferForNonControlEndpoint, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_ControlTransferForNonControlEndpoint)
 {
     common::Data data(10, 0);
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_, 0x01));
@@ -67,7 +67,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_ControlTransferForNonControlEndpoint, USBEnd
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_BulkTransferForControlEndpoint, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_BulkTransferForControlEndpoint)
 {
     common::Data data(10, 0);
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_));
@@ -79,7 +79,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_BulkTransferForControlEndpoint, USBEndpointU
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_InterruptTransferForControlEndpoint, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_InterruptTransferForControlEndpoint)
 {
     common::Data data(10, 0);
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_));
@@ -91,7 +91,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_InterruptTransferForControlEndpoint, USBEndp
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_ControlTransferAllocationFailed, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_ControlTransferAllocationFailed)
 {
     common::Data data(10, 0);
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_));
@@ -104,7 +104,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_ControlTransferAllocationFailed, USBEndpoint
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_BulkTransferAllocationFailed, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_BulkTransferAllocationFailed)
 {
     common::Data data(10, 0);
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_, 0x01));
@@ -117,7 +117,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_BulkTransferAllocationFailed, USBEndpointUni
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_InterruptTransferAllocationFailed, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_InterruptTransferAllocationFailed)
 {
     common::Data data(10, 0);
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_, 0x01));
@@ -130,7 +130,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_InterruptTransferAllocationFailed, USBEndpoi
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_BulkTransfer, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_BulkTransfer)
 {
     const uint8_t endpointAddress = 0x55;
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_, endpointAddress));
@@ -159,7 +159,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_BulkTransfer, USBEndpointUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_MultipleBulkTransfers, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_MultipleBulkTransfers)
 {
     const uint8_t endpointAddress = 0x55;
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_, endpointAddress));
@@ -202,7 +202,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_MultipleBulkTransfers, USBEndpointUnitTest)
     }
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_ControlTransfer, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_ControlTransfer)
 {
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_));
 
@@ -230,7 +230,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_ControlTransfer, USBEndpointUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_InterruptTransfer, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_InterruptTransfer)
 {
     const uint8_t endpointAddress = 0x35;
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_, endpointAddress));
@@ -259,7 +259,7 @@ BOOST_FIXTURE_TEST_CASE(USBEndpoint_InterruptTransfer, USBEndpointUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(USBEndpoint_BulkTransferFailed, USBEndpointUnitTest)
+TEST_F(USBEndpointUnitTest, USBEndpoint_BulkTransferFailed)
 {
     const uint8_t endpointAddress = 0x55;
     USBEndpoint::Pointer usbEndpoint(std::make_shared<USBEndpoint>(usbWrapperMock_, ioService_, deviceHandle_, endpointAddress));

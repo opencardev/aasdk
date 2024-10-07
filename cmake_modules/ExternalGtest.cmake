@@ -1,6 +1,9 @@
 find_package(Threads REQUIRED)
 
 include(ExternalProject)
+if (TARGET_ARCH STREQUAL "armhf")
+    set(GTEST_CMAKE_ARGS "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER};-DCMAKE_CXX_COMPILER=/${CMAKE_CXX_COMPILER}")
+endif()
 ExternalProject_Add(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
@@ -9,6 +12,7 @@ ExternalProject_Add(
   INSTALL_COMMAND ""
   LOG_DOWNLOAD ON
   LOG_CONFIGURE ON
+  CMAKE_ARGS ${GTEST_CMAKE_ARGS}
   LOG_BUILD ON)
 
 ExternalProject_Get_Property(googletest source_dir)
