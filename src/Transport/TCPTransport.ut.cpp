@@ -16,7 +16,7 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 #include <aasdk/TCP/UT/TCPEndpoint.mock.hpp>
 #include <aasdk/Transport/UT/TransportReceivePromiseHandler.mock.hpp>
 #include <aasdk/Transport/UT/TransportSendPromiseHandler.mock.hpp>
@@ -36,7 +36,7 @@ using ::testing::_;
 using ::testing::DoAll;
 using ::testing::AtLeast;
 
-class TCPTransportUnitTest
+class TCPTransportUnitTest : public testing::Test
 {
 protected:
     TCPTransportUnitTest()
@@ -60,7 +60,7 @@ protected:
     tcp::ITCPEndpoint::Pointer tcpEndpoint_;
 };
 
-BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveAtOnce, TCPTransportUnitTest)
+TEST_F(TCPTransportUnitTest, TCPTransport_ReceiveAtOnce)
 {
     const size_t receiveSize = 100;
 
@@ -73,7 +73,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveAtOnce, TCPTransportUnitTest)
     ioService_.run();
     ioService_.reset();
 
-    BOOST_TEST(dataBuffer.size >= receiveSize);
+    EXPECT_TRUE(dataBuffer.size >= receiveSize);
     common::Data expectedData(receiveSize, 0x5E);
     std::copy(expectedData.begin(), expectedData.end(), dataBuffer.data);
 
@@ -83,7 +83,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveAtOnce, TCPTransportUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveInPieces, TCPTransportUnitTest)
+TEST_F(TCPTransportUnitTest, TCPTransport_ReceiveInPieces)
 {
     const size_t stepsCount = 100;
     const size_t receiveSize = 1000 * stepsCount;
@@ -106,7 +106,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveInPieces, TCPTransportUnitTest)
         ioService_.run();
         ioService_.reset();
 
-        BOOST_TEST(dataBuffer.size >= stepSize);
+        EXPECT_TRUE(dataBuffer.size >= stepSize);
 
         std::fill(dataBuffer.data, dataBuffer.data + stepSize, 0x5E);
         tcpEndpointPromise->resolve(stepSize);
@@ -114,7 +114,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveInPieces, TCPTransportUnitTest)
     }
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPTransport_OnlyOneReceiveAtATime, TCPTransportUnitTest)
+TEST_F(TCPTransportUnitTest, TCPTransport_OnlyOneReceiveAtATime)
 {
     const size_t receiveSize = 200;
     const size_t stepSize = receiveSize / 2;
@@ -128,7 +128,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_OnlyOneReceiveAtATime, TCPTransportUnitTest
     ioService_.run();
     ioService_.reset();
 
-    BOOST_TEST(dataBuffer.size >= receiveSize);
+    EXPECT_TRUE(dataBuffer.size >= receiveSize);
     std::fill(dataBuffer.data, dataBuffer.data + stepSize, 0x5E);
     std::fill(dataBuffer.data + stepSize, dataBuffer.data + receiveSize, 0x5F);
 
@@ -153,7 +153,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_OnlyOneReceiveAtATime, TCPTransportUnitTest
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveError, TCPTransportUnitTest)
+TEST_F(TCPTransportUnitTest, TCPTransport_ReceiveError)
 {
     tcp::ITCPEndpoint::Promise::Pointer tcpEndpointPromise;
     EXPECT_CALL(tcpEndpointMock_, receive(_, _)).WillOnce(SaveArg<1>(&tcpEndpointPromise));
@@ -177,7 +177,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_ReceiveError, TCPTransportUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPTransport_Send, TCPTransportUnitTest)
+TEST_F(TCPTransportUnitTest, TCPTransport_Send)
 {
     tcp::ITCPEndpoint::Promise::Pointer tcpEndpointPromise;
     common::DataConstBuffer buffer;
@@ -190,7 +190,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_Send, TCPTransportUnitTest)
     ioService_.reset();
 
     common::Data actualData(buffer.cdata, buffer.cdata + buffer.size);
-    BOOST_CHECK_EQUAL_COLLECTIONS(actualData.begin(), actualData.end(), expectedData.begin(), expectedData.end());
+    EXPECT_THAT(actualData, testing::ContainerEq(expectedData));
 
     EXPECT_CALL(sendPromiseHandlerMock_, onReject(_)).Times(0);
     EXPECT_CALL(sendPromiseHandlerMock_, onResolve());
@@ -198,7 +198,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_Send, TCPTransportUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPTransport_OnlyOneSendAtATime, TCPTransportUnitTest)
+TEST_F(TCPTransportUnitTest, TCPTransport_OnlyOneSendAtATime)
 {
     tcp::ITCPEndpoint::Promise::Pointer tcpEndpointPromise;
     common::DataConstBuffer buffer;
@@ -222,7 +222,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_OnlyOneSendAtATime, TCPTransportUnitTest)
     ioService_.reset();
 
     common::Data actualData1(buffer.cdata, buffer.cdata + buffer.size);
-    BOOST_CHECK_EQUAL_COLLECTIONS(actualData1.begin(), actualData1.end(), expectedData1.begin(), expectedData1.end());
+    EXPECT_THAT(actualData1, testing::ContainerEq(expectedData1));
 
     EXPECT_CALL(sendPromiseHandlerMock_, onReject(_)).Times(0);
     EXPECT_CALL(sendPromiseHandlerMock_, onResolve());
@@ -231,7 +231,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_OnlyOneSendAtATime, TCPTransportUnitTest)
     ioService_.reset();
 
     common::Data actualData2(buffer.cdata, buffer.cdata + buffer.size);
-    BOOST_CHECK_EQUAL_COLLECTIONS(actualData2.begin(), actualData2.end(), expectedData2.begin(), expectedData2.end());
+    EXPECT_THAT(actualData2, testing::ContainerEq(expectedData2));
 
     EXPECT_CALL(secondSendPromiseHandlerMock, onReject(_)).Times(0);
     EXPECT_CALL(secondSendPromiseHandlerMock, onResolve());
@@ -239,7 +239,7 @@ BOOST_FIXTURE_TEST_CASE(TCPTransport_OnlyOneSendAtATime, TCPTransportUnitTest)
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(TCPTransport_SendError, TCPTransportUnitTest)
+TEST_F(TCPTransportUnitTest, TCPTransport_SendError)
 {
     tcp::ITCPEndpoint::Promise::Pointer tcpEndpointPromise;
     EXPECT_CALL(tcpEndpointMock_, send(_, _)).Times(2).WillRepeatedly(SaveArg<1>(&tcpEndpointPromise));

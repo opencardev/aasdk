@@ -16,7 +16,6 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/AOAPDevice.hpp>
 
@@ -28,7 +27,7 @@ namespace usb
 namespace ut
 {
 
-BOOST_AUTO_TEST_CASE(AOAPDevice_OutEndpointFirst)
+TEST(AOAPDevice_UnitTest, AOAPDevice_OutEndpointFirst)
 {
     USBWrapperMock usbWrapperMock;
     boost::asio::io_service ioService;
@@ -46,11 +45,11 @@ BOOST_AUTO_TEST_CASE(AOAPDevice_OutEndpointFirst)
 
     EXPECT_CALL(usbWrapperMock, releaseInterface(deviceHandle, interfaceDescriptor.bInterfaceNumber));
     AOAPDevice aoapDevice(usbWrapperMock, ioService, deviceHandle, &interfaceDescriptor);
-    BOOST_TEST(endpointDescriptor[0].bEndpointAddress == aoapDevice.getOutEndpoint().getAddress());
-    BOOST_TEST(endpointDescriptor[1].bEndpointAddress == aoapDevice.getInEndpoint().getAddress());
+    EXPECT_TRUE(endpointDescriptor[0].bEndpointAddress == aoapDevice.getOutEndpoint().getAddress());
+    EXPECT_TRUE(endpointDescriptor[1].bEndpointAddress == aoapDevice.getInEndpoint().getAddress());
 }
 
-BOOST_AUTO_TEST_CASE(AOAPDevice_InEndpointFirst)
+TEST(AOAPDevice_UnitTest, AOAPDevice_InEndpointFirst)
 {
     USBWrapperMock usbWrapperMock;
     boost::asio::io_service ioService;
@@ -68,8 +67,8 @@ BOOST_AUTO_TEST_CASE(AOAPDevice_InEndpointFirst)
 
     EXPECT_CALL(usbWrapperMock, releaseInterface(deviceHandle, interfaceDescriptor.bInterfaceNumber));
     AOAPDevice aoapDevice(usbWrapperMock, ioService, deviceHandle, &interfaceDescriptor);
-    BOOST_TEST(endpointDescriptor[0].bEndpointAddress == aoapDevice.getInEndpoint().getAddress());
-    BOOST_TEST(endpointDescriptor[1].bEndpointAddress == aoapDevice.getOutEndpoint().getAddress());
+    EXPECT_TRUE(endpointDescriptor[0].bEndpointAddress == aoapDevice.getInEndpoint().getAddress());
+    EXPECT_TRUE(endpointDescriptor[1].bEndpointAddress == aoapDevice.getOutEndpoint().getAddress());
 }
 
 }

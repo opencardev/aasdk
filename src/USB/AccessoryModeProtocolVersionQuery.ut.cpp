@@ -16,7 +16,6 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/UT/USBEndpoint.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryPromiseHandler.mock.hpp>
@@ -35,7 +34,7 @@ using ::testing::DoAll;
 using ::testing::SaveArg;
 using ::testing::NotNull;
 
-class AccessoryModeProtocolVersionQueryUnitTest
+class AccessoryModeProtocolVersionQueryUnitTest : public testing::Test
 {
 protected:
     AccessoryModeProtocolVersionQueryUnitTest()
@@ -78,17 +77,17 @@ protected:
     static constexpr uint32_t ACC_REQ_GET_PROTOCOL = 51;
 };
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeProtocolVersionQuery_ProtcolVersion1, AccessoryModeProtocolVersionQueryUnitTest)
+TEST_F(AccessoryModeProtocolVersionQueryUnitTest, AccessoryModeProtocolVersionQuery_ProtcolVersion1)
 {
     this->scenario_ValidProtocolVersion(1);
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeProtocolVersionQuery_ProtcolVersion2, AccessoryModeProtocolVersionQueryUnitTest)
+TEST_F(AccessoryModeProtocolVersionQueryUnitTest, AccessoryModeProtocolVersionQuery_ProtcolVersion2)
 {
     this->scenario_ValidProtocolVersion(2);
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeProtocolVersionQuery_InvalidProtocolVersion, AccessoryModeProtocolVersionQueryUnitTest)
+TEST_F(AccessoryModeProtocolVersionQueryUnitTest, AccessoryModeProtocolVersionQuery_InvalidProtocolVersion)
 {
     const uint16_t protocolVersion = 3;
 
@@ -110,7 +109,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeProtocolVersionQuery_InvalidProtocolVersion
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeProtocolVersionQuery_TransferError, AccessoryModeProtocolVersionQueryUnitTest)
+TEST_F(AccessoryModeProtocolVersionQueryUnitTest, AccessoryModeProtocolVersionQuery_TransferError)
 {
     const uint16_t protocolVersion = 1;
 
@@ -133,7 +132,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeProtocolVersionQuery_TransferError, Accesso
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeProtocolVersionQuery_RejectWhenInProgress, AccessoryModeProtocolVersionQueryUnitTest)
+TEST_F(AccessoryModeProtocolVersionQueryUnitTest, AccessoryModeProtocolVersionQuery_RejectWhenInProgress)
 {
     const uint16_t protocolVersion = 1;
 

@@ -16,7 +16,6 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryFactory.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryChainPromiseHandler.mock.hpp>
@@ -37,7 +36,7 @@ using ::testing::Return;
 using ::testing::SaveArg;
 using ::testing::NotNull;
 
-class AccessoryModeQueryChainUnitTest
+class AccessoryModeQueryChainUnitTest : public testing::Test
 {
 protected:
     AccessoryModeQueryChainUnitTest()
@@ -59,7 +58,7 @@ protected:
     IAccessoryModeQueryChain::Promise::Pointer promise_;
 };
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_QueryAOAPDevice, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_QueryAOAPDevice)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -113,7 +112,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_QueryAOAPDevice, AccessoryModeQu
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_ProtocolVersionQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_ProtocolVersionQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -134,7 +133,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_ProtocolVersionQueryFailed, Acce
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_ManufacturerQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_ManufacturerQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -160,7 +159,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_ManufacturerQueryFailed, Accesso
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_ModelQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_ModelQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -191,7 +190,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_ModelQueryFailed, AccessoryModeQ
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_DescriptionQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_DescriptionQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -227,7 +226,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_DescriptionQueryFailed, Accessor
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_VersionQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_VersionQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -268,7 +267,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_VersionQueryFailed, AccessoryMod
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_URIQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_URIQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -314,7 +313,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_URIQueryFailed, AccessoryModeQue
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_SerialQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_SerialQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -365,7 +364,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_SerialQueryFailed, AccessoryMode
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_StartQueryFailed, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_StartQueryFailed)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -421,7 +420,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_StartQueryFailed, AccessoryModeQ
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_Cancel, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_Cancel)
 {
     AccessoryModeQueryChain::Pointer queryChain(std::make_shared<AccessoryModeQueryChain>(usbWrapperMock_, ioService_, queryFactoryMock_));
 
@@ -449,7 +448,7 @@ BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_Cancel, AccessoryModeQueryChainU
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(AccessoryModeQueryChain_RejectWhenInProgress, AccessoryModeQueryChainUnitTest)
+TEST_F(AccessoryModeQueryChainUnitTest, AccessoryModeQueryChain_RejectWhenInProgress)
 {
     EXPECT_CALL(*queryMock_, start(_));
     EXPECT_CALL(queryFactoryMock_, createQuery(AccessoryModeQueryType::PROTOCOL_VERSION, _)).WillOnce(Return(queryMock_));

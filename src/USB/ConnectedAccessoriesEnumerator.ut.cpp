@@ -16,7 +16,7 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <boost/test/unit_test.hpp>
+#include <gtest/gtest.h>
 #include <aasdk/USB/UT/USBWrapper.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryChainFactory.mock.hpp>
 #include <aasdk/USB/UT/AccessoryModeQueryChain.mock.hpp>
@@ -37,7 +37,7 @@ using ::testing::SetArgReferee;
 using ::testing::Return;
 using ::testing::SaveArg;
 
-class ConnectedAccessoriesEnumeratorUnitTest
+class ConnectedAccessoriesEnumeratorUnitTest : public testing::Test
 {
 protected:
     ConnectedAccessoriesEnumeratorUnitTest()
@@ -65,7 +65,7 @@ protected:
     IConnectedAccessoriesEnumerator::Promise::Pointer promise_;
 };
 
-BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_FirstDeviceIsAOAPCapables, ConnectedAccessoriesEnumeratorUnitTest)
+TEST_F(ConnectedAccessoriesEnumeratorUnitTest, ConnectedAccessoriesEnumerator_FirstDeviceIsAOAPCapables)
 {
     deviceList_.push_back(reinterpret_cast<libusb_device*>(1));
     EXPECT_CALL(queryChainFactoryMock_, create()).WillOnce(Return(queryChain_));
@@ -87,7 +87,7 @@ BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_FirstDeviceIsAOAPCapables
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_SecondDeviceIsAOAPCapable, ConnectedAccessoriesEnumeratorUnitTest)
+TEST_F(ConnectedAccessoriesEnumeratorUnitTest, ConnectedAccessoriesEnumerator_SecondDeviceIsAOAPCapable)
 {
     deviceList_.push_back(reinterpret_cast<libusb_device*>(1));
     deviceList_.push_back(reinterpret_cast<libusb_device*>(2));
@@ -124,7 +124,7 @@ BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_SecondDeviceIsAOAPCapable
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_NoAOAPCapableDevice, ConnectedAccessoriesEnumeratorUnitTest)
+TEST_F(ConnectedAccessoriesEnumeratorUnitTest, ConnectedAccessoriesEnumerator_NoAOAPCapableDevice)
 {
     for(size_t i = 1; i < 1000; ++i)
     {
@@ -158,7 +158,7 @@ BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_NoAOAPCapableDevice, Conn
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_GetDeviceListFailed, ConnectedAccessoriesEnumeratorUnitTest)
+TEST_F(ConnectedAccessoriesEnumeratorUnitTest, ConnectedAccessoriesEnumerator_GetDeviceListFailed)
 {
     EXPECT_CALL(usbWrapperMock_, getDeviceList(_)).WillOnce(DoAll(SetArgReferee<0>(deviceListHandle_), Return(-1)));
     EXPECT_CALL(promiseHandlerMock_, onResolve(_)).Times(0);
@@ -170,7 +170,7 @@ BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_GetDeviceListFailed, Conn
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_EmptyDevicesList, ConnectedAccessoriesEnumeratorUnitTest)
+TEST_F(ConnectedAccessoriesEnumeratorUnitTest, ConnectedAccessoriesEnumerator_EmptyDevicesList)
 {
     EXPECT_CALL(usbWrapperMock_, getDeviceList(_)).WillOnce(DoAll(SetArgReferee<0>(deviceListHandle_), Return(0)));
     EXPECT_CALL(promiseHandlerMock_, onResolve(false));
@@ -182,7 +182,7 @@ BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_EmptyDevicesList, Connect
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_OpenDeviceFailed, ConnectedAccessoriesEnumeratorUnitTest)
+TEST_F(ConnectedAccessoriesEnumeratorUnitTest, ConnectedAccessoriesEnumerator_OpenDeviceFailed)
 {
     for(size_t i = 1; i < 1000; ++i)
     {
@@ -205,7 +205,7 @@ BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_OpenDeviceFailed, Connect
     ioService_.run();
 }
 
-BOOST_FIXTURE_TEST_CASE(ConnectedAccessoriesEnumerator_CancelEnumeration, ConnectedAccessoriesEnumeratorUnitTest)
+TEST_F(ConnectedAccessoriesEnumeratorUnitTest, ConnectedAccessoriesEnumerator_CancelEnumeration)
 {
     deviceList_.push_back(reinterpret_cast<libusb_device*>(1));
     EXPECT_CALL(queryChainFactoryMock_, create()).WillOnce(Return(queryChain_));
