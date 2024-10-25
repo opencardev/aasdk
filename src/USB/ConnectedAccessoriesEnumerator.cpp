@@ -18,6 +18,8 @@
 
 #include <aasdk/USB/ConnectedAccessoriesEnumerator.hpp>
 
+#include "aasdk/Common/Log.hpp"
+
 
 namespace aasdk
 {
@@ -44,6 +46,7 @@ void ConnectedAccessoriesEnumerator::enumerate(Promise::Pointer promise)
             promise_ = std::move(promise);
 
             auto result = usbWrapper_.getDeviceList(deviceListHandle_);
+            AASDK_LOG(debug) << "[ConnectedAccessoriesEnumerator::enumerate] Get Device List Result " << result;
 
             if(result < 0)
             {
