@@ -18,30 +18,30 @@
 
 #pragma once
 
-#include <string>
+#include <aasdk_proto/ChannelOpenRequestMessage.pb.h>
+#include <aasdk/Error/Error.hpp>
 
 
 namespace aasdk
 {
-namespace messenger
+namespace channel
+{
+namespace wifi
 {
 
-enum class ChannelId
+class IWIFIServiceChannelEventHandler
 {
-    CONTROL,
-    INPUT,
-    SENSOR,
-    VIDEO,
-    MEDIA_AUDIO,
-    SPEECH_AUDIO,
-    SYSTEM_AUDIO,
-    AV_INPUT,
-    BLUETOOTH,
-    WIFI = 14,
-    NONE = 255
+public:
+    typedef std::shared_ptr<IWIFIServiceChannelEventHandler> Pointer;
+
+    IWIFIServiceChannelEventHandler() = default;
+    virtual ~IWIFIServiceChannelEventHandler() = default;
+
+    virtual void onChannelOpenRequest(const proto::messages::ChannelOpenRequest& request) = 0;
+    virtual void onChannelError(const error::Error& e) = 0;
+    virtual void onWifiSecurityRequest() = 0;
 };
 
-std::string channelIdToString(ChannelId channelId);
-
+}
 }
 }

@@ -25,4 +25,5 @@ make -j4
 cpack --config CPackConfig.cmake
 
 # Move it to release
+rm /release/*.deb
 mv *.deb /release/
