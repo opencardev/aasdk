@@ -40,8 +40,12 @@ message ChannelDescriptor
     optional InputChannel input_channel = 4;
     optional AVInputChannel av_input_channel = 5;
     optional BluetoothChannel bluetooth_channel = 6;
+    // optional RadioChannel radio_channel = 7;
     optional NavigationChannel navigation_channel = 8;
     optional MediaInfoChannel media_infoChannel = 9;
+    // optional PhoneStatusChannel phone_status_channel = 10;
+    // optional MediaBrowserChannel media_browser_channel = 11;
     optional VendorExtensionChannel vendor_extension_channel = 12;
-    optional WifiChannel wifi_channel=16;
+    // optional GenericNotificationChannel generic_notification_channel = 13;
+    optional WifiChannel wifi_channel = 14;
 }

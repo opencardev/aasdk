@@ -16,32 +16,10 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
+syntax = "proto2";
 
-#include <string>
+package aasdk.proto.messages;
 
+message WifiSecurityRequest {
 
-namespace aasdk
-{
-namespace messenger
-{
-
-enum class ChannelId
-{
-    CONTROL,
-    INPUT,
-    SENSOR,
-    VIDEO,
-    MEDIA_AUDIO,
-    SPEECH_AUDIO,
-    SYSTEM_AUDIO,
-    AV_INPUT,
-    BLUETOOTH,
-    WIFI = 14,
-    NONE = 255
-};
-
-std::string channelIdToString(ChannelId channelId);
-
-}
 }

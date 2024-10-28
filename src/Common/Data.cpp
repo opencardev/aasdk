@@ -138,8 +138,13 @@ std::string dump(const DataConstBuffer& buffer)
     }
     else
     {
+        auto data = createData(buffer);
         std::string hexDump = "[" + std::to_string(buffer.size) + "] ";
-        //boost::algorithm::hex(bufferBegin(buffer), bufferEnd(buffer), back_inserter(hexDump));
+        boost::algorithm::hex(data.begin(), data.end(), back_inserter(hexDump));
+        if (hexDump.length() > 500) {
+            hexDump = hexDump.substr(0, 500);
+            hexDump += "<trunc>";
+        }
         return hexDump;
     }
 }

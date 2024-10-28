@@ -1,0 +1,8 @@
+services:
+  aasdk-build:
+    build:
+      context: ../
+      dockerfile: buildenv/Dockerfile
+    volumes:
+      - ./release/:/release/
+    entrypoint: "/entrypoint.sh armhf"
