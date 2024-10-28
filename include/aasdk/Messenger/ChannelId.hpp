@@ -37,6 +37,7 @@ enum class ChannelId
     SYSTEM_AUDIO,
     AV_INPUT,
     BLUETOOTH,
+    WIFI = 14,
     NAVIGATION,
     MEDIA_STATUS,
     NONE = 255

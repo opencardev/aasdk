@@ -18,14 +18,14 @@
 
 syntax="proto2";
 
-package aasdk.proto.enums;
+package aasdk.proto.ids;
 
-message VideoFPS
+message WifiChannelMessage
 {
-    enum Enum
-    {
-        NONE = 0;
-        _60 = 1;
-        _30 = 2;
-    }
+  enum Enum
+  {
+    NONE = 0x0000;
+    CREDENTIALS_REQUEST = 0x8001;
+    CREDENTIALS_RESPONSE = 0x8002;
+  }
 }

@@ -16,16 +16,10 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-syntax="proto2";
+syntax = "proto2";
 
-package aasdk.proto.enums;
+package aasdk.proto.messages;
 
-message VideoFPS
-{
-    enum Enum
-    {
-        NONE = 0;
-        _60 = 1;
-        _30 = 2;
-    }
+message WifiSecurityRequest {
+
 }

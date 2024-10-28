@@ -16,16 +16,32 @@
 *  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 */
 
-syntax="proto2";
+#pragma once
 
-package aasdk.proto.enums;
+#include <aasdk_proto/ChannelOpenRequestMessage.pb.h>
+#include <aasdk/Error/Error.hpp>
 
-message VideoFPS
+
+namespace aasdk
 {
-    enum Enum
-    {
-        NONE = 0;
-        _60 = 1;
-        _30 = 2;
-    }
+namespace channel
+{
+namespace wifi
+{
+
+class IWIFIServiceChannelEventHandler
+{
+public:
+    typedef std::shared_ptr<IWIFIServiceChannelEventHandler> Pointer;
+
+    IWIFIServiceChannelEventHandler() = default;
+    virtual ~IWIFIServiceChannelEventHandler() = default;
+
+    virtual void onChannelOpenRequest(const proto::messages::ChannelOpenRequest& request) = 0;
+    virtual void onChannelError(const error::Error& e) = 0;
+    virtual void onWifiSecurityRequest() = 0;
+};
+
+}
+}
 }

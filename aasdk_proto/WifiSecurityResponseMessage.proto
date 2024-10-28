@@ -20,12 +20,12 @@ syntax = "proto2";
 
 package aasdk.proto.messages;
 
-message WifiSecurityReponse {
-    required string ssid = 1; //mo15384a
-    required string key = 2; //mo15385b
-    required string bssid = 3; //mo15386c
-    required SecurityMode security_mode = 4;
-    required AccessPointType access_point_type = 5;
+message WifiSecurityResponse {
+    optional string key = 1;
+    optional SecurityMode security_mode = 2;
+    optional string ssid = 3;
+    repeated int32 supported_wifi_channels = 4;
+    optional AccessPointType access_point_type = 5;
 
     enum SecurityMode {
         UNKNOWN_SECURITY_MODE = 0;
