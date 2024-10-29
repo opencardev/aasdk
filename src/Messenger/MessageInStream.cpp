@@ -59,8 +59,8 @@ void MessageInStream::startReceive(ReceivePromise::Pointer promise)
 void MessageInStream::receiveFrameHeaderHandler(const common::DataConstBuffer& buffer)
 {
     FrameHeader frameHeader(buffer);
-    DEBUG_LOG(debug) << "[MessageInStream] Processing Frame Header: Ch " << channelIdToString(frameHeader.getChannelId()) << " Fr " << frameTypeToString(frameHeader.getType());
-    DEBUG_LOG(debug) << "[MessageInStream] [receiveFrameHeaderHandler] Debug message: " << common::dump(frameHeader.getData());
+    AASDK_LOG(debug) << "[MessageInStream] Processing Frame Header: Ch " << channelIdToString(frameHeader.getChannelId()) << " Fr " << frameTypeToString(frameHeader.getType());
+    AASDK_LOG(debug) << "[MessageInStream] [receiveFrameHeaderHandler] Debug message: " << common::dump(frameHeader.getData());
     isValidFrame_ = true;
 
     auto bufferedMessage = messageBuffer_.find(frameHeader.getChannelId());
@@ -69,7 +69,7 @@ void MessageInStream::receiveFrameHeaderHandler(const common::DataConstBuffer& b
         message_ = std::move(bufferedMessage->second);
         messageBuffer_.erase(bufferedMessage);
 
-        DEBUG_LOG(debug) << "[MessageInStream] Found existing message.";
+        AASDK_LOG(debug) << "[MessageInStream] Found existing message.";
 
         if (frameHeader.getType() == FrameType::FIRST || frameHeader.getType() == FrameType::BULK) {
             // If it's first or bulk, we need to override the message anyhow, so we will start again.
@@ -77,7 +77,7 @@ void MessageInStream::receiveFrameHeaderHandler(const common::DataConstBuffer& b
             message_ = std::make_shared<Message>(frameHeader.getChannelId(), frameHeader.getEncryptionType(), frameHeader.getMessageType());
         }
     } else {
-        DEBUG_LOG(debug) << "[MessageInStream] Could not find existing message.";
+        AASDK_LOG(debug) << "[MessageInStream] Could not find existing message.";
         // No Message Found in Buffers and this is a middle or last frame, this an error.
         // Still need to process the frame, but we will not resolve at the end.
         message_ = std::make_shared<Message>(frameHeader.getChannelId(), frameHeader.getEncryptionType(), frameHeader.getMessageType());
@@ -119,7 +119,7 @@ void MessageInStream::receiveFrameSizeHandler(const common::DataConstBuffer& buf
 
     FrameSize frameSize(buffer);
     frameSize_ = (int) frameSize.getFrameSize();
-    DEBUG_LOG(debug) << "[MessageInStream] [receiveFrameSizeHandler] Frame Size: " << common::dump(frameSize.getData());
+    AASDK_LOG(debug) << "[MessageInStream] [receiveFrameSizeHandler] Frame Size: " << common::dump(frameSize.getData());
 
     transport_->receive(frameSize.getFrameSize(), std::move(transportPromise));
 }
@@ -150,8 +150,8 @@ void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer& 
     // If this is the LAST frame or a BULK frame...
     if((thisFrameType_ == FrameType::BULK || thisFrameType_ == FrameType::LAST) && isValidFrame_)
     {
-        DEBUG_LOG(debug) << "[MessageInStream] Resolving message.";
-        DEBUG_LOG(debug) << "[MessageInStream] [receivePayloadHandler] Message Payload: " << common::dump(message_->getPayload());
+        AASDK_LOG(debug) << "[MessageInStream] Resolving message.";
+        AASDK_LOG(debug) << "[MessageInStream] [receivePayloadHandler] Message Payload: " << common::dump(message_->getPayload());
         promise_->resolve(std::move(message_));
         promise_.reset();
         isResolved = true;
