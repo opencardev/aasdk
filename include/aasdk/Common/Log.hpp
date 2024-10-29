@@ -21,9 +21,3 @@
 #include <boost/log/trivial.hpp>
 
 #define AASDK_LOG(severity) BOOST_LOG_TRIVIAL(severity) << "[AaSdk] "
-
-#ifndef NDEBUG
-#define DEBUG_LOG(severity) AASDK_LOG(severity)
-#else
-#define DEBUG_LOG(severity) do {} while(0)
-#endif
