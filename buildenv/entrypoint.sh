@@ -18,6 +18,8 @@ fi
 echo "Now building within docker for $ARCH"
 
 # Clear out the /build directory
+rm -f bin/*
+rm -f lib/*
 mkdir build;
 cd build;
 cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_ARCH=$ARCH ../
@@ -25,5 +27,8 @@ make -j4
 cpack --config CPackConfig.cmake
 
 # Move it to release
-rm /release/*.deb
+rm -f /release/*.deb
+rm -f /release/*.so*
 mv *.deb /release/
+cd ..
+mv lib/*.so* /release
