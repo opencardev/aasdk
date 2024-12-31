@@ -18,14 +18,15 @@
 
 syntax="proto2";
 
-import "NavigationTurnTypeEnum.proto";
-import "NavigationImageOptionsData.proto";
+import "DistanceUnitEnum.proto";
 
-package aasdk.proto.data;
+package aasdk.proto.messages;
 
-message NavigationChannel
+message NavigationDistanceEvent
 {
-    required uint32 minimum_interval_ms = 1;
-    required enums.NavigationTurnType.Enum type = 2;
-    required NavigationImageOptions image_options = 3;
+    required uint32 meters = 1;
+    required uint32 timeToStepSeconds = 2;
+    required uint32 distanceToStepMillis = 3;
+    required enums.DistanceUnit.Enum distanceUnit = 4;
+
 }

@@ -18,14 +18,22 @@
 
 syntax="proto2";
 
-import "NavigationTurnTypeEnum.proto";
-import "NavigationImageOptionsData.proto";
+package aasdk.proto.messages;
 
-package aasdk.proto.data;
-
-message NavigationChannel
+message MediaInfoChannelPlaybackData
 {
-    required uint32 minimum_interval_ms = 1;
-    required enums.NavigationTurnType.Enum type = 2;
-    required NavigationImageOptions image_options = 3;
+    enum PlaybackState
+    {
+        NONE = 0x0000;
+        TRACK_CHANGE = 1;
+        PLAY = 2;
+        PAUSE = 3;
+    }
+    required PlaybackState playback_state = 1;
+    required string media_source = 2;
+    required int32 track_progress = 3;
+    required int32 unknown1 = 4;
+    required int32 unknown2 = 5;
+    required int32 unknown3 = 6;
+
 }

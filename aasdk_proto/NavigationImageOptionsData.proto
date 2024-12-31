@@ -25,4 +25,5 @@ message NavigationImageOptions
     required int32 width = 1;
     required int32 height = 2;
     required int32 colour_depth_bits = 3;
+    required int32 dunno = 4;
 }

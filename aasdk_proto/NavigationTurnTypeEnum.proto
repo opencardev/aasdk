@@ -18,14 +18,14 @@
 
 syntax="proto2";
 
-import "NavigationTurnTypeEnum.proto";
-import "NavigationImageOptionsData.proto";
+package aasdk.proto.enums;
 
-package aasdk.proto.data;
-
-message NavigationChannel
+message NavigationTurnType
 {
-    required uint32 minimum_interval_ms = 1;
-    required enums.NavigationTurnType.Enum type = 2;
-    required NavigationImageOptions image_options = 3;
+    enum Enum
+    {
+        UNKNOWN = 0;
+        IMAGE = 1;
+        ENUM = 2;
+    }
 }

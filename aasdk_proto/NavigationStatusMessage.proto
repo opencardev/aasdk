@@ -18,14 +18,16 @@
 
 syntax="proto2";
 
-import "NavigationTurnTypeEnum.proto";
-import "NavigationImageOptionsData.proto";
+package aasdk.proto.messages;
 
-package aasdk.proto.data;
-
-message NavigationChannel
+message NavigationStatus
 {
-    required uint32 minimum_interval_ms = 1;
-    required enums.NavigationTurnType.Enum type = 2;
-    required NavigationImageOptions image_options = 3;
+    required Enum status = 1;
+    enum Enum
+    {
+        UNAVAILABLE = 0;
+        ACTIVE = 1;
+        INACTIVE = 2;
+        REROUTING = 3;
+    }
 }

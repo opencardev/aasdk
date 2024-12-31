@@ -48,6 +48,8 @@ std::string channelIdToString(ChannelId channelId)
         return "BLUETOOTH";
     case ChannelId::WIFI:
         return "WIFI";
+    case ChannelId::NAVIGATION:
+        return "NAVIGATION";
     case ChannelId::NONE:
         return "NONE";
     default:
