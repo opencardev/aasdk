@@ -106,8 +106,6 @@ set_target_properties(aasdk PROPERTIES VERSION ${aasdk_VERSION_STRING}
 
 install(TARGETS aasdk DESTINATION lib COMPONENT libraries)
 install(DIRECTORY include/aasdk DESTINATION include COMPONENT headers)
-install(TARGETS aasdk DESTINATION lib COMPONENT libraries)
-install(DIRECTORY include/aasdk DESTINATION include COMPONENT headers)
 
 if(AASDK_TEST)
     add_executable(aasdk_ut
