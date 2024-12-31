@@ -4,6 +4,8 @@
 
 # https://bugs.debian.org/cgi-bin/pkgreport.cgi?package=libboost-log-dev
 
+apt-get update
+
 apt-get -y install --download-only libboost-log-dev:amd64 libboost-log1.67.0:amd64 libboost-log1.67-dev:amd64
 apt-get -y install --download-only libboost-log-dev:armhf libboost-log1.67.0:armhf libboost-log1.67-dev:armhf
 
