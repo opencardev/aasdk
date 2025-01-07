@@ -1,107 +1,98 @@
-/*
-*  This file is part of aasdk library project.
-*  Copyright (C) 2018 f1x.studio (Michal Szwaj)
-*
-*  aasdk is free software: you can redistribute it and/or modify
-*  it under the terms of the GNU General Public License as published by
-*  the Free Software Foundation; either version 3 of the License, or
-*  (at your option) any later version.
+// This file is part of aasdk library project.
+// Copyright (C) 2018 f1x.studio (Michal Szwaj)
+// Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+//
+// aasdk is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 3 of the License, or
+// (at your option) any later version.
+//
+// aasdk is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
-*  aasdk is distributed in the hope that it will be useful,
-*  but WITHOUT ANY WARRANTY; without even the implied warranty of
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*  GNU General Public License for more details.
-*
-*  You should have received a copy of the GNU General Public License
-*  along with aasdk. If not, see <http://www.gnu.org/licenses/>.
-*/
-
+#include <aasdk/Common/Log.hpp>
 #include <aasdk/Transport/Transport.hpp>
 
 
-namespace aasdk
-{
-namespace transport
-{
+namespace aasdk {
+  namespace transport {
 
-Transport::Transport(boost::asio::io_service& ioService)
-    : receiveStrand_(ioService)
-    , sendStrand_(ioService)
-{}
+    Transport::Transport(boost::asio::io_service &ioService)
+        : receiveStrand_(ioService), sendStrand_(ioService) {}
 
-void Transport::receive(size_t size, ReceivePromise::Pointer promise)
-{
-    receiveStrand_.dispatch([this, self = this->shared_from_this(), size, promise = std::move(promise)]() mutable {
+    void Transport::receive(size_t size, ReceivePromise::Pointer promise) {
+      AASDK_LOG(debug) << "[Transport] receive()";
+      receiveStrand_.dispatch([this, self = this->shared_from_this(), size, promise = std::move(promise)]() mutable {
         receiveQueue_.emplace_back(std::make_pair(size, std::move(promise)));
 
-        if(receiveQueue_.size() == 1)
-        {
-            try
-            {
-                this->distributeReceivedData();
-            }
-            catch(const error::Error& e)
-            {
-                this->rejectReceivePromises(e);
-            }
+        if (receiveQueue_.size() == 1) {
+          try {
+            AASDK_LOG(debug) << "[Transport] Distribute received data.";
+            this->distributeReceivedData();
+          }
+          catch (const error::Error &e) {
+            // Due to the design of the messaging system, we don't really need to raise an error - debug it is
+            AASDK_LOG(debug) << "[Transport] Reject receive promise.";
+            this->rejectReceivePromises(e);
+          }
         }
-    });
-}
+      });
+    }
 
-void Transport::receiveHandler(size_t bytesTransferred)
-{
-    try
-    {
+    void Transport::receiveHandler(size_t bytesTransferred) {
+      try {
+        AASDK_LOG(debug) << "[Transport] receiveHandler()";
         receivedDataSink_.commit(bytesTransferred);
         this->distributeReceivedData();
-    }
-    catch(const error::Error& e)
-    {
+      }
+      catch (const error::Error &e) {
+        // Due to the design of the messaging system, we don't really need to raise an error - debug it is
+        AASDK_LOG(debug) << "[Transport] Rejecting promise.";
         this->rejectReceivePromises(e);
+      }
     }
-}
 
-void Transport::distributeReceivedData()
-{
-    for(auto queueElement = receiveQueue_.begin(); queueElement != receiveQueue_.end();)
-    {
-        if(receivedDataSink_.getAvailableSize() < queueElement->first)
-        {
-            auto buffer = receivedDataSink_.fill();
-            this->enqueueReceive(std::move(buffer));
+    void Transport::distributeReceivedData() {
+      AASDK_LOG(debug) << "[Transport] distributeReceivedData()";
+      for (auto queueElement = receiveQueue_.begin(); queueElement != receiveQueue_.end();) {
+        if (receivedDataSink_.getAvailableSize() < queueElement->first) {
+          AASDK_LOG(debug) << "[Transport] Receiving from buffer.";
+          auto buffer = receivedDataSink_.fill();
+          this->enqueueReceive(std::move(buffer));
 
-            break;
+          break;
+        } else {
+          auto data(receivedDataSink_.consume(queueElement->first));
+          AASDK_LOG(debug) << "[Transport] Resolve and clear message.";
+          queueElement->second->resolve(std::move(data));
+          queueElement = receiveQueue_.erase(queueElement);
         }
-        else
-        {
-            auto data(receivedDataSink_.consume(queueElement->first));
-            queueElement->second->resolve(std::move(data));
-            queueElement = receiveQueue_.erase(queueElement);
-        }
+      }
     }
-}
 
-void Transport::rejectReceivePromises(const error::Error& e)
-{
-    for(auto& queueElement : receiveQueue_)
-    {
+    void Transport::rejectReceivePromises(const error::Error &e) {
+      for (auto &queueElement: receiveQueue_) {
         queueElement.second->reject(e);
+      }
+
+      receiveQueue_.clear();
     }
 
-    receiveQueue_.clear();
-}
+    void Transport::send(common::Data data, SendPromise::Pointer promise) {
+      sendStrand_.dispatch(
+          [this, self = this->shared_from_this(), data = std::move(data), promise = std::move(promise)]() mutable {
+            sendQueue_.emplace_back(std::make_pair(std::move(data), std::move(promise)));
 
-void Transport::send(common::Data data, SendPromise::Pointer promise)
-{
-    sendStrand_.dispatch([this, self = this->shared_from_this(), data = std::move(data), promise = std::move(promise)]() mutable {
-        sendQueue_.emplace_back(std::make_pair(std::move(data), std::move(promise)));
+            if (sendQueue_.size() == 1) {
+              this->enqueueSend(sendQueue_.begin());
+            }
+          });
+    }
 
-        if(sendQueue_.size() == 1)
-        {
-            this->enqueueSend(sendQueue_.begin());
-        }
-    });
-}
-
-}
+  }
 }

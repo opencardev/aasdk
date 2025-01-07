@@ -12,3 +12,9 @@ install_manifest.txt
 build/**
 /cmake-build-*/
 .idea/
+/build/
+/buildenv/
+/protobuf/build/
+/protobuf/cmake-build-debug/
+/protobuf/.idea/
+/.vscode/

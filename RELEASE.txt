@@ -1,0 +1,10 @@
+Release Notes
+=============
+20241120 - 2.0.1
+- Restructure AASDK Proto Protobuf files for Android Auto 1.6 Support based on information from https://milek7.pl/.stuff/galdocs/readme.md
+This fleshes out enums and other methods with their full naming conventions for better readability and understanding.
+- Restructure AASDK source/header with additional renames to clarify differences between AudioService, VideoService and AVInput. Updated to MediaSinkService which is extended by AudioMediaSinkService and VideoMediaSinkService which themselves are extended by the individual service channels.
+- Added initial GenericNotification, MediaBrowser, MediaPlaybackStatus, PhoneStatus, Radio, VendorExtension and WifiProjection services.
+- Update AASDK_LOG entries for extra consistency
+- Simplify CMAKE to build and install keeping parameters to a minimum. Default to Release mode and Raspberry PI build unless otherwise specified.
+-
