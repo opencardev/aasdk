@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5.1)
+cmake_minimum_required(VERSION 3.14)
 
 project(aasdk)
 message(STATUS "AASDK Library")
@@ -83,7 +83,15 @@ if(WIN32)
 endif(WIN32)
 
 if(AASDK_TEST)
-    include(ExternalGtest)
+    include(FetchContent)
+    FetchContent_Declare(
+            googletest
+            GIT_REPOSITORY https://github.com/google/googletest.git
+            GIT_TAG main
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
 endif(AASDK_TEST)
 
 find_package(aap_protobuf REQUIRED)
@@ -193,11 +201,9 @@ if(AASDK_TEST)
 
     add_dependencies(aasdk_ut aasdk)
     target_link_libraries(aasdk_ut
-                            aasdk
-                            ${GMOCK_MAIN_LIBRARY_PATH}
-                            ${GTEST_MAIN_LIBRARY_PATH}
-                            ${GMOCK_LIBRARY_PATH}
-                            ${GTEST_LIBRARY_PATH})
+            aasdk
+            gtest_main
+            gmock_main)
 
     if(AASDK_CODE_COVERAGE)
         include(CodeCoverage)

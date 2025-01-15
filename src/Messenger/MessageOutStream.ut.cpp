@@ -65,7 +65,7 @@ ACTION(ThrowSSLWriteException)
 
 TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendPlainMessage)
 {
-    const FrameHeader frameHeader(ChannelId::INPUT, FrameType::BULK, EncryptionType::PLAIN, MessageType::CONTROL);
+    const FrameHeader frameHeader(ChannelId::INPUT_SOURCE, FrameType::BULK, EncryptionType::PLAIN, MessageType::CONTROL);
     const common::Data payload(1000, 0x5E);
     const FrameSize frameSize(payload.size());
 
@@ -79,7 +79,7 @@ TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendPlainMessage)
     transport::ITransport::SendPromise::Pointer transportSendPromise;
     EXPECT_CALL(transportMock_, send(expectedData, _)).WillOnce(SaveArg<1>(&transportSendPromise));
 
-    Message::Pointer message(std::make_shared<Message>(ChannelId::INPUT, EncryptionType::PLAIN, MessageType::CONTROL));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::INPUT_SOURCE, EncryptionType::PLAIN, MessageType::CONTROL));
     message->insertPayload(payload);
     MessageOutStream::Pointer messageOutStream(std::make_shared<MessageOutStream>(ioService_, transport_, cryptor_));
     messageOutStream->stream(message, std::move(sendPromise_));
@@ -95,7 +95,7 @@ TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendPlainMessage)
 
 TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendEncryptedMessage)
 {
-    const FrameHeader frameHeader(ChannelId::VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
+    const FrameHeader frameHeader(ChannelId::MEDIA_SINK_VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
     const common::Data encryptedPayload(2000, 0x5F);
     const FrameSize frameSize(encryptedPayload.size());
 
@@ -112,7 +112,7 @@ TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendEncryptedMessage)
     EXPECT_CALL(cryptorMock_, encrypt(_, _)).WillOnce(DoAll(SetArgReferee<0>(encryptedData), Return(encryptedPayload.size())));
     EXPECT_CALL(transportMock_, send(expectedData, _)).WillOnce(SaveArg<1>(&transportSendPromise));
 
-    Message::Pointer message(std::make_shared<Message>(ChannelId::VIDEO, EncryptionType::ENCRYPTED, MessageType::CONTROL));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_VIDEO, EncryptionType::ENCRYPTED, MessageType::CONTROL));
     const common::Data payload(1000, 0x5E);
     message->insertPayload(payload);
     MessageOutStream::Pointer messageOutStream(std::make_shared<MessageOutStream>(ioService_, transport_, cryptor_));
@@ -129,7 +129,7 @@ TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendEncryptedMessage)
 
 TEST_F(MessageOutStreamUnitTest, MessageOutStream_MessageEncryptionFailed)
 {
-    Message::Pointer message(std::make_shared<Message>(ChannelId::VIDEO, EncryptionType::ENCRYPTED, MessageType::CONTROL));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_VIDEO, EncryptionType::ENCRYPTED, MessageType::CONTROL));
     const common::Data payload(1000, 0x5E);
     message->insertPayload(payload);
     MessageOutStream::Pointer messageOutStream(std::make_shared<MessageOutStream>(ioService_, transport_, cryptor_));
@@ -144,7 +144,7 @@ TEST_F(MessageOutStreamUnitTest, MessageOutStream_MessageEncryptionFailed)
 
 TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendError)
 {
-    Message::Pointer message(std::make_shared<Message>(ChannelId::VIDEO, EncryptionType::PLAIN, MessageType::CONTROL));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_VIDEO, EncryptionType::PLAIN, MessageType::CONTROL));
     const common::Data payload(1000, 0x5E);
     message->insertPayload(payload);
     MessageOutStream::Pointer messageOutStream(std::make_shared<MessageOutStream>(ioService_, transport_, cryptor_));
@@ -171,19 +171,19 @@ TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendSplittedMessage)
     const common::Data frame1Payload(maxFramePayloadSize, 0x5E);
     const common::Data frame2Payload(maxFramePayloadSize, 0x5E);
 
-    const FrameHeader frame1Header(ChannelId::VIDEO, FrameType::FIRST, EncryptionType::PLAIN, MessageType::CONTROL);
+    const FrameHeader frame1Header(ChannelId::MEDIA_SINK_VIDEO, FrameType::FIRST, EncryptionType::PLAIN, MessageType::CONTROL);
     const auto& frame1HeaderData = frame1Header.getData();
 
     const FrameSize frame1Size(frame1Payload.size(), frame1Payload.size() + frame2Payload.size());
     const auto& frame1SizeData = frame1Size.getData();
 
-    const FrameHeader frame2Header(ChannelId::VIDEO, FrameType::LAST, EncryptionType::PLAIN, MessageType::CONTROL);
+    const FrameHeader frame2Header(ChannelId::MEDIA_SINK_VIDEO, FrameType::LAST, EncryptionType::PLAIN, MessageType::CONTROL);
     const auto& frame2HeaderData = frame2Header.getData();
 
     const FrameSize frame2Size(frame2Payload.size());
     const auto& frame2SizeData = frame2Size.getData();
 
-    Message::Pointer message(std::make_shared<Message>(ChannelId::VIDEO, EncryptionType::PLAIN, MessageType::CONTROL));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_VIDEO, EncryptionType::PLAIN, MessageType::CONTROL));
     message->insertPayload(frame1Payload);
     message->insertPayload(frame2Payload);
 
