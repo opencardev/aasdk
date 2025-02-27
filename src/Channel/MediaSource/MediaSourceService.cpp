@@ -115,7 +115,7 @@ namespace aasdk::channel::mediasource {
     auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                       messenger::MessageType::SPECIFIC));
     message->insertPayload(messenger::MessageId(
-        aap_protobuf::service::media::sink::MediaMessageId::MEDIA_MESSAGE_CODEC_CONFIG).getData());
+        aap_protobuf::service::media::sink::MediaMessageId::MEDIA_MESSAGE_DATA).getData());
 
     auto timestampData = messenger::Timestamp(timestamp).getData();
     message->insertPayload(std::move(timestampData));
