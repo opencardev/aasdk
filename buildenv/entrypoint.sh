@@ -17,6 +17,13 @@ fi
 
 echo "Now building within docker for $ARCH"
 
+# Make protobuf
+mkdir protobuf/build
+cd protobuf/build
+cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_ARCH=$ARCH ..
+make
+make install
+
 # Clear out the /build directory
 rm -f bin/*
 rm -f lib/*
