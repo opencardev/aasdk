@@ -112,7 +112,7 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_ReceiveEncryptedMessage)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
-    FrameHeader frameHeader(ChannelId::VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
+    FrameHeader frameHeader(ChannelId::MEDIA_SINK_VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
     transport::ITransport::ReceivePromise::Pointer frameHeaderTransportPromise;
     EXPECT_CALL(transportMock_, receive(FrameHeader::getSizeOf(), _)).WillOnce(SaveArg<1>(&frameHeaderTransportPromise));
 
@@ -147,7 +147,7 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_ReceiveEncryptedMessage)
 
     ioService_.run();
 
-    EXPECT_TRUE(message->getChannelId() == ChannelId::VIDEO);
+    EXPECT_TRUE(message->getChannelId() == ChannelId::MEDIA_SINK_VIDEO);
     EXPECT_TRUE(message->getEncryptionType() == EncryptionType::ENCRYPTED);
     EXPECT_TRUE(message->getType() == MessageType::CONTROL);
 
@@ -159,7 +159,7 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_MessageDecryptionFailed)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
 
-    FrameHeader frameHeader(ChannelId::VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
+    FrameHeader frameHeader(ChannelId::MEDIA_SINK_VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
     transport::ITransport::ReceivePromise::Pointer frameHeaderTransportPromise;
     EXPECT_CALL(transportMock_, receive(FrameHeader::getSizeOf(), _)).WillOnce(SaveArg<1>(&frameHeaderTransportPromise));
 
@@ -386,7 +386,7 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_IntertwinedChannels)
     ioService_.run();
     ioService_.reset();
 
-    FrameHeader frame2Header(ChannelId::VIDEO, FrameType::LAST, EncryptionType::PLAIN, MessageType::SPECIFIC);
+    FrameHeader frame2Header(ChannelId::MEDIA_SINK_VIDEO, FrameType::LAST, EncryptionType::PLAIN, MessageType::SPECIFIC);
 
     EXPECT_CALL(receivePromiseHandlerMock_, onReject(error::Error(error::ErrorCode::MESSENGER_INTERTWINED_CHANNELS)));
     EXPECT_CALL(receivePromiseHandlerMock_, onResolve(_)).Times(0);

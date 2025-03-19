@@ -65,7 +65,7 @@ protected:
 TEST_F(MessengerUnitTest, Messenger_Receive)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
-    themessenger->enqueueReceive(ChannelId::MEDIA_AUDIO, std::move(receivePromise_));
+    themessenger->enqueueReceive(ChannelId::MEDIA_SINK_MEDIA_AUDIO, std::move(receivePromise_));
 
     ReceivePromise::Pointer inStreamReceivePromise;
     EXPECT_CALL(messageInStreamMock_, startReceive(_)).WillOnce(SaveArg<0>(&inStreamReceivePromise));
@@ -73,7 +73,7 @@ TEST_F(MessengerUnitTest, Messenger_Receive)
     ioService_.run();
     ioService_.reset();
 
-    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
     inStreamReceivePromise->resolve(message);
 
     EXPECT_CALL(receivePromiseHandlerMock_, onReject(_)).Times(0);
@@ -84,7 +84,7 @@ TEST_F(MessengerUnitTest, Messenger_Receive)
 TEST_F(MessengerUnitTest, Messenger_DirectReceive)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
-    themessenger->enqueueReceive(ChannelId::MEDIA_AUDIO, std::move(receivePromise_));
+    themessenger->enqueueReceive(ChannelId::MEDIA_SINK_MEDIA_AUDIO, std::move(receivePromise_));
 
     ReceivePromise::Pointer inStreamReceivePromise;
     EXPECT_CALL(messageInStreamMock_, startReceive(_)).WillRepeatedly(SaveArg<0>(&inStreamReceivePromise));
@@ -92,7 +92,7 @@ TEST_F(MessengerUnitTest, Messenger_DirectReceive)
     ioService_.run();
     ioService_.reset();
 
-    Message::Pointer inputChannelMessage(std::make_shared<Message>(ChannelId::INPUT, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
+    Message::Pointer inputChannelMessage(std::make_shared<Message>(ChannelId::INPUT_SOURCE, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
     inStreamReceivePromise->resolve(inputChannelMessage);
 
     ioService_.run();
@@ -101,7 +101,7 @@ TEST_F(MessengerUnitTest, Messenger_DirectReceive)
     auto secondReceivePromise = ReceivePromise::defer(ioService_);
     secondReceivePromise->then(std::bind(&ReceivePromiseHandlerMock::onResolve, &receivePromiseHandlerMock_, std::placeholders::_1),
                               std::bind(&ReceivePromiseHandlerMock::onReject, &receivePromiseHandlerMock_, std::placeholders::_1));
-    themessenger->enqueueReceive(ChannelId::INPUT, std::move(secondReceivePromise));
+    themessenger->enqueueReceive(ChannelId::INPUT_SOURCE, std::move(secondReceivePromise));
 
     EXPECT_CALL(receivePromiseHandlerMock_, onReject(_)).Times(0);
     EXPECT_CALL(receivePromiseHandlerMock_, onResolve(inputChannelMessage));
@@ -109,7 +109,7 @@ TEST_F(MessengerUnitTest, Messenger_DirectReceive)
     ioService_.run();
     ioService_.reset();
 
-    Message::Pointer audioChannelMessage(std::make_shared<Message>(ChannelId::MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
+    Message::Pointer audioChannelMessage(std::make_shared<Message>(ChannelId::MEDIA_SINK_MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
     inStreamReceivePromise->resolve(audioChannelMessage);
 
     EXPECT_CALL(receivePromiseHandlerMock_, onReject(_)).Times(0);
@@ -120,7 +120,7 @@ TEST_F(MessengerUnitTest, Messenger_DirectReceive)
 TEST_F(MessengerUnitTest, Messenger_OnlyOneReceiveAtATime)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
-    themessenger->enqueueReceive(ChannelId::MEDIA_AUDIO, std::move(receivePromise_));
+    themessenger->enqueueReceive(ChannelId::MEDIA_SINK_MEDIA_AUDIO, std::move(receivePromise_));
 
     ReceivePromise::Pointer inStreamReceivePromise;
     EXPECT_CALL(messageInStreamMock_, startReceive(_)).WillOnce(SaveArg<0>(&inStreamReceivePromise));
@@ -131,7 +131,7 @@ TEST_F(MessengerUnitTest, Messenger_OnlyOneReceiveAtATime)
     auto secondReceivePromise = ReceivePromise::defer(ioService_);
     secondReceivePromise->then(std::bind(&ReceivePromiseHandlerMock::onResolve, &receivePromiseHandlerMock_, std::placeholders::_1),
                               std::bind(&ReceivePromiseHandlerMock::onReject, &receivePromiseHandlerMock_, std::placeholders::_1));
-    themessenger->enqueueReceive(ChannelId::INPUT, std::move(secondReceivePromise));
+    themessenger->enqueueReceive(ChannelId::INPUT_SOURCE, std::move(secondReceivePromise));
 
     ioService_.run();
     ioService_.reset();
@@ -149,7 +149,7 @@ TEST_F(MessengerUnitTest, Messenger_Send)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
 
-    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
     themessenger->enqueueSend(message, std::move(sendPromise_));
 
     SendPromise::Pointer outStreamSendPromise;
@@ -169,7 +169,7 @@ TEST_F(MessengerUnitTest, Messenger_OnlyOneSendAtATime)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
 
-    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
     themessenger->enqueueSend(message, std::move(sendPromise_));
 
     SendPromise::Pointer outStreamSendPromise;
@@ -200,7 +200,7 @@ TEST_F(MessengerUnitTest, Messenger_SendFailed)
 {
     Messenger::Pointer themessenger(std::make_shared<Messenger>(ioService_, messageInStream_, messageOutStream_));
 
-    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
+    Message::Pointer message(std::make_shared<Message>(ChannelId::MEDIA_SINK_MEDIA_AUDIO, EncryptionType::ENCRYPTED, MessageType::SPECIFIC));
     themessenger->enqueueSend(message, std::move(sendPromise_));
 
     SendPromise::Pointer outStreamSendPromise;
