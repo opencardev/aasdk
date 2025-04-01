@@ -28,16 +28,14 @@ namespace aasdk {
 
     SSLWrapper::SSLWrapper() {
       SSL_library_init();
-      SSL_load_error_strings();
-      ERR_load_BIO_strings();
+      SSL_load_error_strings(); // Optional: Can also be removed if not needed.
       OpenSSL_add_all_algorithms();
     }
 
     SSLWrapper::~SSLWrapper() {
-
-      #ifdef FIPS_mode_set
+#ifdef FIPS_mode_set
       FIPS_mode_set(0); // FIPS_mode_set removed in later versions of OpenSSL.
-      #endif
+#endif
       ENGINE_cleanup();
       CONF_modules_unload(1);
       EVP_cleanup();
@@ -46,8 +44,6 @@ namespace aasdk {
       ERR_remove_state(0);
 #endif
       ERR_free_strings();
-      ERR_load_crypto_strings();
-      ERR_load_ERR_strings();
     }
 
     X509 *SSLWrapper::readCertificate(const std::string &certificate) {
