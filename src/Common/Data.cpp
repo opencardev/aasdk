@@ -112,7 +112,7 @@ namespace aasdk {
 
       ss << std::hex << std::setfill('0');
 
-      for (int i = 0; i < s; i++) {
+      for (size_t i = 0; i < s; i++) {
         ss << " ";
         ss << std::hex << std::setw(2) << static_cast<int>(v[i]);
       }
