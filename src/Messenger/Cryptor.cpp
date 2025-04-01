@@ -155,7 +155,7 @@ namespace aasdk {
 
       size_t totalReadSize = 0;                                                                               // Initialise
       size_t availableBytes = length;
-      size_t readBytes = (length - totalReadSize) > 2048 ? 2048 : length -
+      size_t readBytes = (availableBytes - totalReadSize) > 2048 ? 2048 : availableBytes -
                                                                   totalReadSize;                     // Calculate How many Bytes to Read
       output.resize(output.size() +
                     readBytes);                                                               // Resize Output to match the bytes we want to read
