@@ -238,7 +238,7 @@ namespace aasdk {
                                                         IControlServiceChannelEventHandler::Pointer eventHandler) {
         AASDK_LOG(debug) << "[ControlServiceChannel] handleVersionResponse()";
 
-        const size_t elements = payload.size / sizeof(uint16_t);
+        //const size_t elements = payload.size / sizeof(uint16_t);
         const uint16_t *versionResponse = reinterpret_cast<const uint16_t *>(payload.cdata);
 
         aap_protobuf::shared::MessageStatus status = static_cast<aap_protobuf::shared::MessageStatus>(boost::endian::big_to_native(
