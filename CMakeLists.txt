@@ -18,7 +18,7 @@ else()
 endif()
 
 # Set Compile Versions
-set(LIBRARY_BUILD_DATE "20241121")    # Binary Release Build Date
+string(TIMESTAMP LIBRARY_BUILD_DATE "%Y%m%d" UTC)    # Dynamic Binary Release Build Date
 set(LIBRARY_BUILD_MAJOR_RELEASE 4)        # Binary Release Build Number (increment if released on same day)
 set(LIBRARY_BUILD_MINOR_RELEASE 0)        # Binary Release Build Number (increment if released on same day)
 set(LIBRARY_BUILD_INCREMENTAL 0)    # Binary Build Version - Increment for Each Build
