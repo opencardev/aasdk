@@ -20,6 +20,7 @@
 #include <aasdk/Messenger/Cryptor.hpp>
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Common/Log.hpp>
+#include <aasdk/Common/ModernLogger.hpp>
 
 namespace aasdk {
   namespace messenger {

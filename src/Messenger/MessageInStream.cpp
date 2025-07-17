@@ -18,6 +18,7 @@
 #include <aasdk/Messenger/MessageInStream.hpp>
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Common/Log.hpp>
+#include <aasdk/Common/ModernLogger.hpp>
 #include <iostream>
 
 
@@ -30,7 +31,7 @@ namespace aasdk::messenger {
   }
 
   void MessageInStream::startReceive(ReceivePromise::Pointer promise) {
-    AASDK_LOG(debug) << "[MessageInStream] startReceiveCalled()";
+    AASDK_LOG_MESSENGER(debug, "startReceiveCalled()");
     strand_.dispatch([this, self = this->shared_from_this(), promise = std::move(promise)]() mutable {
       if (promise_ == nullptr) {
         promise_ = std::move(promise);
@@ -40,7 +41,7 @@ namespace aasdk::messenger {
               this->receiveFrameHeaderHandler(common::DataConstBuffer(data));
             },
             [this, self = this->shared_from_this()](const error::Error &e) mutable {
-              AASDK_LOG(debug) << "[MessageInStream] Rejecting message.";
+              AASDK_LOG_MESSENGER(debug, "Rejecting message.");
               promise_->reject(e);
               promise_.reset();
             });
@@ -48,7 +49,7 @@ namespace aasdk::messenger {
         transport_->receive(FrameHeader::getSizeOf(), std::move(transportPromise));
       } else {
         promise_.reset();
-        AASDK_LOG(debug) << "[MessageInStream] Already Handling Promise";
+        AASDK_LOG_MESSENGER(debug, "Already Handling Promise");
         promise->reject(error::Error(error::ErrorCode::OPERATION_IN_PROGRESS));
       }
     });
@@ -69,7 +70,7 @@ namespace aasdk::messenger {
       message_ = std::move(bufferedMessage->second);
       messageBuffer_.erase(bufferedMessage);
 
-      AASDK_LOG(debug) << "[MessageInStream] Found existing message.";
+      AASDK_LOG_MESSENGER(debug, "Found existing message.");
 
       if (frameHeader.getType() == FrameType::FIRST || frameHeader.getType() == FrameType::BULK) {
         // If it's first or bulk, we need to override the message anyhow, so we will start again.
@@ -78,7 +79,7 @@ namespace aasdk::messenger {
                                              frameHeader.getMessageType());
       }
     } else {
-      AASDK_LOG(debug) << "[MessageInStream] Could not find existing message.";
+      AASDK_LOG_MESSENGER(debug, "Could not find existing message.");
       // No Message Found in Buffers and this is a middle or last frame, this an error.
       // Still need to process the frame, but we will not resolve at the end.
       message_ = std::make_shared<Message>(frameHeader.getChannelId(), frameHeader.getEncryptionType(),
@@ -99,7 +100,7 @@ namespace aasdk::messenger {
           this->receiveFrameSizeHandler(common::DataConstBuffer(data));
         },
         [this, self = this->shared_from_this()](const error::Error &e) mutable {
-          AASDK_LOG(debug) << "[MessageInStream] Rejecting message.";
+          AASDK_LOG_MESSENGER(debug, "Rejecting message.");
           message_.reset();
           promise_->reject(e);
           promise_.reset();
@@ -115,7 +116,7 @@ namespace aasdk::messenger {
           this->receiveFramePayloadHandler(common::DataConstBuffer(data));
         },
         [this, self = this->shared_from_this()](const error::Error &e) mutable {
-          AASDK_LOG(debug) << "[MessageInStream] Rejecting message.";
+          AASDK_LOG_MESSENGER(debug, "Rejecting message.");
           message_.reset();
           promise_->reject(e);
           promise_.reset();
@@ -132,7 +133,7 @@ namespace aasdk::messenger {
         cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
       }
       catch (const error::Error &e) {
-        AASDK_LOG(debug) << "[MessageInStream] Rejecting message.";
+        AASDK_LOG_MESSENGER(debug, "Rejecting message.");
         message_.reset();
         promise_->reject(e);
         promise_.reset();
@@ -146,7 +147,7 @@ namespace aasdk::messenger {
 
     // If this is the LAST frame or a BULK frame...
     if ((thisFrameType_ == FrameType::BULK || thisFrameType_ == FrameType::LAST) && isValidFrame_) {
-      AASDK_LOG(debug) << "[MessageInStream] Resolving message.";
+      AASDK_LOG_MESSENGER(debug, "Resolving message.");
       promise_->resolve(std::move(message_));
       promise_.reset();
       isResolved = true;
@@ -165,7 +166,7 @@ namespace aasdk::messenger {
           },
           [this, self = this->shared_from_this()](const error::Error &e) mutable {
             message_.reset();
-            AASDK_LOG(debug) << "[MessageInStream] Rejecting message.";
+            AASDK_LOG_MESSENGER(debug, "Rejecting message.");
             promise_->reject(e);
             promise_.reset();
           });

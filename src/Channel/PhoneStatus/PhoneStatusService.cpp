@@ -20,6 +20,7 @@
 #include <aasdk/Channel/PhoneStatus/IPhoneStatusServiceEventHandler.hpp>
 #include <aasdk/Channel/PhoneStatus/PhoneStatusService.hpp>
 #include "aasdk/Common/Log.hpp"
+#include <aasdk/Common/ModernLogger.hpp>
 
 /*
  * This is a Phone Status channel that could be used for integration onto another Raspberry Pi/Other Device to add an additional screen for notification and control purposes.
@@ -34,7 +35,7 @@ namespace aasdk::channel::phonestatus {
   }
 
   void PhoneStatusService::receive(IPhoneStatusServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[PhoneStatusService] receive()";
+    AASDK_LOG_CHANNEL_PHONE_STATUS(debug, "receive()");
     auto receivePromise = messenger::ReceivePromise::defer(strand_);
     receivePromise->then(
         std::bind(&PhoneStatusService::messageHandler, this->shared_from_this(), std::placeholders::_1,
@@ -46,7 +47,7 @@ namespace aasdk::channel::phonestatus {
 
   void PhoneStatusService::sendChannelOpenResponse(const aap_protobuf::service::control::message::ChannelOpenResponse &response,
                                                    SendPromise::Pointer promise) {
-    AASDK_LOG(debug) << "[PhoneStatusService] sendChannelOpenResponse()";
+    AASDK_LOG_CHANNEL_PHONE_STATUS(debug, "sendChannelOpenResponse()");
     auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                       messenger::MessageType::CONTROL));
     message->insertPayload(
@@ -60,7 +61,7 @@ namespace aasdk::channel::phonestatus {
   void PhoneStatusService::messageHandler(messenger::Message::Pointer message,
                                           IPhoneStatusServiceEventHandler::Pointer eventHandler) {
 
-    AASDK_LOG(debug) << "[PhoneStatusService] messageHandler()";
+    AASDK_LOG_CHANNEL_PHONE_STATUS(debug, "messageHandler()");
 
     messenger::MessageId messageId(message->getPayload());
     common::DataConstBuffer payload(message->getPayload(), messageId.getSizeOf());
@@ -80,7 +81,7 @@ namespace aasdk::channel::phonestatus {
 
   void PhoneStatusService::handleChannelOpenRequest(const common::DataConstBuffer &payload,
                                                     IPhoneStatusServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[PhoneStatusService] handleChannelOpenRequest()";
+    AASDK_LOG_CHANNEL_PHONE_STATUS(debug, "handleChannelOpenRequest()");
     aap_protobuf::service::control::message::ChannelOpenRequest request;
     if (request.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onChannelOpenRequest(request);

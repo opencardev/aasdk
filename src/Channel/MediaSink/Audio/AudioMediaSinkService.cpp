@@ -19,6 +19,7 @@
 #include <aasdk/Channel/MediaSink/Audio/IAudioMediaSinkServiceEventHandler.hpp>
 #include <aasdk/Channel/MediaSink/Audio/AudioMediaSinkService.hpp>
 #include "aasdk/Common/Log.hpp"
+#include <aasdk/Common/ModernLogger.hpp>
 
 /*
  * TODO: Merge Audio and Video Sink Service - P4
@@ -36,7 +37,7 @@ namespace aasdk::channel::mediasink::audio {
   }
 
   void AudioMediaSinkService::receive(IAudioMediaSinkServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] receive()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "receive()");
     auto receivePromise = messenger::ReceivePromise::defer(strand_);
     receivePromise->then(
         std::bind(&AudioMediaSinkService::messageHandler, this->shared_from_this(), std::placeholders::_1,
@@ -48,7 +49,7 @@ namespace aasdk::channel::mediasink::audio {
 
   void AudioMediaSinkService::sendChannelOpenResponse(const aap_protobuf::service::control::message::ChannelOpenResponse &response,
                                                       SendPromise::Pointer promise) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] sendChannelOpenResponse()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "sendChannelOpenResponse()");
     auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                       messenger::MessageType::CONTROL));
     message->insertPayload(
@@ -61,7 +62,7 @@ namespace aasdk::channel::mediasink::audio {
   void AudioMediaSinkService::sendChannelSetupResponse(
       const aap_protobuf::service::media::shared::message::Config &response,
       SendPromise::Pointer promise) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] sendChannelSetupResponse()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "sendChannelSetupResponse()");
     auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                       messenger::MessageType::SPECIFIC));
     message->insertPayload(
@@ -75,7 +76,7 @@ namespace aasdk::channel::mediasink::audio {
   void AudioMediaSinkService::sendMediaAckIndication(
       const aap_protobuf::service::media::source::message::Ack &indication,
       SendPromise::Pointer promise) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] sendMediaAckIndication()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "sendMediaAckIndication()");
     auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                       messenger::MessageType::SPECIFIC));
     message->insertPayload(
@@ -88,7 +89,7 @@ namespace aasdk::channel::mediasink::audio {
 
   void AudioMediaSinkService::messageHandler(messenger::Message::Pointer message,
                                              IAudioMediaSinkServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] messageHandler()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "messageHandler()");
     messenger::MessageId messageId(message->getPayload());
     common::DataConstBuffer payload(message->getPayload(), messageId.getSizeOf());
 
@@ -122,7 +123,7 @@ namespace aasdk::channel::mediasink::audio {
 
   void AudioMediaSinkService::handleChannelOpenRequest(const common::DataConstBuffer &payload,
                                                        IAudioMediaSinkServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] handleChannelOpenRequest()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "handleChannelOpenRequest()");
     aap_protobuf::service::control::message::ChannelOpenRequest request;
     if (request.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onChannelOpenRequest(request);
@@ -133,7 +134,7 @@ namespace aasdk::channel::mediasink::audio {
 
   void AudioMediaSinkService::handleChannelSetupRequest(const common::DataConstBuffer &payload,
                                                         IAudioMediaSinkServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] handleChannelSetupRequest()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "handleChannelSetupRequest()");
     aap_protobuf::service::media::shared::message::Setup request;
     if (request.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onMediaChannelSetupRequest(request);
@@ -144,7 +145,7 @@ namespace aasdk::channel::mediasink::audio {
 
   void AudioMediaSinkService::handleStartIndication(const common::DataConstBuffer &payload,
                                                     IAudioMediaSinkServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] handleStartIndication()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "handleStartIndication()");
     aap_protobuf::service::media::shared::message::Start indication;
     if (indication.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onMediaChannelStartIndication(indication);
@@ -155,7 +156,7 @@ namespace aasdk::channel::mediasink::audio {
 
   void AudioMediaSinkService::handleStopIndication(const common::DataConstBuffer &payload,
                                                    IAudioMediaSinkServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] handleStopIndication()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "handleStopIndication()");
     aap_protobuf::service::media::shared::message::Stop indication;
     if (indication.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onMediaChannelStopIndication(indication);
@@ -166,7 +167,7 @@ namespace aasdk::channel::mediasink::audio {
 
   void AudioMediaSinkService::handleMediaWithTimestampIndication(const common::DataConstBuffer &payload,
                                                                  IAudioMediaSinkServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[AudioMediaSinkService] handleMediaWithTimestampIndication()";
+    AASDK_LOG_CHANNEL_MEDIA_SINK(debug, "handleMediaWithTimestampIndication()");
     if (payload.size >= sizeof(messenger::Timestamp::ValueType)) {
       messenger::Timestamp timestamp(payload);
       eventHandler->onMediaWithTimestampIndication(timestamp.getValue(),

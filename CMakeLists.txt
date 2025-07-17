@@ -48,9 +48,28 @@ set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
 # Default to Release mode unless overridden with -DCMAKE_BUILD_TYPE=Debug on cmake command
 if(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Forcing Release build type")
-    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
-    # Set the possible values of build type for cmake-gui
-    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+    set(CMAKE_BUILD_TYPE Release)
+endif()
+
+# Modern Logger options
+option(DISABLE_MODERN_LOGGING "Disable modern logging and use boost fallback" OFF)
+option(ENABLE_JSON_LOGGING "Enable JSON formatter support (requires nlohmann/json)" OFF)
+
+if(DISABLE_MODERN_LOGGING)
+    message(STATUS "Modern logging disabled - using boost fallback")
+    add_definitions(-DDISABLE_MODERN_LOGGING)
+else()
+    message(STATUS "Modern logging enabled")
+    if(ENABLE_JSON_LOGGING)
+        message(STATUS "JSON logging support enabled")
+        add_definitions(-DENABLE_JSON_LOGGING)
+        find_package(nlohmann_json QUIET)
+        if(nlohmann_json_FOUND)
+            message(STATUS "Found nlohmann/json")
+        else()
+            message(WARNING "nlohmann/json not found - JSON logging will use fallback format")
+        endif()
+    endif()
 endif()
 
 # Paths
@@ -148,6 +167,11 @@ target_link_libraries(aasdk PUBLIC
         ${AAP_PROTOBUF_LIB_DIR}
         ${OPENSSL_LIBRARIES}
         ${WINSOCK2_LIBRARIES})
+
+# Link nlohmann/json if available and JSON logging is enabled
+if(ENABLE_JSON_LOGGING AND nlohmann_json_FOUND)
+    target_link_libraries(aasdk PUBLIC nlohmann_json::nlohmann_json)
+endif()
 
 
 set(LIBRARY_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")
