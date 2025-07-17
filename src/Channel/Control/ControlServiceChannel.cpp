@@ -21,6 +21,7 @@
 #include <aasdk/Channel/Control/ControlServiceChannel.hpp>
 #include <aasdk/Channel/Control/IControlServiceChannelEventHandler.hpp>
 #include <aasdk/Common/Log.hpp>
+#include <aasdk/Common/ModernLogger.hpp>
 
 
 namespace aasdk {
@@ -34,7 +35,7 @@ namespace aasdk {
       }
 
       void ControlServiceChannel::sendVersionRequest(SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendVersionRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendVersionRequest()");
 
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::PLAIN,
                                                           messenger::MessageType::SPECIFIC));
@@ -50,7 +51,7 @@ namespace aasdk {
       }
 
       void ControlServiceChannel::sendHandshake(common::Data handshakeBuffer, SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendHandshake()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendHandshake()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::PLAIN,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -63,7 +64,7 @@ namespace aasdk {
 
       void ControlServiceChannel::sendAuthComplete(const aap_protobuf::service::control::message::AuthResponse &response,
                                                    SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendAuthComplete()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendAuthComplete()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::PLAIN,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -76,7 +77,7 @@ namespace aasdk {
       void ControlServiceChannel::sendServiceDiscoveryResponse(
           const aap_protobuf::service::control::message::ServiceDiscoveryResponse &response,
           SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendServiceDiscoveryResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendServiceDiscoveryResponse()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(messenger::MessageId(
@@ -90,7 +91,7 @@ namespace aasdk {
       ControlServiceChannel::sendAudioFocusResponse(
           const aap_protobuf::service::control::message::AudioFocusNotification &response,
           SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendAudioFocusResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendAudioFocusResponse()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -104,7 +105,7 @@ namespace aasdk {
       void ControlServiceChannel::sendShutdownRequest(
           const aap_protobuf::service::control::message::ByeByeRequest &request,
           SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendShutdownRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendShutdownRequest()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -117,7 +118,7 @@ namespace aasdk {
       void ControlServiceChannel::sendShutdownResponse(
           const aap_protobuf::service::control::message::ByeByeResponse &response,
           SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendShutdownResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendShutdownResponse()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -131,7 +132,7 @@ namespace aasdk {
       void ControlServiceChannel::sendNavigationFocusResponse(
           const aap_protobuf::service::control::message::NavFocusNotification &response,
           SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendNavigationFocusResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendNavigationFocusResponse()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -146,12 +147,12 @@ namespace aasdk {
       ControlServiceChannel::sendVoiceSessionFocusResponse(
           const aap_protobuf::service::control::message::VoiceSessionNotification &response,
           SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendVoiceSessionFocusResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendVoiceSessionFocusResponse()");
       }
 
       void ControlServiceChannel::sendPingResponse(const aap_protobuf::service::control::message::PingResponse &request,
                                                    SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendPingResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendPingResponse()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::PLAIN,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -163,7 +164,7 @@ namespace aasdk {
 
       void ControlServiceChannel::sendPingRequest(const aap_protobuf::service::control::message::PingRequest &request,
                                                   SendPromise::Pointer promise) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] sendPingRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "sendPingRequest()");
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::PLAIN,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -174,7 +175,7 @@ namespace aasdk {
       }
 
       void ControlServiceChannel::receive(IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] receive()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "receive()");
         auto receivePromise = messenger::ReceivePromise::defer(strand_);
         receivePromise->then(
             std::bind(&ControlServiceChannel::messageHandler, this->shared_from_this(), std::placeholders::_1,
@@ -186,7 +187,7 @@ namespace aasdk {
 
       void ControlServiceChannel::messageHandler(messenger::Message::Pointer message,
                                                  IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] messageHandler()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "messageHandler()");
 
         messenger::MessageId messageId(message->getPayload());
         common::DataConstBuffer payload(message->getPayload(), messageId.getSizeOf());
@@ -236,7 +237,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleVersionResponse(const common::DataConstBuffer &payload,
                                                         IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleVersionResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleVersionResponse()");
 
         //const size_t elements = payload.size / sizeof(uint16_t);
         const uint16_t *versionResponse = reinterpret_cast<const uint16_t *>(payload.cdata);
@@ -251,7 +252,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleServiceDiscoveryRequest(const common::DataConstBuffer &payload,
                                                                 IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleServiceDiscoveryRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleServiceDiscoveryRequest()");
         aap_protobuf::service::control::message::ServiceDiscoveryRequest request;
         if (request.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onServiceDiscoveryRequest(request);
@@ -262,7 +263,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleAudioFocusRequest(const common::DataConstBuffer &payload,
                                                           IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleAudioFocusRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleAudioFocusRequest()");
         aap_protobuf::service::control::message::AudioFocusRequest request;
         if (request.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onAudioFocusRequest(request);
@@ -273,7 +274,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleVoiceSessionRequest(const common::DataConstBuffer &payload,
                                                             IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleVoiceSessionRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleVoiceSessionRequest()");
         aap_protobuf::service::control::message::VoiceSessionNotification request;
         if (request.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onVoiceSessionRequest(request);
@@ -284,7 +285,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleBatteryStatusNotification(const common::DataConstBuffer &payload,
                                                             IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleBatteryStatusNotification()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleBatteryStatusNotification()");
 
         aap_protobuf::service::control::message::BatteryStatusNotification request;
         if (request.ParseFromArray(payload.cdata, payload.size)) {
@@ -296,7 +297,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleShutdownRequest(const common::DataConstBuffer &payload,
                                                         IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleShutdownRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleShutdownRequest()");
         aap_protobuf::service::control::message::ByeByeRequest request;
         if (request.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onByeByeRequest(request);
@@ -307,7 +308,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleShutdownResponse(const common::DataConstBuffer &payload,
                                                          IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleShutdownResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleShutdownResponse()");
         aap_protobuf::service::control::message::ByeByeResponse response;
         if (response.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onByeByeResponse(response);
@@ -318,7 +319,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handleNavigationFocusRequest(const common::DataConstBuffer &payload,
                                                                IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handleNavigationFocusRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handleNavigationFocusRequest()");
         aap_protobuf::service::control::message::NavFocusRequestNotification request;
         if (request.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onNavigationFocusRequest(request);
@@ -329,7 +330,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handlePingRequest(const common::DataConstBuffer &payload,
                                                     IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handlePingRequest()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handlePingRequest()");
         aap_protobuf::service::control::message::PingRequest request;
         if (request.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onPingRequest(request);
@@ -340,7 +341,7 @@ namespace aasdk {
 
       void ControlServiceChannel::handlePingResponse(const common::DataConstBuffer &payload,
                                                      IControlServiceChannelEventHandler::Pointer eventHandler) {
-        AASDK_LOG(debug) << "[ControlServiceChannel] handlePingResponse()";
+        AASDK_LOG_CHANNEL_CONTROL(debug, "handlePingResponse()");
         aap_protobuf::service::control::message::PingResponse response;
         if (response.ParseFromArray(payload.cdata, payload.size)) {
           eventHandler->onPingResponse(response);

@@ -19,6 +19,7 @@
 #include "aasdk/Channel/MediaPlaybackStatus/MediaPlaybackStatusService.hpp"
 #include "aasdk/Channel/MediaPlaybackStatus/IMediaPlaybackStatusServiceEventHandler.hpp"
 #include "aasdk/Common/Log.hpp"
+#include <aasdk/Common/ModernLogger.hpp>
 
 /*
  * This is a Media Playback Status channel that could be used for integration onto another Raspberry Pi/Other Device to add an additional screen for notification and control purposes - such as updating the LCD screen on older Vauxhall/Opel/GM Cars
@@ -33,7 +34,7 @@ namespace aasdk::channel::mediaplaybackstatus {
   }
 
   void MediaPlaybackStatusService::receive(IMediaPlaybackStatusServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[MediaPlaybackStatusService] receive()";
+    AASDK_LOG_CHANNEL_PLAYBACK_STATUS(debug, "receive()");
     auto receivePromise = messenger::ReceivePromise::defer(strand_);
     receivePromise->then(
         std::bind(&MediaPlaybackStatusService::messageHandler, this->shared_from_this(), std::placeholders::_1,
@@ -45,7 +46,7 @@ namespace aasdk::channel::mediaplaybackstatus {
 
   void MediaPlaybackStatusService::sendChannelOpenResponse(const aap_protobuf::service::control::message::ChannelOpenResponse &response,
                                                            SendPromise::Pointer promise) {
-    AASDK_LOG(debug) << "[MediaPlaybackStatusService] sendChannelOpenResponse()";
+    AASDK_LOG_CHANNEL_PLAYBACK_STATUS(debug, "sendChannelOpenResponse()");
     auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::ENCRYPTED,
                                                       messenger::MessageType::CONTROL));
     message->insertPayload(
@@ -59,7 +60,7 @@ namespace aasdk::channel::mediaplaybackstatus {
 
   void MediaPlaybackStatusService::messageHandler(messenger::Message::Pointer message,
                                                   IMediaPlaybackStatusServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[MediaPlaybackStatusService] messageHandler()";
+    AASDK_LOG_CHANNEL_PLAYBACK_STATUS(debug, "messageHandler()");
 
     messenger::MessageId messageId(message->getPayload());
     common::DataConstBuffer payload(message->getPayload(), messageId.getSizeOf());
@@ -89,7 +90,7 @@ namespace aasdk::channel::mediaplaybackstatus {
 
   void MediaPlaybackStatusService::handleMetadataUpdate(const common::DataConstBuffer &payload,
                                                         IMediaPlaybackStatusServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[MediaPlaybackStatusService] handleMetadataUpdate()";
+    AASDK_LOG_CHANNEL_PLAYBACK_STATUS(debug, "handleMetadataUpdate()");
     aap_protobuf::service::mediaplayback::message::MediaPlaybackMetadata metadata;
     if (metadata.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onMetadataUpdate(metadata);
@@ -103,7 +104,7 @@ namespace aasdk::channel::mediaplaybackstatus {
 
   void MediaPlaybackStatusService::handlePlaybackUpdate(const common::DataConstBuffer &payload,
                                                         IMediaPlaybackStatusServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[MediaPlaybackStatusService] handlePlaybackUpdate()";
+    AASDK_LOG_CHANNEL_PLAYBACK_STATUS(debug, "handlePlaybackUpdate()");
     aap_protobuf::service::mediaplayback::message::MediaPlaybackStatus playback;
     if (playback.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onPlaybackUpdate(playback);
@@ -116,7 +117,7 @@ namespace aasdk::channel::mediaplaybackstatus {
 
   void MediaPlaybackStatusService::handleChannelOpenRequest(const common::DataConstBuffer &payload,
                                                             IMediaPlaybackStatusServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[MediaPlaybackStatusService] handleChannelOpenRequest()";
+    AASDK_LOG_CHANNEL_PLAYBACK_STATUS(debug, "handleChannelOpenRequest()");
 
     aap_protobuf::service::control::message::ChannelOpenRequest request;
     if (request.ParseFromArray(payload.cdata, payload.size)) {

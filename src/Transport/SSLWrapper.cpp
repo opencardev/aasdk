@@ -22,6 +22,7 @@
 #include <openssl/conf.h>
 #include <aasdk/Transport/SSLWrapper.hpp>
 #include <aasdk/Common/Log.hpp>
+#include <aasdk/Common/ModernLogger.hpp>
 
 namespace aasdk {
   namespace transport {

@@ -18,6 +18,7 @@
 #include <aasdk/Channel/GenericNotification/IGenericNotificationServiceEventHandler.hpp>
 #include <aasdk/Channel/GenericNotification/GenericNotificationService.hpp>
 #include "aasdk/Common/Log.hpp"
+#include <aasdk/Common/ModernLogger.hpp>
 
 /*
  * This is a Generic Notification channel - not much is known at this point.
@@ -34,7 +35,7 @@ namespace aasdk::channel::genericnotification {
 
   void GenericNotificationService::receive(IGenericNotificationServiceEventHandler::Pointer eventHandler) {
 
-    AASDK_LOG(debug) << "[GenericNotificationService] Receive";
+    AASDK_LOG_CHANNEL_NOTIFICATION(debug, "Receive");
     auto receivePromise = messenger::ReceivePromise::defer(strand_);
     receivePromise->then(
         std::bind(&GenericNotificationService::messageHandler, this->shared_from_this(), std::placeholders::_1,
@@ -59,7 +60,7 @@ namespace aasdk::channel::genericnotification {
   void GenericNotificationService::messageHandler(messenger::Message::Pointer message,
                                                   IGenericNotificationServiceEventHandler::Pointer eventHandler) {
 
-    AASDK_LOG(debug) << "[GenericNotificationService] messageHandler()";
+    AASDK_LOG_CHANNEL_NOTIFICATION(debug, "messageHandler()");
 
     messenger::MessageId messageId(message->getPayload());
     common::DataConstBuffer payload(message->getPayload(), messageId.getSizeOf());
@@ -77,7 +78,7 @@ namespace aasdk::channel::genericnotification {
 
   void GenericNotificationService::handleChannelOpenRequest(const common::DataConstBuffer &payload,
                                                             IGenericNotificationServiceEventHandler::Pointer eventHandler) {
-    AASDK_LOG(debug) << "[GenericNotificationService] handleChannelOpenRequest()";
+    AASDK_LOG_CHANNEL_NOTIFICATION(debug, "handleChannelOpenRequest()");
     aap_protobuf::service::control::message::ChannelOpenRequest request;
     if (request.ParseFromArray(payload.cdata, payload.size)) {
       eventHandler->onChannelOpenRequest(request);
