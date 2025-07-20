@@ -1,0 +1,59 @@
+#pragma once
+
+#include <string>
+
+namespace aasdk
+{
+
+class Version
+{
+public:
+    // Semantic version components (YYYY.MM.DD format)
+    static constexpr unsigned int MAJOR = @LIBRARY_BUILD_MAJOR_RELEASE@;
+    static constexpr unsigned int MINOR = @LIBRARY_BUILD_MINOR_RELEASE@;  
+    static constexpr unsigned int PATCH = @LIBRARY_BUILD_PATCH_RELEASE@;
+    
+    // Full version string with git info
+    static constexpr const char* STRING = "@LIBRARY_VERSION_STRING@";
+    
+    // Git information
+    static constexpr const char* GIT_COMMIT = "@GIT_COMMIT_ID@";
+    static constexpr const char* GIT_BRANCH = "@GIT_BRANCH@";
+    static constexpr const char* GIT_DESCRIBE = "@GIT_DESCRIBE@";
+    static constexpr bool GIT_DIRTY = @GIT_DIRTY@ > 0;
+    
+    // Build information
+    static constexpr const char* BUILD_TYPE = "@CMAKE_BUILD_TYPE@";
+    static constexpr const char* BUILD_TIMESTAMP = __DATE__ " " __TIME__;
+    
+    // Helper methods
+    static constexpr bool isDirty() { return GIT_DIRTY; }
+    static constexpr bool isDebug() { 
+#ifdef DEBUG
+        return true;
+#else
+        return false;
+#endif
+    }
+    
+    // Get version as string in format "MAJOR.MINOR.PATCH"
+    static std::string getSemanticVersion() {
+        return std::to_string(MAJOR) + "." + 
+               std::to_string(MINOR) + "." + 
+               std::to_string(PATCH);
+    }
+    
+    // Get full version string
+    static const char* getFullVersion() { return STRING; }
+    
+    // Get git commit ID
+    static const char* getGitCommit() { return GIT_COMMIT; }
+    
+    // Get git branch
+    static const char* getGitBranch() { return GIT_BRANCH; }
+    
+    // Check if built from clean repository
+    static bool isCleanBuild() { return !GIT_DIRTY; }
+};
+
+}
