@@ -4,11 +4,27 @@ cmake_minimum_required(VERSION 3.5)
 project(aap_protobuf)
 message(STATUS "AASDK ProtoBuf Library")
 
-# Set Compile Versions
-set(LIBRARY_BUILD_DATE "20241121")    # Binary Release Build Date
-set(LIBRARY_BUILD_MAJOR_RELEASE 4)        # Binary Release Build Number (increment if released on same day)
-set(LIBRARY_BUILD_MINOR_RELEASE 0)        # Binary Release Build Number (increment if released on same day)
-set(LIBRARY_BUILD_INCREMENTAL 0)    # Binary Build Version - Increment for Each Build
+# Use versioning from parent project if available, otherwise use defaults
+if(DEFINED LIBRARY_BUILD_MAJOR_RELEASE AND DEFINED LIBRARY_BUILD_MINOR_RELEASE AND DEFINED LIBRARY_BUILD_PATCH_RELEASE)
+    # Use parent project versioning
+    set(AAP_VERSION_MAJOR ${LIBRARY_BUILD_MAJOR_RELEASE})
+    set(AAP_VERSION_MINOR ${LIBRARY_BUILD_MINOR_RELEASE}) 
+    set(AAP_VERSION_PATCH ${LIBRARY_BUILD_PATCH_RELEASE})
+    
+    # Use parent project's version string if available
+    if(DEFINED LIBRARY_VERSION_STRING)
+        set(LIBRARY_BUILD_VERSION_STRING ${LIBRARY_VERSION_STRING})
+    else()
+        set(LIBRARY_BUILD_VERSION_STRING "${AAP_VERSION_MAJOR}.${AAP_VERSION_MINOR}.${AAP_VERSION_PATCH}")
+    endif()
+else()
+    # Fallback to original versioning for standalone builds
+    set(LIBRARY_BUILD_DATE "20241121")    # Binary Release Build Date
+    set(LIBRARY_BUILD_MAJOR_RELEASE 4)        # Binary Release Build Number (increment if released on same day)
+    set(LIBRARY_BUILD_MINOR_RELEASE 0)        # Binary Release Build Number (increment if released on same day)
+    set(LIBRARY_BUILD_INCREMENTAL 0)    # Binary Build Version - Increment for Each Build
+    set(LIBRARY_BUILD_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")
+endif()
 set(AAP_PROTO_VERSION 1.6)          # Underlying AAP (Android Auto Projection Library Protocol)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -62,18 +78,27 @@ include_directories(
 )
 
 set(LIBRARY_BUILD_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")
-message(STATUS "Project Version: ${LIBRARY_BUILD_VERSION_STRING}")
-set_target_properties(aap_protobuf
-        PROPERTIES
-        VERSION ${LIBRARY_BUILD_VERSION_STRING}
-        SOVERSION ${LIBRARY_BUILD_INCREMENTAL})
+message(STATUS "aap_protobuf Project Version: ${LIBRARY_BUILD_VERSION_STRING}")
 
-# Install rules
+# Set version properties
+if(DEFINED LIBRARY_BUILD_MAJOR_RELEASE)
+    set_target_properties(aap_protobuf
+            PROPERTIES
+            VERSION ${LIBRARY_BUILD_VERSION_STRING}
+            SOVERSION ${LIBRARY_BUILD_MAJOR_RELEASE})
+else()
+    set_target_properties(aap_protobuf
+            PROPERTIES
+            VERSION ${LIBRARY_BUILD_VERSION_STRING}
+            SOVERSION 4)
+endif()
+
+# Install rules with component assignment for packaging
 install(TARGETS aap_protobuf
         EXPORT aap_protobufTargets
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION bin
+        LIBRARY DESTINATION lib COMPONENT runtime
+        ARCHIVE DESTINATION lib COMPONENT runtime
+        RUNTIME DESTINATION bin COMPONENT runtime
         INCLUDES DESTINATION include
 )
 
@@ -83,9 +108,10 @@ target_include_directories(aap_protobuf
         $<INSTALL_INTERFACE:include/aap_protobuf>
 )
 
-# Install headers explicitly
+# Install headers explicitly with component assignment
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
         DESTINATION include
+        COMPONENT development
         FILES_MATCHING PATTERN "*.h")
 
 # Export the targets to a script
@@ -93,6 +119,7 @@ install(EXPORT aap_protobufTargets
         FILE aap_protobufTargets.cmake
         NAMESPACE AAPProto::
         DESTINATION lib/cmake/aap_protobuf
+        COMPONENT development
 )
 
 # Create a Config file for FindPackage
@@ -111,6 +138,7 @@ configure_package_config_file(Config.cmake.in
 # Install the config files
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfigVersion.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfig.cmake"
-        DESTINATION lib/cmake/aap_protobuf)
+        DESTINATION lib/cmake/aap_protobuf
+        COMPONENT development)
 
 

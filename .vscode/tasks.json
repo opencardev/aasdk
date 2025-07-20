@@ -3,51 +3,107 @@
     "tasks": [
         {
             "label": "Clean",
-            "command": "sudo rm -R build",
+            "command": "rm",
+            "args": ["-rf", "build-release", "build-debug"],
             "type": "shell",
-            "args": [],
-            "problemMatcher": [
-                "$tsc"
-            ],
+            "problemMatcher": [],
             "presentation": {
                 "reveal": "always"
             },
             "group": "build"
         },
         {
-            "label": "Build",
-            "command": "mkdir build;cd build;cmake -DCMAKE_BUILD_TYPE=Release ../",
+            "label": "Build Release",
+            "command": "bash",
+            "args": ["-c", "mkdir -p build-release && cd build-release && cmake -DCMAKE_BUILD_TYPE=Release ../ && make -j$(nproc)"],
             "type": "shell",
-            "args": [],
-            "problemMatcher": [
-                "$tsc"
-            ],
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Build Debug",
+            "command": "bash",
+            "args": ["-c", "mkdir -p build-debug && cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug ../ && make -j$(nproc)"],
+            "type": "shell",
+            "problemMatcher": [],
             "presentation": {
                 "reveal": "always"
             },
             "group": "build"
         },
         {
-            "label": "Create DEB Package",
-            "command": "cd build;cpack --config CPackConfig.cmake",
+            "label": "Create Release DEB Packages",
+            "command": "bash",
+            "args": ["-c", "cd build-release && cpack --config CPackConfig.cmake"],
             "type": "shell",
-            "args": [],
-            "problemMatcher": [
-                "$tsc"
-            ],
+            "dependsOn": "Build Release",
+            "problemMatcher": [],
             "presentation": {
                 "reveal": "always"
             },
             "group": "build"
         },
         {
-            "label": "Create DEB SRC Package",
-            "command": "cd build;cpack --config CPackSourceConfig.cmake",
+            "label": "Create Debug DEB Packages",
+            "command": "bash",
+            "args": ["-c", "cd build-debug && cpack --config CPackConfig.cmake"],
             "type": "shell",
-            "args": [],
-            "problemMatcher": [
-                "$tsc"
+            "dependsOn": "Build Debug",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Create Source Package",
+            "command": "bash",
+            "args": ["-c", "cd build-release && cpack --config CPackSourceConfig.cmake"],
+            "type": "shell",
+            "dependsOn": "Build Release",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Build All Packages",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "Clean",
+                "Create Release DEB Packages",
+                "Create Debug DEB Packages",
+                "Create Source Package"
             ],
+            "problemMatcher": [],
+            "group": "build"
+        },
+        {
+            "label": "Install Release Package",
+            "command": "bash",
+            "args": ["-c", "cd build-release && sudo dpkg -i *.deb"],
+            "type": "shell",
+            "dependsOn": "Create Release DEB Packages",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Install Debug Package",
+            "command": "bash",
+            "args": ["-c", "cd build-debug && sudo dpkg -i *.deb"],
+            "type": "shell",
+            "dependsOn": "Create Debug DEB Packages",
+            "problemMatcher": [],
             "presentation": {
                 "reveal": "always"
             },
