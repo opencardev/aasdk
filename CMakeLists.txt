@@ -384,7 +384,7 @@ set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <aasdk@example.com>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/opencardev/aasdk")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), libboost-system1.74.0 (>= 1.74.0), libboost-log1.74.0 (>= 1.74.0), libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), libboost-system1.81.0 | libboost-system1.74.0, libboost-log1.81.0 | libboost-log1.74.0, libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
