@@ -6,62 +6,35 @@
             "TARGET_ARCH": "arm64"
         }
     },
-    "workspaceFolder": "/workspace",
     
-    "features": {
-        "ghcr.io/devcontainers/features/git:1": {},
-        "ghcr.io/devcontainers/features/github-cli:1": {}
+    "runArgs": [
+        "--platform=linux/arm64"
+    ],
+    
+    "containerEnv": {
+        "TARGET_ARCH": "arm64",
+        "CC": "aarch64-linux-gnu-gcc",
+        "CXX": "aarch64-linux-gnu-g++",
+        "AR": "aarch64-linux-gnu-ar",
+        "STRIP": "aarch64-linux-gnu-strip"
     },
+    
+    "postCreateCommand": "bash .devcontainer/post-create.sh",
     
     "customizations": {
         "vscode": {
             "extensions": [
                 "ms-vscode.cpptools",
-                "ms-vscode.cmake-tools", 
-                "ms-vscode.cpptools-extension-pack",
-                "twxs.cmake",
-                "ms-vscode.hexeditor",
-                "ms-vscode.vscode-json",
-                "redhat.vscode-yaml"
+                "ms-vscode.cmake-tools"
             ],
             "settings": {
-                "cmake.configureOnOpen": true,
-                "cmake.buildDirectory": "${workspaceFolder}/build-${config:cmake.buildType}",
                 "cmake.configureArgs": [
-                    "-DTARGET_ARCH=arm64"
-                ],
-                "cmake.defaultVariants": {
-                    "buildType": {
-                        "default": "debug",
-                        "choices": {
-                            "debug": {
-                                "short": "Debug",
-                                "long": "Emit debug information",
-                                "buildType": "Debug"
-                            },
-                            "release": {
-                                "short": "Release", 
-                                "long": "Optimize generated code",
-                                "buildType": "Release"
-                            }
-                        }
-                    }
-                },
-                "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+                    "-DTARGET_ARCH=arm64",
+                    "-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc",
+                    "-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++"
+                ]
             }
         }
-    },
-    
-    "postCreateCommand": "bash .devcontainer/post-create.sh",
-    
-    "runArgs": [
-        "--cap-add=SYS_PTRACE",
-        "--security-opt", "seccomp=unconfined",
-        "--platform", "linux/arm64"
-    ],
-    
-    "containerEnv": {
-        "TARGET_ARCH": "arm64"
     },
     
     "remoteUser": "vscode"

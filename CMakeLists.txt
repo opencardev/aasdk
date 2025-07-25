@@ -448,16 +448,16 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${LIBRARY_VERSION_STRI
 set(CPACK_SOURCE_IGNORE_FILES
     "/build/"
     "/build-debug/"
-    "/\\.git/"
-    "/\\.vscode/"
-    "/\\.idea/"
-    "\\.gitignore"
-    "\\.DS_Store"
+    "/[.]git/"
+    "/[.]vscode/"
+    "/[.]idea/"
+    "[.]gitignore"
+    "[.]DS_Store"
     "/test_build/"
     "/lib/"
     "/bin/"
-    "\\.so$"
-    "\\.a$"
+    "[.]so$"
+    "[.]a$"
 )
 
 include(CPack)
