@@ -380,7 +380,7 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 # Debian package configuration
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <aasdk@example.com>")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <matthilton2005@gmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/opencardev/aasdk")

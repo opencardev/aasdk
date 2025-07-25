@@ -3,8 +3,19 @@
     "tasks": [
         {
             "label": "Clean",
-            "command": "rm",
-            "args": ["-rf", "build-release", "build-debug"],
+            "command": "bash",
+            "args": ["-c", "rm -rf build-release build-debug packages && cd protobuf && rm -rf build"],
+            "type": "shell",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Clean aap_protobuf",
+            "command": "bash",
+            "args": ["-c", "cd protobuf && rm -rf build && rm -rf CMakeFiles && rm -f CMakeCache.txt"],
             "type": "shell",
             "problemMatcher": [],
             "presentation": {
@@ -40,7 +51,7 @@
         {
             "label": "Create Release DEB Packages",
             "command": "bash",
-            "args": ["-c", "cd build-release && cpack --config CPackConfig.cmake"],
+            "args": ["-c", "cd build-release && cpack --config CPackConfig.cmake && mkdir -p ../packages && mv *.deb ../packages/"],
             "type": "shell",
             "dependsOn": "Build Release",
             "problemMatcher": [],
@@ -52,7 +63,7 @@
         {
             "label": "Create Debug DEB Packages",
             "command": "bash",
-            "args": ["-c", "cd build-debug && cpack --config CPackConfig.cmake"],
+            "args": ["-c", "cd build-debug && cpack --config CPackConfig.cmake && mkdir -p ../packages && mv *.deb ../packages/"],
             "type": "shell",
             "dependsOn": "Build Debug",
             "problemMatcher": [],
@@ -64,7 +75,7 @@
         {
             "label": "Create Source Package",
             "command": "bash",
-            "args": ["-c", "cd build-release && cpack --config CPackSourceConfig.cmake"],
+            "args": ["-c", "cd build-release && cpack --config CPackSourceConfig.cmake && mkdir -p ../packages && mv *.tar.* ../packages/"],
             "type": "shell",
             "dependsOn": "Build Release",
             "problemMatcher": [],
@@ -88,7 +99,7 @@
         {
             "label": "Install Release Package",
             "command": "bash",
-            "args": ["-c", "cd build-release && sudo dpkg -i *.deb"],
+            "args": ["-c", "cd packages && sudo dpkg -i *arm64_*.deb *arm64-dev_*.deb"],
             "type": "shell",
             "dependsOn": "Create Release DEB Packages",
             "problemMatcher": [],
@@ -100,7 +111,7 @@
         {
             "label": "Install Debug Package",
             "command": "bash",
-            "args": ["-c", "cd build-debug && sudo dpkg -i *.deb"],
+            "args": ["-c", "cd packages && sudo dpkg -i *arm64-dbg_*.deb *arm64-dbg-dev_*.deb"],
             "type": "shell",
             "dependsOn": "Create Debug DEB Packages",
             "problemMatcher": [],
