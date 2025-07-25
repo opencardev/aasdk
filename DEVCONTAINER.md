@@ -22,6 +22,8 @@ This project now includes a comprehensive development environment using VS Code 
 3. **Wait for container setup** (first time takes ~5-10 minutes)
 4. **Start building!**
 
+> **📝 Note**: This setup is compatible with both Docker and Podman. If using Podman, ensure it's running with `podman machine start`.
+
 ## 🔨 Building the Project
 
 ### Option 1: Quick Build Scripts (Recommended)

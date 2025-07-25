@@ -1,9 +1,12 @@
 {
-    "name": "AASDK Development (ARMHF)",
-    "dockerComposeFile": "docker-compose.yml",
-    "service": "aasdk-dev-armhf",
+    "name": "AASDK Development Environment (ARMHF)",
+    "build": {
+        "dockerfile": "Dockerfile.armhf",
+        "args": {
+            "TARGET_ARCH": "armhf"
+        }
+    },
     "workspaceFolder": "/workspace",
-    "shutdownAction": "stopCompose",
     
     "features": {
         "ghcr.io/devcontainers/features/git:1": {},
@@ -50,6 +53,16 @@
     },
     
     "postCreateCommand": "bash .devcontainer/post-create.sh",
+    
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt", "seccomp=unconfined",
+        "--platform", "linux/arm/v7"
+    ],
+    
+    "containerEnv": {
+        "TARGET_ARCH": "armhf"
+    },
     
     "remoteUser": "vscode"
 }

@@ -1,9 +1,13 @@
+y
 {
-    "name": "AASDK Development Environment",
-    "dockerComposeFile": "docker-compose.yml",
-    "service": "aasdk-dev",
+    "name": "AASDK Development Environment (x64)",
+    "build": {
+        "dockerfile": "Dockerfile.x64",
+        "args": {
+            "TARGET_ARCH": "amd64"
+        }
+    },
     "workspaceFolder": "/workspace",
-    "shutdownAction": "stopCompose",
     
     "features": {
         "ghcr.io/devcontainers/features/git:1": {},
@@ -24,6 +28,9 @@
             "settings": {
                 "cmake.configureOnOpen": true,
                 "cmake.buildDirectory": "${workspaceFolder}/build-${config:cmake.buildType}",
+                "cmake.configureArgs": [
+                    "-DTARGET_ARCH=amd64"
+                ],
                 "cmake.defaultVariants": {
                     "buildType": {
                         "default": "debug",
@@ -47,6 +54,15 @@
     },
     
     "postCreateCommand": "bash .devcontainer/post-create.sh",
+    
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt", "seccomp=unconfined"
+    ],
+    
+    "containerEnv": {
+        "TARGET_ARCH": "amd64"
+    },
     
     "remoteUser": "vscode"
 }

@@ -1,6 +1,27 @@
 # AASDK Development Containers
 
-This directory contains Docker-based development environments for building AASDK across multiple architectures.
+This directory contains Docker-based development environments for building AASDK across multi## 🐛 Troubleshooting
+
+### Container Won't Start
+- Ensure Docker Desktop is running
+- Check that you have sufficient disk space
+- For ARM containers on x64 hosts, ensure QEMU emulation is enabled
+
+### Podman Users
+If you're using Podman instead of Docker:
+1. Ensure Podman is running: `podman machine start`
+2. The configurations use direct Dockerfile builds (not docker-compose) for better Podman compatibility
+3. Platform-specific builds may require manual platform specification
+
+### Build Fails
+- Verify all dependencies are installed (run post-create script manually)
+- Check that protobuf built successfully first
+- Ensure correct target architecture is set
+
+### Cross-Compilation Issues
+- Verify cross-compilation toolchains are installed in the container
+- Check that `TARGET_ARCH` environment variable is set correctly
+- For ARMHF/ARM64, ensure the CMake toolchain file correctly detects compilerss.
 
 ## Available Configurations
 
@@ -41,21 +62,6 @@ This directory contains Docker-based development environments for building AASDK
    - Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
    - Type "Dev Containers: Reopen in Container" 
    - Choose "From 'devcontainer-armhf.json'"
-
-### Manual Docker Compose
-
-You can also run the containers manually using docker-compose:
-
-```bash
-# For x64
-docker-compose -f .devcontainer/docker-compose.yml up aasdk-dev
-
-# For ARM64  
-docker-compose -f .devcontainer/docker-compose.yml up aasdk-dev-arm64
-
-# For ARMHF
-docker-compose -f .devcontainer/docker-compose.yml up aasdk-dev-armhf
-```
 
 ## Building the Project
 
@@ -164,7 +170,6 @@ The CMake Tools extension is configured to:
 ├── devcontainer.json           # Default x64 configuration
 ├── devcontainer-arm64.json     # ARM64 configuration  
 ├── devcontainer-armhf.json     # ARMHF configuration
-├── docker-compose.yml          # Multi-architecture compose file
 ├── Dockerfile.x64              # x64 container definition
 ├── Dockerfile.arm64            # ARM64 container definition
 ├── Dockerfile.armhf            # ARMHF container definition

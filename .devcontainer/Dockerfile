@@ -1,5 +1,5 @@
 ARG TARGET_ARCH="amd64"
-FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-debian-11
+FROM debian:bookworm
 
 # Install architecture-specific packages
 ARG TARGET_ARCH

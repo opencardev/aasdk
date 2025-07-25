@@ -1,9 +1,12 @@
 {
-    "name": "AASDK Development (ARM64)",
-    "dockerComposeFile": "docker-compose.yml",
-    "service": "aasdk-dev-arm64", 
+    "name": "AASDK Development Environment (ARM64)",
+    "build": {
+        "dockerfile": "Dockerfile.arm64",
+        "args": {
+            "TARGET_ARCH": "arm64"
+        }
+    },
     "workspaceFolder": "/workspace",
-    "shutdownAction": "stopCompose",
     
     "features": {
         "ghcr.io/devcontainers/features/git:1": {},
@@ -50,6 +53,16 @@
     },
     
     "postCreateCommand": "bash .devcontainer/post-create.sh",
+    
+    "runArgs": [
+        "--cap-add=SYS_PTRACE",
+        "--security-opt", "seccomp=unconfined",
+        "--platform", "linux/arm64"
+    ],
+    
+    "containerEnv": {
+        "TARGET_ARCH": "arm64"
+    },
     
     "remoteUser": "vscode"
 }
