@@ -9,6 +9,25 @@ C++ object-oriented library containing implementation of core AndroidAuto(tm) fu
 ### Changes
 Added recent changes by the OpenDsh team
 
+## 🚀 Quick Start with Dev Containers
+
+**New!** This project now includes a comprehensive development environment using VS Code devcontainers that supports building for **x64**, **ARM64**, and **ARMHF** architectures.
+
+### Prerequisites
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- [VS Code](https://code.visualstudio.com/) with [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+
+### Getting Started
+1. Open VS Code in this directory
+2. Press `Ctrl+Shift+P` → "Dev Containers: Reopen in Container"
+3. Choose your target architecture:
+   - **Default (x64)**: Fastest for development
+   - **ARM64**: For Raspberry Pi 4, Apple Silicon
+   - **ARMHF**: For Raspberry Pi 3, older ARM devices
+4. Wait for setup, then run: `./build.sh debug`
+
+📖 **[Complete DevContainer Documentation](DEVCONTAINER.md)**
+
 ### Supported functionalities
  - AOAP (Android Open Accessory Protocol)
  - USB transport

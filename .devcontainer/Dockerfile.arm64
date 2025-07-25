@@ -1,5 +1,5 @@
-ARG TARGET_ARCH="amd64"
-FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-debian-11
+ARG TARGET_ARCH="arm64"
+FROM --platform=linux/arm64 mcr.microsoft.com/vscode/devcontainers/cpp:0-debian-11
 
 # Install architecture-specific packages
 ARG TARGET_ARCH

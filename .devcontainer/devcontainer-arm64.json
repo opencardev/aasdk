@@ -1,7 +1,7 @@
 {
-    "name": "AASDK Development Environment",
+    "name": "AASDK Development (ARM64)",
     "dockerComposeFile": "docker-compose.yml",
-    "service": "aasdk-dev",
+    "service": "aasdk-dev-arm64", 
     "workspaceFolder": "/workspace",
     "shutdownAction": "stopCompose",
     
@@ -24,6 +24,9 @@
             "settings": {
                 "cmake.configureOnOpen": true,
                 "cmake.buildDirectory": "${workspaceFolder}/build-${config:cmake.buildType}",
+                "cmake.configureArgs": [
+                    "-DTARGET_ARCH=arm64"
+                ],
                 "cmake.defaultVariants": {
                     "buildType": {
                         "default": "debug",

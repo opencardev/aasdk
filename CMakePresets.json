@@ -1,0 +1,149 @@
+{
+    "version": 3,
+    "configurePresets": [
+        {
+            "name": "debug",
+            "displayName": "Debug Build",
+            "description": "Debug build with full debug information",
+            "binaryDir": "${sourceDir}/build-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "TARGET_ARCH": "amd64"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Release Build",
+            "description": "Optimized release build",
+            "binaryDir": "${sourceDir}/build-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "TARGET_ARCH": "amd64"
+            }
+        },
+        {
+            "name": "debug-x64",
+            "displayName": "Debug Build (x64)",
+            "description": "Debug build for x64 architecture",
+            "binaryDir": "${sourceDir}/build-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug", 
+                "TARGET_ARCH": "amd64"
+            }
+        },
+        {
+            "name": "release-x64",
+            "displayName": "Release Build (x64)",
+            "description": "Release build for x64 architecture",
+            "binaryDir": "${sourceDir}/build-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "TARGET_ARCH": "amd64"
+            }
+        },
+        {
+            "name": "debug-arm64",
+            "displayName": "Debug Build (ARM64)",
+            "description": "Debug build for ARM64 architecture",
+            "binaryDir": "${sourceDir}/build-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "TARGET_ARCH": "arm64"
+            }
+        },
+        {
+            "name": "release-arm64",
+            "displayName": "Release Build (ARM64)",
+            "description": "Release build for ARM64 architecture", 
+            "binaryDir": "${sourceDir}/build-release",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "TARGET_ARCH": "arm64"
+            }
+        },
+        {
+            "name": "debug-armhf",
+            "displayName": "Debug Build (ARMHF)",
+            "description": "Debug build for ARMHF architecture",
+            "binaryDir": "${sourceDir}/build-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "TARGET_ARCH": "armhf"
+            }
+        },
+        {
+            "name": "release-armhf",
+            "displayName": "Release Build (ARMHF)",
+            "description": "Release build for ARMHF architecture",
+            "binaryDir": "${sourceDir}/build-release", 
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "TARGET_ARCH": "armhf"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "displayName": "Build Debug",
+            "description": "Build the debug configuration"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "displayName": "Build Release",
+            "description": "Build the release configuration"
+        },
+        {
+            "name": "debug-x64",
+            "configurePreset": "debug-x64",
+            "displayName": "Build Debug (x64)",
+            "description": "Build debug for x64"
+        },
+        {
+            "name": "release-x64",
+            "configurePreset": "release-x64",
+            "displayName": "Build Release (x64)",
+            "description": "Build release for x64"
+        },
+        {
+            "name": "debug-arm64",
+            "configurePreset": "debug-arm64",
+            "displayName": "Build Debug (ARM64)",
+            "description": "Build debug for ARM64"
+        },
+        {
+            "name": "release-arm64",
+            "configurePreset": "release-arm64",
+            "displayName": "Build Release (ARM64)",
+            "description": "Build release for ARM64"
+        },
+        {
+            "name": "debug-armhf",
+            "configurePreset": "debug-armhf",
+            "displayName": "Build Debug (ARMHF)",
+            "description": "Build debug for ARMHF"
+        },
+        {
+            "name": "release-armhf",
+            "configurePreset": "release-armhf",
+            "displayName": "Build Release (ARMHF)",
+            "description": "Build release for ARMHF"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "debug",
+            "configurePreset": "debug",
+            "displayName": "Test Debug",
+            "description": "Run tests for debug build"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release",
+            "displayName": "Test Release", 
+            "description": "Run tests for release build"
+        }
+    ]
+}

@@ -1,5 +1,5 @@
-ARG TARGET_ARCH="amd64"
-FROM mcr.microsoft.com/vscode/devcontainers/cpp:0-debian-11
+ARG TARGET_ARCH="armhf"
+FROM --platform=linux/arm/v7 mcr.microsoft.com/vscode/devcontainers/cpp:0-debian-11
 
 # Install architecture-specific packages
 ARG TARGET_ARCH
@@ -22,7 +22,13 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
         gnupg \
         lsb-release
 
-# Install boost libraries
+# Install cross-compilation toolchain for ARMHF
+RUN apt-get -y install --no-install-recommends \
+        gcc-arm-linux-gnueabihf \
+        g++-arm-linux-gnueabihf \
+        cpp-arm-linux-gnueabihf
+
+# Install boost libraries for ARMHF
 RUN apt-get -y install --no-install-recommends \
         libboost-dev \
         libboost-system-dev \

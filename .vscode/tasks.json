@@ -26,9 +26,9 @@
         {
             "label": "Build Release",
             "command": "bash",
-            "args": ["-c", "mkdir -p build-release && cd build-release && cmake -DCMAKE_BUILD_TYPE=Release ../ && make -j$(nproc)"],
+            "args": ["-c", "mkdir -p build-release && cd build-release && cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_ARCH=${TARGET_ARCH:-amd64} ../ && make -j$(nproc)"],
             "type": "shell",
-            "problemMatcher": [],
+            "problemMatcher": ["$gcc"],
             "presentation": {
                 "reveal": "always"
             },
@@ -40,11 +40,86 @@
         {
             "label": "Build Debug",
             "command": "bash",
-            "args": ["-c", "mkdir -p build-debug && cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug ../ && make -j$(nproc)"],
+            "args": ["-c", "mkdir -p build-debug && cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug -DTARGET_ARCH=${TARGET_ARCH:-amd64} ../ && make -j$(nproc)"],
             "type": "shell",
-            "problemMatcher": [],
+            "problemMatcher": ["$gcc"],
             "presentation": {
                 "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Build Protobuf",
+            "command": "bash",
+            "args": ["-c", "mkdir -p protobuf/build && cd protobuf/build && cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_ARCH=${TARGET_ARCH:-amd64} .. && make -j$(nproc) && make install"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Build Debug (Quick)",
+            "command": "./build.sh",
+            "args": ["debug"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Build Release (Quick)",
+            "command": "./build.sh",
+            "args": ["release"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Clean & Build",
+            "command": "./build.sh",
+            "args": ["debug", "clean"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Create Packages",
+            "command": "./package.sh",
+            "args": ["release"],
+            "type": "shell",
+            "dependsOn": "DevContainer: Build Release (Quick)",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
             },
             "group": "build"
         },

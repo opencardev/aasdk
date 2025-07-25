@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Default x64 development environment
+  aasdk-dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.x64
+      args:
+        TARGET_ARCH: "amd64"
+    volumes:
+      - ..:/workspace:cached
+      - /var/run/docker.sock:/var/run/docker-host.sock
+    command: sleep infinity
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - TARGET_ARCH=amd64
+
+  # ARM64 development environment
+  aasdk-dev-arm64:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.arm64
+      args:
+        TARGET_ARCH: "arm64"
+    platform: linux/arm64
+    volumes:
+      - ..:/workspace:cached
+      - /var/run/docker.sock:/var/run/docker-host.sock
+    command: sleep infinity
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - TARGET_ARCH=arm64
+
+  # ARMHF development environment  
+  aasdk-dev-armhf:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile.armhf
+      args:
+        TARGET_ARCH: "armhf"
+    platform: linux/arm/v7
+    volumes:
+      - ..:/workspace:cached
+      - /var/run/docker.sock:/var/run/docker-host.sock
+    command: sleep infinity
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+    environment:
+      - TARGET_ARCH=armhf
