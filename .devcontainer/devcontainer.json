@@ -1,0 +1,32 @@
+{
+	"name": "RaspberryPi",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"args": { "VARIANT": "raspberry-pi", "PLATFORM": "linux/arm/v7" }
+	},
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Uncomment to use the Docker CLI from inside the container. See https://aka.ms/vscode-remote/samples/docker-from-docker.
+	// "mounts": [ "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind" ],
+
+	// Uncomment when using a ptrace-based debugger like C++, Go, and Rust
+	// "runArgs": [ "--cap-add=SYS_PTRACE", "--security-opt", "seccomp=unconfined" ],
+
+	// Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "pi",
+	"features": {
+		//"python": "latest",
+		//"golang": "latest",
+		//"rust": "latest",
+		//"powershell": "latest"
+		//"ghcr.io/devcontainers/features/desktop-lite:1": {
+		//	"password": "vscode",
+		//	"webPort": "6080",
+		//	"vncPort": "5901"
+		//}
+	},
+	"workspaceMount": "source=${localWorkspaceFolder},target=/home/pi/workspace,type=bind",
+	"workspaceFolder": "/home/pi/workspace"
+}
