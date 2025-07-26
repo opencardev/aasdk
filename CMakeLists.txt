@@ -439,6 +439,10 @@ set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)
 
 # Post-install and pre-removal scripts (if they exist)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
+    # For component-based packaging, set control scripts for each component
+    set(CPACK_DEBIAN_RUNTIME_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
+    set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
+    # Also set the global one for backwards compatibility
     set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
 endif()
 
