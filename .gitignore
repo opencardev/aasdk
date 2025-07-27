@@ -18,4 +18,5 @@ build/**
 /protobuf/cmake-build-debug/
 /protobuf/.idea/
 /.vscode/
+/packages/
 **.backup

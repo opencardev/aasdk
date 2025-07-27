@@ -1,0 +1,30 @@
+{
+    "name": "AASDK Development Environment",
+    "build": {
+        "dockerfile": "Dockerfile.x64",
+        "args": {
+            "TARGET_ARCH": "amd64"
+        }
+    },
+    
+    "runArgs": [
+        "--platform=linux/amd64"
+    ],
+    
+    "containerEnv": {
+        "TARGET_ARCH": "amd64"
+    },
+    
+    "postCreateCommand": "bash .devcontainer/post-create.sh",
+    
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-vscode.cmake-tools"
+            ]
+        }
+    },
+    
+    "remoteUser": "vscode"
+}

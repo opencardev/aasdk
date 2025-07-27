@@ -380,11 +380,11 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 # Debian package configuration
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <aasdk@example.com>")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <matthilton2005@gmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/opencardev/aasdk")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), libboost-system1.74.0 (>= 1.74.0), libboost-log1.74.0 (>= 1.74.0), libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), libboost-system1.81.0 | libboost-system1.74.0, libboost-log1.81.0 | libboost-log1.74.0, libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
@@ -439,6 +439,10 @@ set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)
 
 # Post-install and pre-removal scripts (if they exist)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst" AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
+    # For component-based packaging, set control scripts for each component
+    set(CPACK_DEBIAN_RUNTIME_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
+    set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
+    # Also set the global one for backwards compatibility
     set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CMAKE_CURRENT_SOURCE_DIR}/debian/postinst;${CMAKE_CURRENT_SOURCE_DIR}/debian/prerm")
 endif()
 
@@ -448,16 +452,16 @@ set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${LIBRARY_VERSION_STRI
 set(CPACK_SOURCE_IGNORE_FILES
     "/build/"
     "/build-debug/"
-    "/\\.git/"
-    "/\\.vscode/"
-    "/\\.idea/"
-    "\\.gitignore"
-    "\\.DS_Store"
+    "/[.]git/"
+    "/[.]vscode/"
+    "/[.]idea/"
+    "[.]gitignore"
+    "[.]DS_Store"
     "/test_build/"
     "/lib/"
     "/bin/"
-    "\\.so$"
-    "\\.a$"
+    "[.]so$"
+    "[.]a$"
 )
 
 include(CPack)

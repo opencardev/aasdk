@@ -3,8 +3,19 @@
     "tasks": [
         {
             "label": "Clean",
-            "command": "rm",
-            "args": ["-rf", "build-release", "build-debug"],
+            "command": "bash",
+            "args": ["-c", "rm -rf build-release build-debug packages && cd protobuf && rm -rf build"],
+            "type": "shell",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "Clean aap_protobuf",
+            "command": "bash",
+            "args": ["-c", "cd protobuf && rm -rf build && rm -rf CMakeFiles && rm -f CMakeCache.txt"],
             "type": "shell",
             "problemMatcher": [],
             "presentation": {
@@ -15,9 +26,9 @@
         {
             "label": "Build Release",
             "command": "bash",
-            "args": ["-c", "mkdir -p build-release && cd build-release && cmake -DCMAKE_BUILD_TYPE=Release ../ && make -j$(nproc)"],
+            "args": ["-c", "mkdir -p build-release && cd build-release && cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_ARCH=${TARGET_ARCH:-amd64} ../ && make -j$(nproc)"],
             "type": "shell",
-            "problemMatcher": [],
+            "problemMatcher": ["$gcc"],
             "presentation": {
                 "reveal": "always"
             },
@@ -29,18 +40,93 @@
         {
             "label": "Build Debug",
             "command": "bash",
-            "args": ["-c", "mkdir -p build-debug && cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug ../ && make -j$(nproc)"],
+            "args": ["-c", "mkdir -p build-debug && cd build-debug && cmake -DCMAKE_BUILD_TYPE=Debug -DTARGET_ARCH=${TARGET_ARCH:-amd64} ../ && make -j$(nproc)"],
             "type": "shell",
-            "problemMatcher": [],
+            "problemMatcher": ["$gcc"],
             "presentation": {
                 "reveal": "always"
             },
             "group": "build"
         },
         {
+            "label": "Build Protobuf",
+            "command": "bash",
+            "args": ["-c", "mkdir -p protobuf/build && cd protobuf/build && cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_ARCH=${TARGET_ARCH:-amd64} .. && make -j$(nproc) && make install"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Build Debug (Quick)",
+            "command": "./build.sh",
+            "args": ["debug"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Build Release (Quick)",
+            "command": "./build.sh",
+            "args": ["release"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Clean & Build",
+            "command": "./build.sh",
+            "args": ["debug", "clean"],
+            "type": "shell",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build"
+        },
+        {
+            "label": "DevContainer: Create Packages",
+            "command": "./package.sh",
+            "args": ["release"],
+            "type": "shell",
+            "dependsOn": "DevContainer: Build Release (Quick)",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "group": "build"
+        },
+        {
             "label": "Create Release DEB Packages",
             "command": "bash",
-            "args": ["-c", "cd build-release && cpack --config CPackConfig.cmake"],
+            "args": ["-c", "cd build-release && cpack --config CPackConfig.cmake && mkdir -p ../packages && mv *.deb ../packages/"],
             "type": "shell",
             "dependsOn": "Build Release",
             "problemMatcher": [],
@@ -52,7 +138,7 @@
         {
             "label": "Create Debug DEB Packages",
             "command": "bash",
-            "args": ["-c", "cd build-debug && cpack --config CPackConfig.cmake"],
+            "args": ["-c", "cd build-debug && cpack --config CPackConfig.cmake && mkdir -p ../packages && mv *.deb ../packages/"],
             "type": "shell",
             "dependsOn": "Build Debug",
             "problemMatcher": [],
@@ -64,7 +150,7 @@
         {
             "label": "Create Source Package",
             "command": "bash",
-            "args": ["-c", "cd build-release && cpack --config CPackSourceConfig.cmake"],
+            "args": ["-c", "cd build-release && cpack --config CPackSourceConfig.cmake && mkdir -p ../packages && mv *.tar.* ../packages/"],
             "type": "shell",
             "dependsOn": "Build Release",
             "problemMatcher": [],
@@ -88,7 +174,7 @@
         {
             "label": "Install Release Package",
             "command": "bash",
-            "args": ["-c", "cd build-release && sudo dpkg -i *.deb"],
+            "args": ["-c", "cd packages && sudo dpkg -i *arm64_*.deb *arm64-dev_*.deb"],
             "type": "shell",
             "dependsOn": "Create Release DEB Packages",
             "problemMatcher": [],
@@ -100,7 +186,7 @@
         {
             "label": "Install Debug Package",
             "command": "bash",
-            "args": ["-c", "cd build-debug && sudo dpkg -i *.deb"],
+            "args": ["-c", "cd packages && sudo dpkg -i *arm64-dbg_*.deb *arm64-dbg-dev_*.deb"],
             "type": "shell",
             "dependsOn": "Create Debug DEB Packages",
             "problemMatcher": [],

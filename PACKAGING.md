@@ -123,8 +123,8 @@ sudo apt install libaasdk libaasdk-dev
 
 The packages automatically handle the following dependencies:
 - libusb-1.0-0 (>= 1.0.0)
-- libboost-system1.74.0 (>= 1.74.0)
-- libboost-log1.74.0 (>= 1.74.0)
+- libboost-system1.81.0 | libboost-system1.74.0 (compatible with both versions)
+- libboost-log1.81.0 | libboost-log1.74.0 (compatible with both versions)
 - libssl3 (>= 3.0.0)
 - libprotobuf32 (>= 3.21.0)
 
@@ -173,7 +173,7 @@ cmake -DCMAKE_BUILD_TYPE=Release ../
 If you encounter dependency issues, install them manually:
 ```bash
 sudo apt update
-sudo apt install libusb-1.0-0-dev libboost-all-dev libssl-dev libprotobuf-dev
+sudo apt install libusb-1.0-0-dev libboost-all-dev libssl-dev libprotobuf-dev protobuf-compiler
 ```
 
 ### Package Conflicts
