@@ -16,7 +16,10 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <string>
+#if defined(__has_include) && __has_include(<openssl/engine.h>) && !defined(OPENSSL_NO_ENGINE)
 #include <openssl/engine.h>
+#define HAVE_ENGINE_H
+#endif
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <openssl/conf.h>
@@ -37,7 +40,9 @@ namespace aasdk {
 #ifdef FIPS_mode_set
       FIPS_mode_set(0); // FIPS_mode_set removed in later versions of OpenSSL.
 #endif
+#ifdef HAVE_ENGINE_H
       ENGINE_cleanup();
+#endif
       CONF_modules_unload(1);
       EVP_cleanup();
       CRYPTO_cleanup_all_ex_data();
