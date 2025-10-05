@@ -20,3 +20,9 @@ build/**
 /.vscode/
 /packages/
 **.backup
+/protobuf/aap_protobufConfig*.cmake
+/protobuf/aap_protobuf/**/*.pb.*
+aasdkConfig*.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+include/aasdk/Version.hpp
