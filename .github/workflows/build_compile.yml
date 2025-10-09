@@ -1,9 +1,27 @@
 name: Build and test with docker
 
 on:
+
   push:
-    tags:
-      - '*'
+    branches:
+      - main
+      - develop
+      - 'feature/*'
+      - 'bugfix/*'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
   workflow_dispatch:
     inputs:
       version:
