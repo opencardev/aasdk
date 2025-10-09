@@ -1,7 +1,6 @@
-name: Build and test with docker
+name: Build and Package AASDK
 
 on:
-
   push:
     branches:
       - main
@@ -25,7 +24,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Build version'
+        description: 'Build version (leave empty for auto-generated)'
         required: false
         default: ''
         type: string
@@ -34,163 +33,269 @@ on:
         required: false
         default: false
         type: boolean
+      target_arch:
+        description: 'Target architecture'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - armhf
+          - arm64
+          - amd64
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: aasdk-builder
 
 jobs:
-  version:
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-      buildname: ${{ steps.get_version.outputs.buildname }}
-    runs-on: "ubuntu-latest"
-    steps:
-      - 
-        name: Checkout repository
-        uses: actions/checkout@v1
-      - 
-        name: Get the version
-        id: get_version
-        run: |
-          if [ -z "$version" ]
-          then
-                version=$(date '+%Y%m%d')
-                echo ::set-output name=version::"${version}"
-          else
-                echo ::set-output name=version::"${version}"
-          fi
-          builddate=$(date '+%Y-%m-%d')
-          buildhash=$(git rev-parse --short "$GITHUB_SHA")
-          buildname="${builddate}-${buildhash}"
-          echo ::set-output name=version::${VERSION}
-          echo ::set-output name=buildhash::${buildhash}
-          echo ::set-output name=builddate::${builddate}
-          echo ::set-output name=buildname::${buildname}
-        env:
-          version: ${{ github.event.inputs.version }}
-  compile:    
-    runs-on: ${{ matrix.host }}
-    needs: [ version ]
-    strategy:
-      fail-fast: false
-      max-parallel: 3
-      matrix:
-        host: [
-          "ubuntu-latest",
-          #"macos-10.15",
-        ]
-        config:
-          - {
-              name: "armhf Release",
-              arch: "armhf"
-            }
-          - {
-              name: "amd64 Release",
-              arch: "amd64"
-            }
-          - {
-              name: "arm64 Release",
-              arch: "arm64"
-            }
-
-    name: 'Build and Upload release:  ${{ matrix.config.name }}'
-    steps:
-      - uses: actions/checkout@v2
-      - 
-        name: Build the Docker image
-        run: docker build -t aasdk_builder --file buildenv/Dockerfile .
-      - 
-        name: 'Build ${{ matrix.config.arch }} Debian package'
-        run: docker run -v "${PWD}/release":/release aasdk_builder:latest ${{ matrix.config.arch }}
-      - 
-        name: Get Name of Artifact
-        id: get-artifact-name
-        run: |
-          ls -hla
-          ARTIFACT_PATHNAME=$(ls ./release/*.deb | head -n 1)
-          ARTIFACT_NAME=$(basename $ARTIFACT_PATHNAME)
-          echo ::set-output name=artifact_filename::${ARTIFACT_NAME}
-          echo ::set-output name=artifact_path::${ARTIFACT_PATHNAME}
-      - 
-        name: Upload build artifacts 
-        id: upload_deploy
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ matrix.config.arch }}
-          path: |
-            ${{ steps.get-artifact-name.outputs.artifact_path }}
-# Create Release
-  release:
+  prepare:
+    name: Prepare Build Information
     runs-on: ubuntu-latest
-    needs: [ version, compile ]
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true'
-    name: 'Create release'
     outputs:
-      release_upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
+      version: ${{ steps.version.outputs.version }}
+      version_string: ${{ steps.version.outputs.version_string }}
+      build_hash: ${{ steps.version.outputs.build_hash }}
+      build_date: ${{ steps.version.outputs.build_date }}
+      build_matrix: ${{ steps.matrix.outputs.build_matrix }}
+      should_release: ${{ steps.release.outputs.should_release }}
+    
     steps:
-      - uses: actions/checkout@v2
-      - 
-        name: Build Changelog
-        id: github_release
-        uses: mikepenz/release-changelog-builder-action@v2.4.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - 
-        name: Create GitHub release
-        id: create_release
-        uses: softprops/action-gh-release@v0.1.13
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          tag_name: ${{needs.version.outputs.version }}
-          release_name: ${{needs.version.outputs.buildname }}
-          body: ${{steps.github_release.outputs.changelog}}
-          draft: true
-          prerelease: true
-# Upload release artifacts
-  upload:
-    needs: [ version, compile, release ]
-    runs-on: ${{ matrix.host }}
+          fetch-depth: 0
+
+      - name: Generate version information
+        id: version
+        run: |
+          # Use input version or generate from date
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION=$(date '+%Y.%m.%d')
+          fi
+          
+          BUILD_DATE=$(date '+%Y-%m-%d')
+          BUILD_HASH=$(git rev-parse --short "$GITHUB_SHA")
+          BRANCH_NAME=${GITHUB_REF_NAME}
+          
+          # Create version string
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            VERSION_STRING="${VERSION}+pr.${GITHUB_HEAD_REF}.${BUILD_HASH}"
+          elif [ "$BRANCH_NAME" = "main" ] || [ "$BRANCH_NAME" = "develop" ]; then
+            VERSION_STRING="${VERSION}+git.${BUILD_HASH}"
+          else
+            VERSION_STRING="${VERSION}+git.${BUILD_HASH}.${BRANCH_NAME//\//-}"
+          fi
+          
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "version_string=${VERSION_STRING}" >> $GITHUB_OUTPUT
+          echo "build_hash=${BUILD_HASH}" >> $GITHUB_OUTPUT
+          echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+          
+          echo "Generated version: ${VERSION_STRING}"
+
+      - name: Determine build matrix
+        id: matrix
+        run: |
+          TARGET="${{ github.event.inputs.target_arch || 'all' }}"
+          
+          if [ "$TARGET" = "all" ]; then
+            BUILD_MATRIX='["armhf", "arm64", "amd64"]'
+          else
+            BUILD_MATRIX='["'$TARGET'"]'
+          fi
+          
+          echo "build_matrix=${BUILD_MATRIX}" >> $GITHUB_OUTPUT
+          echo "Build matrix: ${BUILD_MATRIX}"
+
+      - name: Check release conditions
+        id: release
+        run: |
+          SHOULD_RELEASE="false"
+          
+          if [ "${{ github.event.inputs.create_release }}" = "true" ] || \
+             [ "${{ startsWith(github.ref, 'refs/tags/') }}" = "true" ]; then
+            SHOULD_RELEASE="true"
+          fi
+          
+          echo "should_release=${SHOULD_RELEASE}" >> $GITHUB_OUTPUT
+          echo "Should create release: ${SHOULD_RELEASE}"
+  build:
+    name: Build AASDK (${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    needs: prepare
     strategy:
       fail-fast: false
-      max-parallel: 3
       matrix:
-        host: [
-          "ubuntu-latest",
-          #"macos-10.15",
-        ]
-        config:
-          - {
-              name: "armhf Release",
-              arch: "armhf"
-            }
-          - {
-              name: "amd64 Release",
-              arch: "amd64"
-            }
-
-    name: 'Upload release:  ${{ matrix.config.name }}'
+        arch: ${{ fromJson(needs.prepare.outputs.build_matrix) }}
+    
     steps:
-      - 
-        name: Download build artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: ${{ steps.get_version.outputs.version }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - 
-        name: Get Artifact Filenames
-        id: get-artifact-name
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU for multi-architecture builds
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Build Docker image
         run: |
-          ARTIFACT_PATHNAME=$(ls ${{ matrix.config.arch }}/*.deb | head -n 1)
-          ARTIFACT_NAME=$(basename $ARTIFACT_PATHNAME)
-          echo ::set-output name=artifact_filename::${ARTIFACT_NAME}
-          echo ::set-output name=artifact_path::${ARTIFACT_PATHNAME}
-      - 
-        name: Upload zip to release
-        id: upload_zip
-        uses: actions/upload-release-asset@v1.0.2
+          echo "Building AASDK for architecture: ${{ matrix.arch }}"
+          docker buildx build \
+            --load \
+            --tag aasdk-builder:${{ matrix.arch }} \
+            --file buildenv/Dockerfile \
+            .
+
+      - name: Create output directory
+        run: mkdir -p release
+
+      - name: Build AASDK packages
+        run: |
+          echo "Building ${{ matrix.arch }} packages..."
+          docker run --rm \
+            -v "${PWD}/release":/release \
+            aasdk-builder:${{ matrix.arch }} \
+            ${{ matrix.arch }}
+
+      - name: Verify build artifacts
+        run: |
+          echo "=== Build artifacts for ${{ matrix.arch }} ==="
+          ls -la release/
+          
+          if ls release/*.deb 1> /dev/null 2>&1; then
+            echo "✅ DEB packages built successfully:"
+            for deb in release/*.deb; do
+              echo "📦 $(basename "$deb")"
+              dpkg --info "$deb" | head -10
+            done
+          else
+            echo "❌ No DEB packages found!"
+            exit 1
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: aasdk-${{ matrix.arch }}-${{ needs.prepare.outputs.version_string }}
+          path: release/*.deb
+          retention-days: 30
+          if-no-files-found: error
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [prepare, build]
+    if: needs.prepare.outputs.should_release == 'true'
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: aasdk-*-${{ needs.prepare.outputs.version_string }}
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create release archive
+        run: |
+          cd artifacts
+          tar -czf ../aasdk-${{ needs.prepare.outputs.version_string }}.tar.gz *.deb
+          cd ..
+          sha256sum aasdk-${{ needs.prepare.outputs.version_string }}.tar.gz > aasdk-${{ needs.prepare.outputs.version_string }}.tar.gz.sha256
+
+      - name: Generate changelog
+        id: changelog
+        uses: mikepenz/release-changelog-builder-action@v4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_VERSION: ${{ needs.version.outputs.buildname }}
+
+      - name: Create GitHub release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{needs.release.outputs.release_upload_url}}
-          asset_path: ${{ steps.get-artifact-name.outputs.artifact_path }}
-          asset_name: ${{ steps.get-artifact-name.outputs.artifact_filename }}
-          asset_content_type: application/vnd.debian.binary-package
+          tag_name: v${{ needs.prepare.outputs.version }}
+          name: AASDK v${{ needs.prepare.outputs.version_string }}
+          body: |
+            ## AASDK Release ${{ needs.prepare.outputs.version_string }}
+            
+            **Build Information:**
+            - Version: `${{ needs.prepare.outputs.version_string }}`
+            - Build Date: `${{ needs.prepare.outputs.build_date }}`
+            - Commit: `${{ needs.prepare.outputs.build_hash }}`
+            - Branch: `${{ github.ref_name }}`
+            
+            **Packages Included:**
+            - ARMhf (32-bit ARM) - Raspberry Pi 3, legacy ARM devices
+            - ARM64 (64-bit ARM) - Raspberry Pi 4+, modern ARM devices  
+            - AMD64 (x86_64) - Development and server deployments
+            
+            **Installation:**
+            ```bash
+            # Download and install appropriate package for your architecture
+            sudo dpkg -i libaasdk-*.deb
+            sudo apt-get install -f  # Fix any dependency issues
+            ```
+            
+            ${{ steps.changelog.outputs.changelog }}
+          files: |
+            aasdk-${{ needs.prepare.outputs.version_string }}.tar.gz
+            aasdk-${{ needs.prepare.outputs.version_string }}.tar.gz.sha256
+            artifacts/*.deb
+          draft: false
+          prerelease: ${{ github.ref_name != 'main' && github.ref_name != 'develop' }}
+
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [prepare, build, release]
+    if: always()
+    
+    steps:
+      - name: Build Summary
+        run: |
+          echo "=== AASDK Build Summary ==="
+          echo "Version: ${{ needs.prepare.outputs.version_string }}"
+          echo "Build Date: ${{ needs.prepare.outputs.build_date }}"
+          echo "Commit: ${{ needs.prepare.outputs.build_hash }}"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Event: ${{ github.event_name }}"
+          echo ""
+          echo "Build Matrix: ${{ needs.prepare.outputs.build_matrix }}"
+          echo "Should Release: ${{ needs.prepare.outputs.should_release }}"
+          echo ""
+          
+          # Check build results
+          if [ "${{ needs.build.result }}" = "success" ]; then
+            echo "✅ All builds completed successfully"
+          else
+            echo "❌ Build failed"
+            echo "Build result: ${{ needs.build.result }}"
+          fi
+          
+          # Check release results
+          if [ "${{ needs.prepare.outputs.should_release }}" = "true" ]; then
+            if [ "${{ needs.release.result }}" = "success" ]; then
+              echo "✅ Release created successfully"
+            elif [ "${{ needs.release.result }}" = "skipped" ]; then
+              echo "⏭️ Release job was skipped"
+            else
+              echo "❌ Release failed"
+              echo "Release result: ${{ needs.release.result }}"
+            fi
+          else
+            echo "ℹ️ No release created (not requested or conditions not met)"
+          fi
