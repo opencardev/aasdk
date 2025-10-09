@@ -55,6 +55,10 @@ jobs:
               name: "amd64 Release",
               arch: "amd64"
             }
+          - {
+              name: "arm64 Release",
+              arch: "arm64"
+            }
 
     name: 'Build and Upload release:  ${{ matrix.config.name }}'
     steps:
