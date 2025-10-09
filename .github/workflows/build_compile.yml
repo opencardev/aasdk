@@ -146,8 +146,31 @@ jobs:
       - name: Build Docker image
         run: |
           echo "Building AASDK for architecture: ${{ matrix.arch }}"
+          
+          # Map architecture to Docker platform
+          case "${{ matrix.arch }}" in
+            "armhf")
+              DOCKER_PLATFORM="linux/arm/v7"
+              ;;
+            "arm64")
+              DOCKER_PLATFORM="linux/arm64"
+              ;;
+            "amd64")
+              DOCKER_PLATFORM="linux/amd64"
+              ;;
+            *)
+              echo "❌ Unsupported architecture: ${{ matrix.arch }}"
+              exit 1
+              ;;
+          esac
+          
+          echo "Docker platform: ${DOCKER_PLATFORM}"
+          
           docker buildx build \
             --load \
+            --platform ${DOCKER_PLATFORM} \
+            --build-arg ARCH=${{ matrix.arch }} \
+            --build-arg PLATFORM=${DOCKER_PLATFORM} \
             --tag aasdk-builder:${{ matrix.arch }} \
             --file buildenv/Dockerfile \
             .

@@ -1,9 +1,18 @@
-ARG ARCH="armhf"
-FROM --platform=${PLATFORM} debian:bookworm AS aasdk
+ARG ARCH# These are all the libboost requirements. It would be shorter if libboost-log-dev wasn't a disaster that's being dealt with manually.
+RUN apt-get install -y libprotobuf-dev:$ARCH libusb-1.0.0-dev:$ARCH libssl-dev:$ARCH libboost-dev:$ARCH libboost-system-dev:$ARCH libboost-atomic1.83.0:$ARCH libboost-chrono1.83.0:$ARCH libboost-date-time1.83.0:$ARCH libboost-filesystem1.83.0:$ARCH libboost-regex1.83.0:$ARCH libboost-system1.83.0:$ARCH libboost-thread1.83.0:$ARCH libboost-filesystem1.83-dev:$ARCH libboost-thread1.83-dev:$ARCH libboost-date-time1.83-dev:$ARCHarmhf"
+ARG PLATFORM
+FROM --platform=${PLATFORM} debian:trixie AS aasdk
 RUN apt-get update
 RUN apt-get -y install cmake build-essential git
-RUN apt-get -y install gcc-arm-linux-gnueabihf cpp-arm-linux-gnueabihf g++-arm-linux-gnueabihf protobuf-compiler
+RUN apt-get -y install protobuf-compiler
 RUN apt-get -y install gcc-11-base libc6 libgcc1 libicu72 libidn2-0 libstdc++6 libunistring2
+
+# Install cross-compilation toolchains based on architecture
+RUN if [ "$ARCH" = "armhf" ]; then \
+        apt-get -y install gcc-arm-linux-gnueabihf cpp-arm-linux-gnueabihf g++-arm-linux-gnueabihf; \
+    elif [ "$ARCH" = "arm64" ]; then \
+        apt-get -y install gcc-aarch64-linux-gnu cpp-aarch64-linux-gnu g++-aarch64-linux-gnu; \
+    fi
 
 # These are all the libboost requirements. It would be shorter if libboost-log-dev wasn't a disaster that's being dealt with manually.
 RUN apt-get install -y libprotobuf-dev:$ARCH libusb-1.0.0-dev:$ARCH libssl-dev:$ARCH libboost-dev:$ARCH libboost-system-dev:$ARCH libboost-atomic1.81.0:$ARCH libboost-chrono1.81.0:$ARCH libboost-date-time1.81.0:$ARCH libboost-filesystem1.81.0:$ARCH libboost-regex1.81.0:$ARCH libboost-system1.81.0:$ARCH libboost-thread1.81.0:$ARCH libboost-filesystem1.81-dev:$ARCH libboost-thread1.81-dev:$ARCH libboost-date-time1.81-dev:$ARCH
