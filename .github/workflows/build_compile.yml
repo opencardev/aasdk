@@ -169,8 +169,8 @@ jobs:
           docker buildx build \
             --load \
             --platform ${DOCKER_PLATFORM} \
-            --build-arg ARCH=${{ matrix.arch }} \
-            --build-arg PLATFORM=${DOCKER_PLATFORM} \
+            --build-arg DEBIAN_RELEASE=trixie \
+            --build-arg TARGET_ARCH=${{ matrix.arch }} \
             --tag aasdk-builder:${{ matrix.arch }} \
             --file buildenv/Dockerfile \
             .
