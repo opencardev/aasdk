@@ -209,6 +209,20 @@ endif ()
 include(FindProtobuf)
 
 find_package(Boost REQUIRED COMPONENTS system log_setup log OPTIONAL_COMPONENTS unit_test_framework)
+
+# Capture Boost version for packaging
+if(Boost_VERSION)
+    string(REPLACE "." ";" VERSION_LIST ${Boost_VERSION})
+    list(GET VERSION_LIST 0 Boost_VERSION_MAJOR)
+    list(GET VERSION_LIST 1 Boost_VERSION_MINOR)
+    set(BOOST_PACKAGE_VERSION "${Boost_VERSION_MAJOR}.${Boost_VERSION_MINOR}.0")
+    message(STATUS "Detected Boost version: ${BOOST_PACKAGE_VERSION}")
+else()
+    # Fallback to common versions if detection fails
+    set(BOOST_PACKAGE_VERSION "1.83.0")
+    message(WARNING "Could not detect Boost version, using fallback: ${BOOST_PACKAGE_VERSION}")
+endif()
+
 find_package(libusb-1.0 REQUIRED)
 find_package(OpenSSL REQUIRED)
 
@@ -384,7 +398,23 @@ set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <matthilton2005@gmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/opencardev/aasdk")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), libboost-system1.81.0 | libboost-system1.74.0, libboost-log1.81.0 | libboost-log1.74.0, libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
+
+# Build dynamic dependencies string with detected Boost version
+set(BOOST_SYSTEM_DEP "libboost-system${BOOST_PACKAGE_VERSION}")
+set(BOOST_LOG_DEP "libboost-log${BOOST_PACKAGE_VERSION}")
+# Add fallback for common versions to ensure compatibility
+if(BOOST_PACKAGE_VERSION VERSION_EQUAL "1.83.0")
+    set(BOOST_SYSTEM_FALLBACK " | libboost-system1.81.0 | libboost-system1.74.0")
+    set(BOOST_LOG_FALLBACK " | libboost-log1.81.0 | libboost-log1.74.0")
+elseif(BOOST_PACKAGE_VERSION VERSION_EQUAL "1.81.0")
+    set(BOOST_SYSTEM_FALLBACK " | libboost-system1.74.0 | libboost-system1.83.0")
+    set(BOOST_LOG_FALLBACK " | libboost-log1.74.0 | libboost-log1.83.0")
+else()
+    set(BOOST_SYSTEM_FALLBACK " | libboost-system1.83.0 | libboost-system1.81.0 | libboost-system1.74.0")
+    set(BOOST_LOG_FALLBACK " | libboost-log1.83.0 | libboost-log1.81.0 | libboost-log1.74.0")
+endif()
+
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), ${BOOST_SYSTEM_DEP}${BOOST_SYSTEM_FALLBACK}, ${BOOST_LOG_DEP}${BOOST_LOG_FALLBACK}, libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
