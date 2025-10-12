@@ -2,10 +2,47 @@ name: AASDK Build Multi-Architecture
 
 on:
   push:
-    branches: [ main, develop, bugfix/trixie ]
+    branches:
+      - main
+      - develop
+      - 'feature/*'
+      - 'bugfix/*'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
   pull_request:
-    branches: [ main, develop ]
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Build version (leave empty for auto-generated)'
+        required: false
+        default: ''
+        type: string
+      architecture:
+        description: 'Architecture to build (all, amd64, arm64, armhf)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - amd64
+          - arm64
+          - armhf
+      create_release:
+        description: 'Create GitHub release'
+        required: false
+        default: false
+        type: boolean
 
 env:
   REGISTRY: ghcr.io
@@ -27,6 +64,12 @@ jobs:
 
     name: Build AASDK for ${{ matrix.arch }}
 
+    # Skip architectures when manually triggered with specific selection
+    if: >
+      github.event_name != 'workflow_dispatch' || 
+      github.event.inputs.architecture == 'all' || 
+      github.event.inputs.architecture == matrix.arch
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -44,8 +87,13 @@ jobs:
     - name: Generate build info
       id: build_info
       run: |
-        # Generate version information
-        VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+        # Use manual version if provided, otherwise auto-generate
+        if [ -n "${{ github.event.inputs.version }}" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+        fi
+        
         COMMIT_SHA=$(git rev-parse --short HEAD)
         BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
         
@@ -105,15 +153,18 @@ jobs:
           ./build-output/*.tar.*
         retention-days: 30
 
-    - name: Upload packages to release (on tag)
-      if: startsWith(github.ref, 'refs/tags/')
+    - name: Upload packages to release (on tag or manual release)
+      if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true'
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.build_info.outputs.version }}
+        name: AASDK Release ${{ steps.build_info.outputs.version }}
         files: |
           ./build-output/*.deb
           ./build-output/*.tar.*
         fail_on_unmatched_files: false
         generate_release_notes: true
+        draft: ${{ github.event.inputs.create_release == 'true' && !startsWith(github.ref, 'refs/tags/') }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
