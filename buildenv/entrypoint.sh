@@ -5,10 +5,10 @@ MAJORVER=0
 if [ -z "$ARCH" ]
 then
     echo "Please supply a target architecture to build"
-    echo "Choose from 'amd64', 'armhf'"
+    echo "Choose from 'amd64', 'armhf', 'arm64'"
     exit
 else
-    if [ "$ARCH" != "amd64" ] && [ "$ARCH" != "armhf" ]
+    if [ "$ARCH" != "amd64" ] && [ "$ARCH" != "armhf" ] && [ "$ARCH" != "arm64" ]
     then
         echo "Invalid architecture requested"
         exit
