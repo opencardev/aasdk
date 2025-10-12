@@ -46,10 +46,6 @@ RUN apt-get update && apt-get install -y \
     dpkg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set up environment for native compilation
-ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig
-ENV CMAKE_PREFIX_PATH=/usr
-
 # Set working directory
 WORKDIR /src
 
@@ -77,9 +73,9 @@ RUN if [ -f "build.sh" ]; then \
 RUN echo "Building AASDK for architecture: native compilation" && \
     export TARGET_ARCH=amd64 && \
     export JOBS=$(nproc) && \
-    export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig && \
+    export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig" && \
     export CMAKE_PREFIX_PATH=/usr && \
-    export Protobuf_DIR=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/protobuf && \
+    export Protobuf_DIR="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/protobuf" && \
     echo "Protobuf check:" && \
     pkg-config --exists protobuf && echo "✅ protobuf found via pkg-config" || echo "❌ protobuf not found via pkg-config" && \
     pkg-config --cflags protobuf && \
