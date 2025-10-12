@@ -35,43 +35,16 @@ RUN apt-get update && apt-get install -y \
     ninja-build \
     pkg-config \
     git \
-    # Cross-compilation toolchains
-    gcc-aarch64-linux-gnu \
-    g++-aarch64-linux-gnu \
-    gcc-arm-linux-gnueabihf \
-    g++-arm-linux-gnueabihf \
-    # Development libraries (native and cross-arch)
+    # Development libraries (native for this platform)
     libboost-all-dev \
     libprotobuf-dev \
     protobuf-compiler \
     libusb-1.0-0-dev \
     libssl-dev \
-    # Additional architecture libraries for cross-compilation
-    libboost-all-dev:arm64 \
-    libprotobuf-dev:arm64 \
-    libusb-1.0-0-dev:arm64 \
-    libssl-dev:arm64 \
-    libboost-all-dev:armhf \
-    libprotobuf-dev:armhf \
-    libusb-1.0-0-dev:armhf \
-    libssl-dev:armhf \
     # Packaging tools
     file \
     dpkg-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Add cross-architecture package repositories
-RUN <<EOF
-# Enable multi-architecture support
-dpkg --add-architecture arm64
-dpkg --add-architecture armhf
-
-# Update package cache with new architectures
-apt-get update
-
-# Clean up to reduce image size
-rm -rf /var/lib/apt/lists/*
-EOF
 
 # Set working directory
 WORKDIR /src
