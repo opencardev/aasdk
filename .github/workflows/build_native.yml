@@ -49,26 +49,32 @@ env:
   IMAGE_NAME: ${{ github.repository }}/aasdk
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - name: Generate build matrix
+        id: matrix
+        run: |
+          if [ "${{ github.event.inputs.architecture }}" = "amd64" ]; then
+            echo 'matrix={"include":[{"arch":"amd64","platform":"linux/amd64"}]}' >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.architecture }}" = "arm64" ]; then
+            echo 'matrix={"include":[{"arch":"arm64","platform":"linux/arm64"}]}' >> $GITHUB_OUTPUT
+          elif [ "${{ github.event.inputs.architecture }}" = "armhf" ]; then
+            echo 'matrix={"include":[{"arch":"armhf","platform":"linux/arm/v7"}]}' >> $GITHUB_OUTPUT
+          else
+            echo 'matrix={"include":[{"arch":"amd64","platform":"linux/amd64"},{"arch":"arm64","platform":"linux/arm64"},{"arch":"armhf","platform":"linux/arm/v7"}]}' >> $GITHUB_OUTPUT
+          fi
+
   build:
+    needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            platform: linux/amd64
-          - arch: arm64
-            platform: linux/arm64
-          - arch: armhf
-            platform: linux/arm/v7
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
 
     name: Build AASDK for ${{ matrix.arch }}
-
-    # Skip architectures when manually triggered with specific selection
-    if: >
-      github.event_name != 'workflow_dispatch' || 
-      github.event.inputs.architecture == 'all' || 
-      github.event.inputs.architecture == matrix.arch
 
     steps:
     - name: Checkout code
