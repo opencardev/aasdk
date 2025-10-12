@@ -27,15 +27,23 @@ make install
 # Clear out the /build directory
 rm -f bin/*
 rm -f lib/*
-mkdir build;
-cd build;
+mkdir -p build
+cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DTARGET_ARCH=$ARCH ../
 make -j4
-cpack --config CPackConfig.cmake
 
-# Move it to release
+# Package with CPack
+cpack
+
+# Move packages to release directory
 rm -f /release/*.deb
 rm -f /release/*.so*
-mv *.deb /release/
+
+# Find and move .deb files (they may be in current directory or subdirectories)
+find . -name "*.deb" -exec mv {} /release/ \;
+
+# Move shared libraries from lib directory (if they exist)
 cd ..
-mv lib/*.so* /release
+if [ -d "lib" ] && [ "$(ls -A lib/*.so* 2>/dev/null)" ]; then
+    mv lib/*.so* /release/
+fi
