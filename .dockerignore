@@ -1,9 +1,15 @@
 # Build outputs
-build*/
+build/
+build-*/
 packages/
 build-output/
 lib/
 bin/
+
+# Keep build scripts
+!build.sh
+!build.bat
+!build.ps1
 
 # Development files
 .git/
