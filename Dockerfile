@@ -52,39 +52,37 @@ WORKDIR /src
 # Copy source code
 COPY . .
 
+# Debug: List what was copied
+RUN echo "Contents of /src:" && ls -la
+
 # Create output directory for packages
 RUN mkdir -p /output
 
+# Make build script executable and verify it exists
+RUN if [ -f "build.sh" ]; then \
+        echo "Found build.sh, making executable"; \
+        chmod +x build.sh; \
+    else \
+        echo "ERROR: build.sh not found!"; \
+        echo "Current directory contents:"; \
+        ls -la; \
+        exit 1; \
+    fi
+
 # Build script that handles architecture-specific builds
-RUN <<EOF
-#!/bin/bash
-set -e
-
-echo "Building AASDK for architecture: ${TARGET_ARCH}"
-
-# Set environment variables for the build
-export TARGET_ARCH=${TARGET_ARCH}
-export JOBS=$(nproc)
-
-# Make build script executable
-chmod +x build.sh
-
-# Run the build with package creation
-./build.sh release clean package
-
-# Move packages to output directory
-if [ -d "packages" ]; then
-    cp packages/*.deb /output/ 2>/dev/null || true
-    echo "Packages built:"
-    ls -la /output/
-else
-    echo "No packages directory found"
-    # Look for .deb files in build directories
-    find . -name "*.deb" -exec cp {} /output/ \; 2>/dev/null || true
-fi
-
-echo "Build completed for ${TARGET_ARCH}"
-EOF
+RUN echo "Building AASDK for architecture: ${TARGET_ARCH}" && \
+    export TARGET_ARCH=${TARGET_ARCH} && \
+    export JOBS=$(nproc) && \
+    ./build.sh release clean package && \
+    if [ -d "packages" ]; then \
+        cp packages/*.deb /output/ 2>/dev/null || true && \
+        echo "Packages built:" && \
+        ls -la /output/; \
+    else \
+        echo "No packages directory found" && \
+        find . -name "*.deb" -exec cp {} /output/ \; 2>/dev/null || true; \
+    fi && \
+    echo "Build completed for ${TARGET_ARCH}"
 
 # Default command
 CMD ["bash", "-c", "echo 'AASDK build container ready. Use docker run with volume mounts to build packages.'"]
