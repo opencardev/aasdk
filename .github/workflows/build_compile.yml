@@ -171,7 +171,6 @@ jobs:
             --platform ${DOCKER_PLATFORM} \
             --build-arg DEBIAN_RELEASE=trixie \
             --build-arg TARGET_ARCH=${{ matrix.arch }} \
-            --build-arg BOOST_VERSION=1.83.0 \
             --tag aasdk-builder:${{ matrix.arch }} \
             --file buildenv/Dockerfile \
             .
