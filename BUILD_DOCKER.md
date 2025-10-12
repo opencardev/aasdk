@@ -103,6 +103,39 @@ Built packages are placed in the `build-output/` directory:
 2. Check that cross-compilation toolchains are installed
 3. Verify target architecture libraries are available
 
+## Problem Resolution
+
+### Protobuf Detection Issue
+**Problem**: CMake FindProtobuf module couldn't locate system protobuf libraries in Docker container
+
+**Solution**: 
+- Set explicit `Protobuf_DIR` environment variable pointing to CMake config location
+- Configure `PKG_CONFIG_PATH` for multi-arch library paths
+- Use native compilation to avoid cross-compilation path complexities
+- Environment variables:
+  ```bash
+  export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig
+  export CMAKE_PREFIX_PATH=/usr
+  export Protobuf_DIR=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/protobuf
+  ```
+
+### Build Script Compatibility
+**Problem**: `build.sh` designed for cross-compilation, not native builds in Docker
+
+**Solution**: Override `TARGET_ARCH=amd64` to bypass cross-compilation setup and use native compilation with QEMU emulation
+
+### File Inclusion Issues
+**Problem**: `.dockerignore` pattern `build*/` excluded `build.sh` script
+
+**Solution**: Modified patterns to be more specific:
+```
+build/
+build-*/
+!build.sh
+!build.bat
+!build.ps1
+```
+
 ## GitHub Actions Integration
 
 The build system is integrated with GitHub Actions for automated builds:

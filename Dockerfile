@@ -46,6 +46,10 @@ RUN apt-get update && apt-get install -y \
     dpkg-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Set up environment for native compilation
+ENV PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig
+ENV CMAKE_PREFIX_PATH=/usr
+
 # Set working directory
 WORKDIR /src
 
@@ -70,9 +74,20 @@ RUN if [ -f "build.sh" ]; then \
     fi
 
 # Build script that handles architecture-specific builds
-RUN echo "Building AASDK for architecture: ${TARGET_ARCH}" && \
-    export TARGET_ARCH=${TARGET_ARCH} && \
+RUN echo "Building AASDK for architecture: native compilation" && \
+    export TARGET_ARCH=amd64 && \
     export JOBS=$(nproc) && \
+    export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig && \
+    export CMAKE_PREFIX_PATH=/usr && \
+    export Protobuf_DIR=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/protobuf && \
+    echo "Protobuf check:" && \
+    pkg-config --exists protobuf && echo "✅ protobuf found via pkg-config" || echo "❌ protobuf not found via pkg-config" && \
+    pkg-config --cflags protobuf && \
+    pkg-config --libs protobuf && \
+    echo "Environment variables:" && \
+    echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" && \
+    echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" && \
+    echo "Protobuf_DIR=$Protobuf_DIR" && \
     ./build.sh release clean package && \
     if [ -d "packages" ]; then \
         cp packages/*.deb /output/ 2>/dev/null || true && \
@@ -82,7 +97,7 @@ RUN echo "Building AASDK for architecture: ${TARGET_ARCH}" && \
         echo "No packages directory found" && \
         find . -name "*.deb" -exec cp {} /output/ \; 2>/dev/null || true; \
     fi && \
-    echo "Build completed for ${TARGET_ARCH}"
+    echo "Build completed"
 
 # Default command
 CMD ["bash", "-c", "echo 'AASDK build container ready. Use docker run with volume mounts to build packages.'"]
