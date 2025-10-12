@@ -10,6 +10,7 @@ services:
       args:
         DEBIAN_RELEASE: trixie
         TARGET_ARCH: armhf
+        BOOST_VERSION: 1.83.0
       platforms:
         - linux/arm/v7
     volumes:
@@ -33,6 +34,7 @@ services:
       args:
         DEBIAN_RELEASE: trixie
         TARGET_ARCH: arm64
+        BOOST_VERSION: 1.83.0
       platforms:
         - linux/arm64
     volumes:
@@ -56,6 +58,7 @@ services:
       args:
         DEBIAN_RELEASE: trixie
         TARGET_ARCH: amd64
+        BOOST_VERSION: 1.83.0
       platforms:
         - linux/amd64
     volumes:
@@ -79,6 +82,7 @@ services:
       args:
         DEBIAN_RELEASE: trixie
         TARGET_ARCH: armhf
+        BOOST_VERSION: 1.83.0
     volumes:
       - type: bind
         source: ../
