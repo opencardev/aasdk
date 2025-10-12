@@ -5,12 +5,18 @@ ARG TARGET_ARCH=armhf
 
 FROM debian:${DEBIAN_RELEASE} AS base
 
+# Set up environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+
 # Install base dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS build-tools
+
+# Set up environment variables
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies for native compilation
 RUN <<EOF
@@ -30,6 +36,9 @@ rm -rf /var/lib/apt/lists/*
 EOF
 
 FROM build-tools AS dependencies
+
+# Set up environment variables
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Install native dependencies (no cross-compilation needed)
 RUN <<EOF
