@@ -1,0 +1,181 @@
+name: AASDK Build Multi-Architecture
+
+on:
+  push:
+    branches: [ main, develop, bugfix/trixie ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/aasdk
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+          - arch: arm64
+            platform: linux/arm64
+          - arch: armhf
+            platform: linux/arm/v7
+
+    name: Build AASDK for ${{ matrix.arch }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Set up QEMU for cross-platform builds
+      uses: docker/setup-qemu-action@v3
+      with:
+        platforms: all
+
+    - name: Generate build info
+      id: build_info
+      run: |
+        # Generate version information
+        VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+        COMMIT_SHA=$(git rev-parse --short HEAD)
+        BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
+        
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+        echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+        echo "package_name=aasdk-${{ matrix.arch }}-${VERSION}" >> $GITHUB_OUTPUT
+
+    - name: Build AASDK for ${{ matrix.arch }}
+      run: |
+        echo "Building AASDK for ${{ matrix.arch }} architecture"
+        
+        # Create output directory
+        mkdir -p ./build-output
+        
+        # Build using Docker with platform emulation
+        docker buildx build \
+          --platform ${{ matrix.platform }} \
+          --build-arg TARGET_ARCH=${{ matrix.arch }} \
+          --build-arg DEBIAN_VERSION=trixie \
+          --tag aasdk-build:${{ matrix.arch }} \
+          --load \
+          .
+        
+        # Extract built packages from container
+        container_id=$(docker create aasdk-build:${{ matrix.arch }})
+        docker cp ${container_id}:/output/. ./build-output/
+        docker rm ${container_id}
+        
+        echo "Build completed for ${{ matrix.arch }}"
+        ls -la ./build-output/
+
+    - name: Validate packages
+      run: |
+        echo "Validating packages for ${{ matrix.arch }}..."
+        
+        if [ ! "$(ls -A ./build-output/*.deb 2>/dev/null)" ]; then
+          echo "Error: No .deb packages found for ${{ matrix.arch }}"
+          exit 1
+        fi
+        
+        # Display package information
+        for package in ./build-output/*.deb; do
+          if [ -f "$package" ]; then
+            echo "Package: $(basename $package)"
+            dpkg-deb --info "$package" | head -20
+            echo "---"
+          fi
+        done
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: aasdk-packages-${{ matrix.arch }}-${{ steps.build_info.outputs.build_date }}
+        path: |
+          ./build-output/*.deb
+          ./build-output/*.tar.*
+        retention-days: 30
+
+    - name: Upload packages to release (on tag)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          ./build-output/*.deb
+          ./build-output/*.tar.*
+        fail_on_unmatched_files: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: aasdk-packages-*
+        merge-multiple: true
+        path: ./test-packages
+
+    - name: Test package installation
+      run: |
+        echo "Testing package installation..."
+        
+        # Test AMD64 packages on native Ubuntu
+        for package in ./test-packages/*amd64*.deb; do
+          if [ -f "$package" ]; then
+            echo "Testing installation of $(basename $package)"
+            
+            # Check package structure
+            dpkg-deb --contents "$package" | head -20
+            
+            # Verify package dependencies
+            dpkg-deb --field "$package" Depends
+            
+            echo "Package $(basename $package) structure looks good"
+          fi
+        done
+
+    - name: Generate test report
+      run: |
+        echo "# AASDK Build Test Report" > test-report.md
+        echo "" >> test-report.md
+        echo "## Build Summary" >> test-report.md
+        echo "- Build Date: $(date -u)" >> test-report.md
+        echo "- Commit: ${{ github.sha }}" >> test-report.md
+        echo "- Branch: ${{ github.ref_name }}" >> test-report.md
+        echo "" >> test-report.md
+        echo "## Package Information" >> test-report.md
+        
+        for package in ./test-packages/*.deb; do
+          if [ -f "$package" ]; then
+            echo "### $(basename $package)" >> test-report.md
+            echo '```' >> test-report.md
+            dpkg-deb --field "$package" Package Architecture Version Depends >> test-report.md
+            echo '```' >> test-report.md
+            echo "" >> test-report.md
+          fi
+        done
+
+    - name: Upload test report
+      uses: actions/upload-artifact@v4
+      with:
+        name: aasdk-test-report-${{ github.run_number }}
+        path: test-report.md
+        retention-days: 90

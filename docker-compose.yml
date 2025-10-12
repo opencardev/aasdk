@@ -1,0 +1,101 @@
+# * Project: OpenAuto
+# * This file is part of openauto project.
+# * Copyright (C) 2025 OpenCarDev Team
+# *
+# *  openauto is free software: you can redistribute it and/or modify
+# *  it under the terms of the GNU General Public License as published by
+# *  the Free Software Foundation; either version 3 of the License, or
+# *  (at your option) any later version.
+# *
+# *  openauto is distributed in the hope that it will be useful,
+# *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+# *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# *  GNU General Public License for more details.
+# *
+# *  You should have received a copy of the GNU General Public License
+# *  along with openauto. If not, see <http://www.gnu.org/licenses/>.
+
+version: '3.8'
+
+services:
+  # AMD64 native build
+  aasdk-amd64:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TARGET_ARCH: amd64
+      platforms:
+        - linux/amd64
+    volumes:
+      - ./build-output:/output
+    environment:
+      - TARGET_ARCH=amd64
+    command: >
+      bash -c "
+        echo 'Building AASDK for AMD64...' &&
+        chmod +x build.sh &&
+        ./build.sh release clean package &&
+        cp -r packages/* /output/ 2>/dev/null || true &&
+        echo 'AMD64 build completed'
+      "
+
+  # ARM64 cross-compiled build
+  aasdk-arm64:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TARGET_ARCH: arm64
+      platforms:
+        - linux/arm64
+    volumes:
+      - ./build-output:/output
+    environment:
+      - TARGET_ARCH=arm64
+    command: >
+      bash -c "
+        echo 'Building AASDK for ARM64...' &&
+        chmod +x build.sh &&
+        ./build.sh release clean package &&
+        cp -r packages/* /output/ 2>/dev/null || true &&
+        echo 'ARM64 build completed'
+      "
+
+  # ARMHF cross-compiled build
+  aasdk-armhf:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TARGET_ARCH: armhf
+      platforms:
+        - linux/arm/v7
+    volumes:
+      - ./build-output:/output
+    environment:
+      - TARGET_ARCH=armhf
+    command: >
+      bash -c "
+        echo 'Building AASDK for ARMHF...' &&
+        chmod +x build.sh &&
+        ./build.sh release clean package &&
+        cp -r packages/* /output/ 2>/dev/null || true &&
+        echo 'ARMHF build completed'
+      "
+
+  # Build all architectures
+  build-all:
+    image: alpine:latest
+    depends_on:
+      - aasdk-amd64
+      - aasdk-arm64
+      - aasdk-armhf
+    volumes:
+      - ./build-output:/output
+    command: >
+      sh -c "
+        echo 'All AASDK builds completed!' &&
+        echo 'Built packages:' &&
+        ls -la /output/ || echo 'No packages found'
+      "
