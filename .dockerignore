@@ -1,0 +1,49 @@
+# Build outputs
+build/
+build-*/
+packages/
+build-output/
+lib/
+bin/
+
+# Keep build scripts
+!build.sh
+!build.bat
+!build.ps1
+
+# Development files
+.git/
+.github/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation (not needed for build)
+docs/
+*.md
+!BUILD.md
+
+# Test files
+test*/
+unit_test/build/
+
+# Packaging artifacts
+*.deb
+*.tar.*
+*.rpm
+
+# Buildenv (not using this approach)
+buildenv/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
