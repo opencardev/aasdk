@@ -93,20 +93,37 @@ jobs:
     - name: Generate build info
       id: build_info
       run: |
-        # Use manual version if provided, otherwise auto-generate
+        # Use manual version if provided, otherwise generate using same scheme as CMake
         if [ -n "${{ github.event.inputs.version }}" ]; then
           VERSION="${{ github.event.inputs.version }}"
         else
-          VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "unknown")
+          # Match CMakeLists.txt date-based versioning: YYYY.MM.DD
+          BUILD_YEAR=$(date -u +"%Y")
+          BUILD_MONTH=$(date -u +"%m")
+          BUILD_DAY=$(date -u +"%d")
+          VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
+          
+          # Add git commit info if available (match CMake logic)
+          COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          if [ "$COMMIT_SHA" != "unknown" ]; then
+            VERSION="${VERSION}+git.${COMMIT_SHA}"
+            
+            # Check if repository is dirty (has uncommitted changes)
+            if ! git diff --quiet 2>/dev/null; then
+              VERSION="${VERSION}.dirty"
+            fi
+          fi
         fi
         
-        COMMIT_SHA=$(git rev-parse --short HEAD)
+        COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
         
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
         echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
         echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
         echo "package_name=aasdk-${{ matrix.arch }}-${VERSION}" >> $GITHUB_OUTPUT
+        
+        echo "Generated version: ${VERSION}"
 
     - name: Build AASDK for ${{ matrix.arch }}
       run: |
