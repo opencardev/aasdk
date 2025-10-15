@@ -109,7 +109,8 @@ jobs:
             VERSION="${VERSION}+git.${COMMIT_SHA}"
             
             # Check if repository is dirty (has uncommitted changes)
-            if ! git diff --quiet 2>/dev/null; then
+            # In CI, we'll skip dirty check as the workspace should be clean
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ] && ! git diff --quiet 2>/dev/null; then
               VERSION="${VERSION}.dirty"
             fi
           fi
@@ -118,12 +119,26 @@ jobs:
         COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
         
+        # For releases, ensure we have a clean version without build date suffix
+        RELEASE_VERSION="${VERSION}"
+        if [ "${{ github.event.inputs.create_release }}" = "true" ] || [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+          # For releases, use a cleaner version format
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+            RELEASE_VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
+            if [ "$COMMIT_SHA" != "unknown" ]; then
+              RELEASE_VERSION="${RELEASE_VERSION}+git.${COMMIT_SHA}"
+            fi
+          fi
+        fi
+        
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
         echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
         echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
         echo "package_name=aasdk-${{ matrix.arch }}-${VERSION}" >> $GITHUB_OUTPUT
         
         echo "Generated version: ${VERSION}"
+        echo "Release version: ${RELEASE_VERSION}"
 
     - name: Build AASDK for ${{ matrix.arch }}
       run: |
@@ -176,18 +191,96 @@ jobs:
           ./build-output/*.tar.*
         retention-days: 30
 
-    - name: Upload packages to release (on tag or manual release)
-      if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true'
+  release:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate release info
+      id: release_info
+      run: |
+        # Use manual version if provided, otherwise generate using same scheme as CMake
+        if [ -n "${{ github.event.inputs.version }}" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          # Match CMakeLists.txt date-based versioning: YYYY.MM.DD
+          BUILD_YEAR=$(date -u +"%Y")
+          BUILD_MONTH=$(date -u +"%m")
+          BUILD_DAY=$(date -u +"%d")
+          VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
+          
+          # Add git commit info if available (match CMake logic)
+          COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          if [ "$COMMIT_SHA" != "unknown" ]; then
+            VERSION="${VERSION}+git.${COMMIT_SHA}"
+          fi
+        fi
+        
+        COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
+        
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+        echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+        
+        echo "Release version: ${VERSION}"
+
+    - name: Download all build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: aasdk-packages-*
+        merge-multiple: true
+        path: ./release-packages
+
+    - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.build_info.outputs.version }}
-        name: AASDK Release ${{ steps.build_info.outputs.version }}
+        tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release_info.outputs.version }}
+        name: AASDK Release ${{ steps.release_info.outputs.version }}
+        body: |
+          ## AASDK Release ${{ steps.release_info.outputs.version }}
+          
+          **Build Information:**
+          - Version: `${{ steps.release_info.outputs.version }}`
+          - Commit: `${{ steps.release_info.outputs.commit_sha }}`
+          - Build Date: `${{ steps.release_info.outputs.build_date }}`
+          - Architectures: `amd64`, `arm64`, `armhf`
+          
+          **Package Contents:**
+          This release includes packages for all supported architectures:
+          - **AMD64**: Intel/AMD 64-bit systems
+          - **ARM64**: ARM 64-bit systems (e.g., Raspberry Pi 4, Apple Silicon)
+          - **ARMHF**: ARM 32-bit hard-float systems (e.g., Raspberry Pi 3)
+          
+          **Installation:**
+          ```bash
+          # Download the appropriate package for your architecture
+          # For example, on ARM64:
+          sudo dpkg -i libaasdk-arm64_*.deb
+          sudo dpkg -i libaasdk-arm64-dev_*.deb
+          
+          # Fix any dependency issues
+          sudo apt-get install -f
+          ```
+          
+          **Dependencies:**
+          - libboost-all-dev
+          - libprotobuf-dev
+          - libusb-1.0-0-dev
+          - libssl-dev
         files: |
-          ./build-output/*.deb
-          ./build-output/*.tar.*
+          ./release-packages/*.deb
+          ./release-packages/*.tar.*
         fail_on_unmatched_files: false
-        generate_release_notes: true
+        generate_release_notes: false
         draft: ${{ github.event.inputs.create_release == 'true' && !startsWith(github.ref, 'refs/tags/') }}
+        prerelease: ${{ contains(steps.release_info.outputs.version, 'git') }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
