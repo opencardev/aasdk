@@ -242,13 +242,21 @@ jobs:
         EOF
         
         # Add changelog
-        if [ -n "$LAST_TAG" ]; then
+        if [ -n "$LAST_TAG" ] && [ "$LAST_TAG" != "" ]; then
           echo "## What's Changed Since ${LAST_TAG}" >> RELEASE_NOTES.md
           echo "" >> RELEASE_NOTES.md
-          if git log --pretty=format:"- %s (%h)" ${LAST_TAG}..HEAD | head -20 >> RELEASE_NOTES.md; then
-            echo "" >> RELEASE_NOTES.md
+          # Verify the tag exists and is reachable before using it in git log
+          if git rev-parse --verify "${LAST_TAG}" >/dev/null 2>&1; then
+            if git log --pretty=format:"- %s (%h)" "${LAST_TAG}..HEAD" 2>/dev/null | head -20 >> RELEASE_NOTES.md && [ -s RELEASE_NOTES.md ]; then
+              echo "" >> RELEASE_NOTES.md
+            else
+              echo "- No changes since ${LAST_TAG}" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+            fi
           else
-            echo "- Initial release" >> RELEASE_NOTES.md
+            echo "- Previous tag ${LAST_TAG} not found, showing recent commits" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md
             echo "" >> RELEASE_NOTES.md
           fi
         else
