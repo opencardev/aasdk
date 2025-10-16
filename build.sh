@@ -191,7 +191,7 @@ setup_cross_compilation() {
 
 build_protobuf() {
     if [ ! -d "protobuf/build" ] || [ "$CLEAN" = true ]; then
-        print_step "Building protobuf dependency..."
+        print_step "Building AAP Protobuf dependency..."
         
         if [ "$CLEAN" = true ] && [ -d "protobuf/build" ]; then
             rm -rf protobuf/build
@@ -209,9 +209,9 @@ build_protobuf() {
         make install
         cd ../..
         
-        print_success "Protobuf built successfully"
+        print_success "AAP Protobuf built successfully"
     else
-        print_step "Protobuf already built, skipping..."
+        print_step "AAP Protobuf already built, skipping..."
     fi
 }
 
