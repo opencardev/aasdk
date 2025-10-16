@@ -192,9 +192,9 @@ jobs:
         retention-days: 30
 
   release:
-    needs: [prepare, build]
+    needs: [prepare, build, test]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true'
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event.name == 'push' && github.ref == 'refs/heads/main')
     
     steps:
     - name: Checkout code
@@ -225,11 +225,81 @@ jobs:
         COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
         BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
         
+        # Generate changelog since last tag or last 10 commits
+        echo "Generating changelog..."
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        # Create the full release notes file
+        cat > RELEASE_NOTES.md << EOF
+        ## AASDK Release ${VERSION}
+        
+        **Build Information:**
+        - Version: \`${VERSION}\`
+        - Commit: \`${COMMIT_SHA}\`
+        - Build Date: \`${BUILD_DATE}\`
+        - Architectures: \`amd64\`, \`arm64\`, \`armhf\`
+        
+        EOF
+        
+        # Add changelog
+        if [ -n "$LAST_TAG" ] && [ "$LAST_TAG" != "" ]; then
+          echo "## What's Changed Since ${LAST_TAG}" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          # Verify the tag exists and is reachable before using it in git log
+          if git rev-parse --verify "${LAST_TAG}" >/dev/null 2>&1; then
+            if git log --pretty=format:"- %s (%h)" "${LAST_TAG}..HEAD" 2>/dev/null | head -20 >> RELEASE_NOTES.md && [ -s RELEASE_NOTES.md ]; then
+              echo "" >> RELEASE_NOTES.md
+            else
+              echo "- No changes since ${LAST_TAG}" >> RELEASE_NOTES.md
+              echo "" >> RELEASE_NOTES.md
+            fi
+          else
+            echo "- Previous tag ${LAST_TAG} not found, showing recent commits" >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+            git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md
+            echo "" >> RELEASE_NOTES.md
+          fi
+        else
+          echo "## What's Changed" >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+          git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md
+          echo "" >> RELEASE_NOTES.md
+        fi
+        
+        # Add package and installation info
+        cat >> RELEASE_NOTES.md << EOF
+        
+        **Package Contents:**
+        This release includes packages for all supported architectures:
+        - **AMD64**: Intel/AMD 64-bit systems
+        - **ARM64**: ARM 64-bit systems (e.g., Raspberry Pi 4, Apple Silicon)
+        - **ARMHF**: ARM 32-bit hard-float systems (e.g., Raspberry Pi 3)
+        
+        **Installation:**
+        \`\`\`bash
+        # Download the appropriate package for your architecture
+        # For example, on ARM64:
+        sudo dpkg -i libaasdk-arm64_*.deb
+        sudo dpkg -i libaasdk-arm64-dev_*.deb
+        
+        # Fix any dependency issues
+        sudo apt-get install -f
+        \`\`\`
+        
+        **Dependencies:**
+        - libboost-all-dev
+        - libprotobuf-dev
+        - libusb-1.0-0-dev
+        - libssl-dev
+        EOF
+        
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
         echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
         echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
         
         echo "Release version: ${VERSION}"
+        echo "Generated release notes:"
+        cat RELEASE_NOTES.md
 
     - name: Download all build artifacts
       uses: actions/download-artifact@v4
@@ -243,37 +313,7 @@ jobs:
       with:
         tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release_info.outputs.version }}
         name: AASDK Release ${{ steps.release_info.outputs.version }}
-        body: |
-          ## AASDK Release ${{ steps.release_info.outputs.version }}
-          
-          **Build Information:**
-          - Version: `${{ steps.release_info.outputs.version }}`
-          - Commit: `${{ steps.release_info.outputs.commit_sha }}`
-          - Build Date: `${{ steps.release_info.outputs.build_date }}`
-          - Architectures: `amd64`, `arm64`, `armhf`
-          
-          **Package Contents:**
-          This release includes packages for all supported architectures:
-          - **AMD64**: Intel/AMD 64-bit systems
-          - **ARM64**: ARM 64-bit systems (e.g., Raspberry Pi 4, Apple Silicon)
-          - **ARMHF**: ARM 32-bit hard-float systems (e.g., Raspberry Pi 3)
-          
-          **Installation:**
-          ```bash
-          # Download the appropriate package for your architecture
-          # For example, on ARM64:
-          sudo dpkg -i libaasdk-arm64_*.deb
-          sudo dpkg -i libaasdk-arm64-dev_*.deb
-          
-          # Fix any dependency issues
-          sudo apt-get install -f
-          ```
-          
-          **Dependencies:**
-          - libboost-all-dev
-          - libprotobuf-dev
-          - libusb-1.0-0-dev
-          - libssl-dev
+        body_path: RELEASE_NOTES.md
         files: |
           ./release-packages/*.deb
           ./release-packages/*.tar.*
