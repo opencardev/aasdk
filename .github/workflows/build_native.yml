@@ -41,7 +41,7 @@ on:
       create_release:
         description: 'Create GitHub release'
         required: false
-        default: true
+        default: false
         type: boolean
 
 env:
@@ -194,7 +194,7 @@ jobs:
   release:
     needs: [prepare, build]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true'
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     
     steps:
     - name: Checkout code
