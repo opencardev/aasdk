@@ -75,6 +75,7 @@ RUN if [ -f "build.sh" ]; then \
         export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
         echo "Detected architecture: $TARGET_ARCH" && \
         export CROSS_COMPILE=false && \
+        echo "Cross-compilation: $CROSS_COMPILE" && \
         echo "Multi-arch path: $(dpkg-architecture -qDEB_HOST_MULTIARCH)" && \
         export JOBS=$(nproc) && \
         export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig" && \
