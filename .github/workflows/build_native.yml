@@ -295,6 +295,16 @@ jobs:
         sudo apt-get install -f
         \`\`\`
         
+        **Package Verification:**
+        SHA256 checksums are provided for all packages. Download \`SHA256SUMS\` and verify packages:
+        \`\`\`bash
+        # Verify all packages
+        sha256sum -c SHA256SUMS
+        
+        # Or verify individual packages
+        sha256sum -c libaasdk-arm64_*.deb.sha256
+        \`\`\`
+        
         **Dependencies:**
         - libboost-all-dev
         - libprotobuf-dev
@@ -331,32 +341,55 @@ jobs:
         merge-multiple: false
         path: ./separate-artifacts
 
-    - name: Debug - Compare merged vs separate downloads
+    - name: Generate SHA256 hashes
       run: |
-        echo "=== MERGED DOWNLOAD (./release-packages) ==="
-        echo "Total files:"
-        find ./release-packages -type f | wc -l
-        echo "DEB files:"
-        find ./release-packages -name "*.deb" | sort
-        echo ""
+        echo "Generating SHA256 hash files..."
+        cd ./release-packages
         
-        echo "=== SEPARATE DOWNLOAD (./separate-artifacts) ==="
-        echo "Directory structure:"
-        ls -la ./separate-artifacts/
-        echo ""
-        for dir in ./separate-artifacts/*/; do
-          if [ -d "$dir" ]; then
-            echo "Contents of $(basename "$dir"):"
-            ls -la "$dir"
-            echo ""
+        # Generate individual hash files for each package
+        for file in *.deb *.tar.* 2>/dev/null; do
+          if [ -f "$file" ]; then
+            echo "Generating hash for $file"
+            sha256sum "$file" > "$file.sha256"
           fi
         done
         
-        echo "=== COMPARISON ==="
-        echo "Files in merged:"
-        find ./release-packages -name "*.deb" | wc -l
-        echo "Files in separate:"
-        find ./separate-artifacts -name "*.deb" | wc -l
+        # Generate a combined hash file
+        echo "# AASDK Release ${{ steps.release_info.outputs.version }} - SHA256 Checksums" > SHA256SUMS
+        echo "# Generated on $(date -u)" >> SHA256SUMS
+        echo "" >> SHA256SUMS
+        sha256sum *.deb *.tar.* 2>/dev/null >> SHA256SUMS || true
+        
+        echo "Hash files generated:"
+        ls -la *.sha256 SHA256SUMS 2>/dev/null || echo "No hash files found"
+
+    - name: Add SHA256 hashes to release notes
+      run: |
+        cd ./release-packages
+        
+        # Add SHA256 section to release notes
+        echo "" >> ../RELEASE_NOTES.md
+        echo "**SHA256 Checksums:**" >> ../RELEASE_NOTES.md
+        echo "\`\`\`" >> ../RELEASE_NOTES.md
+        
+        # Add checksums for each architecture organized
+        if [ -f SHA256SUMS ]; then
+          # Sort by architecture for better presentation
+          for arch in amd64 arm64 armhf; do
+            echo "# $arch packages:" >> ../RELEASE_NOTES.md
+            grep "$arch" SHA256SUMS || true
+          done
+          
+          # Add any other files (source packages, etc.)
+          echo "# Other files:" >> ../RELEASE_NOTES.md
+          grep -v -E "(amd64|arm64|armhf)" SHA256SUMS || true
+        fi
+        
+        echo "\`\`\`" >> ../RELEASE_NOTES.md
+        
+        echo "Updated release notes with SHA256 checksums:"
+        echo "--- FINAL RELEASE NOTES ---"
+        cat ../RELEASE_NOTES.md
 
     - name: Debug - List downloaded artifacts
       run: |
@@ -381,6 +414,8 @@ jobs:
         files: |
           ./release-packages/*.deb
           ./release-packages/*.tar.*
+          ./release-packages/*.sha256
+          ./release-packages/SHA256SUMS
         fail_on_unmatched_files: false
         generate_release_notes: false
         draft: ${{ github.event.inputs.create_release == 'true' && !startsWith(github.ref, 'refs/tags/') }}
