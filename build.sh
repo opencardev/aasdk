@@ -17,9 +17,10 @@
 #   package    - Create packages after building
 #
 # Environment Variables:
-#   TARGET_ARCH - Target architecture (amd64, arm64, armhf, i386)
-#   JOBS        - Number of parallel build jobs (default: nproc)
-#   CMAKE_ARGS  - Additional CMake arguments
+#   TARGET_ARCH   - Target architecture (amd64, arm64, armhf, i386)
+#   JOBS          - Number of parallel build jobs (default: nproc)
+#   CMAKE_ARGS    - Additional CMake arguments
+#   CROSS_COMPILE - Enable cross-compilation (true/false, default: true)
 
 set -e  # Exit on any error
 
@@ -35,6 +36,7 @@ BUILD_TYPE=${1:-debug}
 TARGET_ARCH=${TARGET_ARCH:-amd64}
 JOBS=${JOBS:-$(nproc)}
 CMAKE_ARGS=${CMAKE_ARGS:-}
+CROSS_COMPILE=${CROSS_COMPILE:-true}
 
 # Parse command line arguments
 CLEAN=false
@@ -143,7 +145,7 @@ check_dependencies() {
 }
 
 setup_cross_compilation() {
-    if [ "$TARGET_ARCH" != "amd64" ]; then
+    if [ "$TARGET_ARCH" != "amd64" ] && [ "$CROSS_COMPILE" = "true" ]; then
         print_step "Setting up cross-compilation for ${TARGET_ARCH}..."
         
         case $TARGET_ARCH in
@@ -186,6 +188,9 @@ setup_cross_compilation() {
         esac
         
         print_success "Cross-compilation configured for ${TARGET_ARCH}"
+    elif [ "$TARGET_ARCH" != "amd64" ]; then
+        print_step "Using native compilation for ${TARGET_ARCH}..."
+        print_success "Native compilation configured for ${TARGET_ARCH}"
     fi
 }
 
