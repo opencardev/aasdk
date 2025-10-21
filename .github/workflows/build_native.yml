@@ -182,6 +182,15 @@ jobs:
           fi
         done
 
+    - name: Debug - Show files before upload
+      run: |
+        echo "=== Build completed for ${{ matrix.arch }} ==="
+        echo "Files in build-output directory:"
+        ls -la ./build-output/ || echo "No build-output directory found"
+        echo "DEB files found:"
+        find ./build-output -name "*.deb" 2>/dev/null || echo "No .deb files found"
+        echo "Artifact name will be: aasdk-packages-${{ matrix.arch }}"
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -194,7 +203,7 @@ jobs:
   release:
     needs: [prepare, build]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/develop')
     
     steps:
     - name: Checkout code
@@ -301,12 +310,53 @@ jobs:
         echo "Generated release notes:"
         cat RELEASE_NOTES.md
 
-    - name: Download all build artifacts
+    - name: Debug - List available artifacts
+      run: |
+        echo "Available artifacts in this workflow run:"
+        gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts --jq '.artifacts[] | {name: .name, size_in_bytes: .size_in_bytes}'
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Download all build artifacts (merged)
       uses: actions/download-artifact@v4
       with:
         pattern: aasdk-packages-*
         merge-multiple: true
         path: ./release-packages
+
+    - name: Download artifacts separately (for comparison)
+      uses: actions/download-artifact@v4
+      with:
+        pattern: aasdk-packages-*
+        merge-multiple: false
+        path: ./separate-artifacts
+
+    - name: Debug - Compare merged vs separate downloads
+      run: |
+        echo "=== MERGED DOWNLOAD (./release-packages) ==="
+        echo "Total files:"
+        find ./release-packages -type f | wc -l
+        echo "DEB files:"
+        find ./release-packages -name "*.deb" | sort
+        echo ""
+        
+        echo "=== SEPARATE DOWNLOAD (./separate-artifacts) ==="
+        echo "Directory structure:"
+        ls -la ./separate-artifacts/
+        echo ""
+        for dir in ./separate-artifacts/*/; do
+          if [ -d "$dir" ]; then
+            echo "Contents of $(basename "$dir"):"
+            ls -la "$dir"
+            echo ""
+          fi
+        done
+        
+        echo "=== COMPARISON ==="
+        echo "Files in merged:"
+        find ./release-packages -name "*.deb" | wc -l
+        echo "Files in separate:"
+        find ./separate-artifacts -name "*.deb" | wc -l
 
     - name: Debug - List downloaded artifacts
       run: |
