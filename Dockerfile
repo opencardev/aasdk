@@ -78,11 +78,15 @@ RUN if [ -f "build.sh" ]; then \
         export JOBS=$(nproc) && \
         export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig" && \
         export CMAKE_PREFIX_PATH=/usr && \
-        export CMAKE_ARGS="-DProtobuf_INCLUDE_DIR=/usr/include -DProtobuf_LIBRARIES=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf.so -DProtobuf_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf.so -DProtobuf_LITE_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf-lite.so -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc" && \
+        export CMAKE_ARGS="-DProtobuf_INCLUDE_DIR=/usr/include -DProtobuf_LIBRARIES=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf.so -DProtobuf_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf.so -DProtobuf_LITE_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf-lite.so -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc -DLIBUSB_1_INCLUDE_DIRS=/usr/include/libusb-1.0 -DLIBUSB_1_LIBRARIES=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libusb-1.0.so" && \
         echo "Protobuf check:" && \
         pkg-config --exists protobuf && echo "✅ protobuf found via pkg-config" || echo "❌ protobuf not found via pkg-config" && \
         pkg-config --cflags protobuf && \
         pkg-config --libs protobuf && \
+        echo "libusb check:" && \
+        pkg-config --exists libusb-1.0 && echo "✅ libusb-1.0 found via pkg-config" || echo "❌ libusb-1.0 not found via pkg-config" && \
+        pkg-config --cflags libusb-1.0 && \
+        pkg-config --libs libusb-1.0 && \
         echo "Environment variables:" && \
         echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" && \
         echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" && \
