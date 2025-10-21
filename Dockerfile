@@ -71,7 +71,9 @@ RUN if [ -f "build.sh" ]; then \
 
 # Build script that handles architecture-specific builds
 RUN echo "Building AASDK for architecture: native compilation" && \
-    export TARGET_ARCH=amd64 && \
+    export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
+    echo "Detected architecture: $TARGET_ARCH" && \
+    echo "Multi-arch path: $(dpkg-architecture -qDEB_HOST_MULTIARCH)" && \
     export JOBS=$(nproc) && \
     export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig" && \
     export CMAKE_PREFIX_PATH=/usr && \
