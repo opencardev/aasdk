@@ -200,10 +200,73 @@ jobs:
           ./build-output/*.tar.*
         retention-days: 30
 
-  release:
-    needs: [prepare, build]
+  test:
+    needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    if: success()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: aasdk-packages-*
+        merge-multiple: true
+        path: ./test-packages
+
+    - name: Test package installation
+      run: |
+        echo "Testing package installation..."
+        
+        # Test AMD64 packages on native Ubuntu
+        for package in ./test-packages/*amd64*.deb; do
+          if [ -f "$package" ]; then
+            echo "Testing installation of $(basename $package)"
+            
+            # Check package structure
+            dpkg-deb --contents "$package" | head -20
+            
+            # Verify package dependencies
+            dpkg-deb --field "$package" Depends
+            
+            echo "Package $(basename $package) structure looks good"
+          fi
+        done
+
+    - name: Generate test report
+      run: |
+        echo "# AASDK Build Test Report" > test-report.md
+        echo "" >> test-report.md
+        echo "## Build Summary" >> test-report.md
+        echo "- Build Date: $(date -u)" >> test-report.md
+        echo "- Commit: ${{ github.sha }}" >> test-report.md
+        echo "- Branch: ${{ github.ref_name }}" >> test-report.md
+        echo "" >> test-report.md
+        echo "## Package Information" >> test-report.md
+        
+        for package in ./test-packages/*.deb; do
+          if [ -f "$package" ]; then
+            echo "### $(basename $package)" >> test-report.md
+            echo '```' >> test-report.md
+            dpkg-deb --field "$package" Package Architecture Version Depends >> test-report.md
+            echo '```' >> test-report.md
+            echo "" >> test-report.md
+          fi
+        done
+
+    - name: Upload test report
+      uses: actions/upload-artifact@v4
+      with:
+        name: aasdk-test-report-${{ github.run_number }}
+        path: test-report.md
+        retention-days: 90
+
+  release:
+    needs: [prepare, build, test]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') #|| (github.event_name == 'push' && github.ref == 'refs/heads/develop')
     
     steps:
     - name: Checkout code
@@ -334,6 +397,12 @@ jobs:
         merge-multiple: true
         path: ./release-packages
 
+    - name: Download test report
+      uses: actions/download-artifact@v4
+      with:
+        name: aasdk-test-report-${{ github.run_number }}
+        path: ./release-packages
+
     - name: Download artifacts separately (for comparison)
       uses: actions/download-artifact@v4
       with:
@@ -347,18 +416,29 @@ jobs:
         cd ./release-packages
         
         # Generate individual hash files for each package
-        for file in *.deb *.tar.* 2>/dev/null; do
-          if [ -f "$file" ]; then
-            echo "Generating hash for $file"
-            sha256sum "$file" > "$file.sha256"
-          fi
+        for pattern in "*.deb" "*.tar.*"; do
+          for file in $pattern; do
+            if [ -f "$file" ]; then
+              echo "Generating hash for $file"
+              sha256sum "$file" > "$file.sha256"
+            fi
+          done 2>/dev/null || true
         done
         
         # Generate a combined hash file
         echo "# AASDK Release ${{ steps.release_info.outputs.version }} - SHA256 Checksums" > SHA256SUMS
         echo "# Generated on $(date -u)" >> SHA256SUMS
         echo "" >> SHA256SUMS
-        sha256sum *.deb *.tar.* 2>/dev/null >> SHA256SUMS || true
+        
+        # Add checksums for .deb files
+        if ls *.deb >/dev/null 2>&1; then
+          sha256sum *.deb >> SHA256SUMS
+        fi
+        
+        # Add checksums for .tar.* files
+        if ls *.tar.* >/dev/null 2>&1; then
+          sha256sum *.tar.* >> SHA256SUMS
+        fi
         
         echo "Hash files generated:"
         ls -la *.sha256 SHA256SUMS 2>/dev/null || echo "No hash files found"
@@ -376,13 +456,17 @@ jobs:
         if [ -f SHA256SUMS ]; then
           # Sort by architecture for better presentation
           for arch in amd64 arm64 armhf; do
-            echo "# $arch packages:" >> ../RELEASE_NOTES.md
-            grep "$arch" SHA256SUMS || true
+            if grep -q "$arch" SHA256SUMS 2>/dev/null; then
+              echo "# $arch packages:" >> ../RELEASE_NOTES.md
+              grep "$arch" SHA256SUMS >> ../RELEASE_NOTES.md || true
+            fi
           done
           
           # Add any other files (source packages, etc.)
-          echo "# Other files:" >> ../RELEASE_NOTES.md
-          grep -v -E "(amd64|arm64|armhf)" SHA256SUMS || true
+          if grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >/dev/null 2>&1; then
+            echo "# Other files:" >> ../RELEASE_NOTES.md
+            grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >> ../RELEASE_NOTES.md || true
+          fi
         fi
         
         echo "\`\`\`" >> ../RELEASE_NOTES.md
@@ -416,6 +500,7 @@ jobs:
           ./release-packages/*.tar.*
           ./release-packages/*.sha256
           ./release-packages/SHA256SUMS
+          ./release-packages/test-report.md
         fail_on_unmatched_files: false
         generate_release_notes: false
         draft: ${{ github.event.inputs.create_release == 'true' && !startsWith(github.ref, 'refs/tags/') }}
@@ -423,65 +508,55 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  test:
-    needs: build
+  upload-to-apt-repo:
+    needs: [release]
     runs-on: ubuntu-latest
-    if: success()
-
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') #|| (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Download build artifacts
+    - name: Download all build artifacts for APT repo
       uses: actions/download-artifact@v4
       with:
         pattern: aasdk-packages-*
         merge-multiple: true
-        path: ./test-packages
+        path: ./apt-packages
 
-    - name: Test package installation
+    - name: Prepare packages for APT repository
       run: |
-        echo "Testing package installation..."
+        echo "Preparing packages for APT repository upload..."
         
-        # Test AMD64 packages on native Ubuntu
-        for package in ./test-packages/*amd64*.deb; do
-          if [ -f "$package" ]; then
-            echo "Testing installation of $(basename $package)"
-            
-            # Check package structure
-            dpkg-deb --contents "$package" | head -20
-            
-            # Verify package dependencies
-            dpkg-deb --field "$package" Depends
-            
-            echo "Package $(basename $package) structure looks good"
+        # Create distribution directories
+        mkdir -p ./apt-repo-upload/{trixie}
+        
+        # Copy packages to appropriate distributions
+        # For now, we'll upload to all supported distributions
+        for dist in trixie; do
+          if [ -d ./apt-packages ] && [ "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
+            cp ./apt-packages/*.deb ./apt-repo-upload/$dist/
+            echo "Copied $(ls ./apt-packages/*.deb | wc -l) packages to $dist distribution"
           fi
         done
-
-    - name: Generate test report
-      run: |
-        echo "# AASDK Build Test Report" > test-report.md
-        echo "" >> test-report.md
-        echo "## Build Summary" >> test-report.md
-        echo "- Build Date: $(date -u)" >> test-report.md
-        echo "- Commit: ${{ github.sha }}" >> test-report.md
-        echo "- Branch: ${{ github.ref_name }}" >> test-report.md
-        echo "" >> test-report.md
-        echo "## Package Information" >> test-report.md
         
-        for package in ./test-packages/*.deb; do
-          if [ -f "$package" ]; then
-            echo "### $(basename $package)" >> test-report.md
-            echo '```' >> test-report.md
-            dpkg-deb --field "$package" Package Architecture Version Depends >> test-report.md
-            echo '```' >> test-report.md
-            echo "" >> test-report.md
-          fi
-        done
+        echo "APT repository package structure:"
+        find ./apt-repo-upload -type f -name "*.deb" | sort
 
-    - name: Upload test report
-      uses: actions/upload-artifact@v4
+    - name: Upload to APT Repository (Trixie)
+      uses: MauroDruwel/apt-repo-action@v2.0.1
       with:
-        name: aasdk-test-report-${{ github.run_number }}
-        path: test-report.md
-        retention-days: 90
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_distro: |
+          trixie
+        file: ./apt-repo-upload/trixie/*.deb
+        file_target_version: trixie
+        target_repo: opencardev/packages
+        target_repo_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
