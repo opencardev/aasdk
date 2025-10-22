@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
 
 #Android Auto Projection Protocol Library
 project(aap_protobuf)

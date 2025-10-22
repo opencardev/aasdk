@@ -4,20 +4,37 @@ project(aasdk)
 message(STATUS "AASDK Library")
 message(STATUS "Cross Compiling?")
 
-# Cross Compiling Architecture
+# Cross Compiling Architecture and Package Architecture Detection
 if( TARGET_ARCH STREQUAL "amd64" )
     message(STATUS "...amd64")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
 elseif( TARGET_ARCH STREQUAL "armhf" )
     message(STATUS "...armhf")
-    set(CMAKE_C_COMPILER /usr/bin/arm-linux-gnueabihf-gcc-8)
-    set(CMAKE_CXX_COMPILER /usr/bin/arm-linux-gnueabihf-g++-8)
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "armhf")
+    # Only set cross-compilation compilers if explicitly using cross-compilation
+    # For native builds (e.g., Docker with QEMU), let CMake use default compilers
+    if(DEFINED ENV{CMAKE_C_COMPILER} AND DEFINED ENV{CMAKE_CXX_COMPILER})
+        # Environment variables are set (from build.sh), use them
+        set(CMAKE_C_COMPILER $ENV{CMAKE_C_COMPILER})
+        set(CMAKE_CXX_COMPILER $ENV{CMAKE_CXX_COMPILER})
+    elseif(CMAKE_CROSSCOMPILING OR DEFINED CMAKE_TOOLCHAIN_FILE)
+        # Only set cross-compilation when actually cross-compiling
+        set(CMAKE_C_COMPILER /usr/bin/arm-linux-gnueabihf-gcc)
+        set(CMAKE_CXX_COMPILER /usr/bin/arm-linux-gnueabihf-g++)
+    endif()
 elseif( TARGET_ARCH STREQUAL "arm64" )
     message(STATUS "...arm64")
-    set(CMAKE_C_COMPILER /usr/bin/aarch64-linux-gnu-gcc)
-    set(CMAKE_CXX_COMPILER /usr/bin/aarch64-linux-gnu-g++)
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
+    # Only set cross-compilation compilers if explicitly using cross-compilation
+    if(DEFINED ENV{CMAKE_C_COMPILER} AND DEFINED ENV{CMAKE_CXX_COMPILER})
+        # Environment variables are set (from build.sh), use them
+        set(CMAKE_C_COMPILER $ENV{CMAKE_C_COMPILER})
+        set(CMAKE_CXX_COMPILER $ENV{CMAKE_CXX_COMPILER})
+    elseif(CMAKE_CROSSCOMPILING OR DEFINED CMAKE_TOOLCHAIN_FILE)
+        # Only set cross-compilation when actually cross-compiling
+        set(CMAKE_C_COMPILER /usr/bin/aarch64-linux-gnu-gcc)
+        set(CMAKE_CXX_COMPILER /usr/bin/aarch64-linux-gnu-g++)
+    endif()
 elseif( TARGET_ARCH STREQUAL "i386" )
     message(STATUS "...i386")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "i386")
