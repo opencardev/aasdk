@@ -15,9 +15,10 @@
 # *  You should have received a copy of the GNU General Public License
 # *  along with openauto. If not, see <http://www.gnu.org/licenses/>.
 
-# Multi-architecture AASDK build container using native compilation
-ARG DEBIAN_VERSION=trixie
-FROM debian:${DEBIAN_VERSION}
+# Multi-stage build for AASDK with native compilation for each architecture
+# This Dockerfile builds AASDK natively on each target platform using QEMU emulation
+
+FROM debian:trixie-slim
 
 # Build arguments
 ARG TARGET_ARCH=amd64
@@ -69,22 +70,11 @@ RUN if [ -f "build.sh" ]; then \
         exit 1; \
     fi
 
-# Build script that handles architecture-specific builds
-RUN echo "Building AASDK for architecture: native compilation" && \
-    export TARGET_ARCH=amd64 && \
-    export JOBS=$(nproc) && \
-    export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig" && \
-    export CMAKE_PREFIX_PATH=/usr && \
-    export Protobuf_DIR="/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/cmake/protobuf" && \
-    echo "Protobuf check:" && \
-    pkg-config --exists protobuf && echo "✅ protobuf found via pkg-config" || echo "❌ protobuf not found via pkg-config" && \
-    pkg-config --cflags protobuf && \
-    pkg-config --libs protobuf && \
-    echo "Environment variables:" && \
-    echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" && \
-    echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" && \
-    echo "Protobuf_DIR=$Protobuf_DIR" && \
-    ./build.sh release clean package && \
+# Build and package AASDK using the simplified build.sh approach
+ARG CROSS_COMPILE=false
+RUN export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
+    echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
+    CROSS_COMPILE=${CROSS_COMPILE} ./build.sh release clean package && \
     if [ -d "packages" ]; then \
         cp packages/*.deb /output/ 2>/dev/null || true && \
         echo "Packages built:" && \
@@ -93,7 +83,5 @@ RUN echo "Building AASDK for architecture: native compilation" && \
         echo "No packages directory found" && \
         find . -name "*.deb" -exec cp {} /output/ \; 2>/dev/null || true; \
     fi && \
-    echo "Build completed"
-
-# Default command
+    echo "Build completed"# Default command
 CMD ["bash", "-c", "echo 'AASDK build container ready. Use docker run with volume mounts to build packages.'"]
