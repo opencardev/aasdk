@@ -144,6 +144,56 @@ check_dependencies() {
     print_success "All dependencies found"
 }
 
+setup_native_compilation() {
+    print_step "Setting up native compilation for ${TARGET_ARCH}..."
+    
+    # Force native compilers
+    export CC=/usr/bin/cc
+    export CXX=/usr/bin/c++
+    export CMAKE_C_COMPILER=/usr/bin/cc
+    export CMAKE_CXX_COMPILER=/usr/bin/c++
+    
+    # Add compiler settings to CMAKE_ARGS
+    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_C_COMPILER=/usr/bin/cc"
+    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CXX_COMPILER=/usr/bin/c++"
+    
+    # Architecture-specific library paths for dependency detection
+    local multiarch_path
+    case $TARGET_ARCH in
+        amd64)
+            multiarch_path="x86_64-linux-gnu"
+            ;;
+        arm64)  
+            multiarch_path="aarch64-linux-gnu"
+            ;;
+        armhf)
+            multiarch_path="arm-linux-gnueabihf"
+            ;;
+        i386)
+            multiarch_path="i386-linux-gnu"
+            ;;
+        *)
+            print_error "Unsupported architecture: $TARGET_ARCH"
+            echo "Supported architectures: amd64, arm64, armhf, i386"
+            exit 1
+            ;;
+    esac
+    
+    # Add dependency paths to CMAKE_ARGS for common libraries
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_INCLUDE_DIR=/usr/include"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LIBRARIES=/usr/lib/${multiarch_path}/libprotobuf.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LIBRARY=/usr/lib/${multiarch_path}/libprotobuf.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LITE_LIBRARY=/usr/lib/${multiarch_path}/libprotobuf-lite.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc"
+    CMAKE_ARGS="$CMAKE_ARGS -DLIBUSB_1_INCLUDE_DIRS=/usr/include/libusb-1.0"
+    CMAKE_ARGS="$CMAKE_ARGS -DLIBUSB_1_LIBRARIES=/usr/lib/${multiarch_path}/libusb-1.0.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_INCLUDE_DIR=/usr/include/openssl"
+    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/${multiarch_path}/libcrypto.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_SSL_LIBRARY=/usr/lib/${multiarch_path}/libssl.so"
+    
+    print_success "Native compilation configured for ${TARGET_ARCH}"
+}
+
 setup_cross_compilation() {
     if [ "$TARGET_ARCH" != "amd64" ] && [ "$CROSS_COMPILE" = "true" ]; then
         print_step "Setting up cross-compilation for ${TARGET_ARCH}..."
@@ -188,9 +238,8 @@ setup_cross_compilation() {
         esac
         
         print_success "Cross-compilation configured for ${TARGET_ARCH}"
-    elif [ "$TARGET_ARCH" != "amd64" ]; then
-        print_step "Using native compilation for ${TARGET_ARCH}..."
-        print_success "Native compilation configured for ${TARGET_ARCH}"
+    elif [ "$CROSS_COMPILE" = "false" ]; then
+        setup_native_compilation
     fi
 }
 

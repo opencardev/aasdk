@@ -70,44 +70,18 @@ RUN if [ -f "build.sh" ]; then \
         exit 1; \
     fi
 
-    # Build script that handles architecture-specific builds  
-    RUN echo "Building AASDK for architecture: native compilation" && \
-        export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
-        echo "Detected architecture: $TARGET_ARCH" && \
-        export CROSS_COMPILE=false && \
-        export CC=/usr/bin/cc && \
-        export CXX=/usr/bin/c++ && \
-        echo "Cross-compilation: $CROSS_COMPILE" && \
-        echo "CC: $CC, CXX: $CXX" && \
-        echo "Multi-arch path: $(dpkg-architecture -qDEB_HOST_MULTIARCH)" && \
-        export JOBS=$(nproc) && \
-        export PKG_CONFIG_PATH="/usr/lib/pkgconfig:/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/pkgconfig" && \
-        export CMAKE_PREFIX_PATH=/usr && \
-        export CMAKE_ARGS="-DCMAKE_C_COMPILER=/usr/bin/cc -DCMAKE_CXX_COMPILER=/usr/bin/c++ -DProtobuf_INCLUDE_DIR=/usr/include -DProtobuf_LIBRARIES=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf.so -DProtobuf_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf.so -DProtobuf_LITE_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libprotobuf-lite.so -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc -DLIBUSB_1_INCLUDE_DIRS=/usr/include/libusb-1.0 -DLIBUSB_1_LIBRARIES=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libusb-1.0.so -DOPENSSL_INCLUDE_DIR=/usr/include/openssl -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libcrypto.so -DOPENSSL_SSL_LIBRARY=/usr/lib/$(dpkg-architecture -qDEB_HOST_MULTIARCH)/libssl.so" && \
-        echo "Protobuf check:" && \
-        pkg-config --exists protobuf && echo "✅ protobuf found via pkg-config" || echo "❌ protobuf not found via pkg-config" && \
-        pkg-config --cflags protobuf && \
-        pkg-config --libs protobuf && \
-        echo "libusb check:" && \
-        pkg-config --exists libusb-1.0 && echo "✅ libusb-1.0 found via pkg-config" || echo "❌ libusb-1.0 not found via pkg-config" && \
-        pkg-config --cflags libusb-1.0 && \
-        pkg-config --libs libusb-1.0 && \
-        echo "OpenSSL check:" && \
-        pkg-config --exists openssl && echo "✅ openssl found via pkg-config" || echo "❌ openssl not found via pkg-config" && \
-        pkg-config --cflags openssl && \
-        pkg-config --libs openssl && \
-        echo "Environment variables:" && \
-        echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" && \
-        echo "CMAKE_PREFIX_PATH=$CMAKE_PREFIX_PATH" && \
-        echo "CMAKE_ARGS=$CMAKE_ARGS" && \
-        ./build.sh release clean package && \
-        if [ -d "packages" ]; then \
-            cp packages/*.deb /output/ 2>/dev/null || true && \
-            echo "Packages built:" && \
-            ls -la /output/; \
-        else \
-            echo "No packages directory found" && \
-            find . -name "*.deb" -exec cp {} /output/ \; 2>/dev/null || true; \
-        fi && \
-        echo "Build completed"# Default command
+# Build and package AASDK using the simplified build.sh approach
+ARG CROSS_COMPILE=false
+RUN export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
+    echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
+    CROSS_COMPILE=${CROSS_COMPILE} ./build.sh release clean package && \
+    if [ -d "packages" ]; then \
+        cp packages/*.deb /output/ 2>/dev/null || true && \
+        echo "Packages built:" && \
+        ls -la /output/; \
+    else \
+        echo "No packages directory found" && \
+        find . -name "*.deb" -exec cp {} /output/ \; 2>/dev/null || true; \
+    fi && \
+    echo "Build completed"# Default command
 CMD ["bash", "-c", "echo 'AASDK build container ready. Use docker run with volume mounts to build packages.'"]
