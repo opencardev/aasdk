@@ -71,18 +71,22 @@ jobs:
         deb_files="["
         first=true
         
-        find ./downloaded-artifacts -name "*.deb" -type f | while read -r deb_file; do
+        # Clear temp file
+        > /tmp/deb_files_part
+        
+        find ./downloaded-artifacts -name "*.deb" -type f | sort | while read -r deb_file; do
           filename=$(basename "$deb_file")
           if [ "$first" = true ]; then
+            echo "\"$filename\"" >> /tmp/deb_files_part
             first=false
           else
-            echo "," >> /tmp/deb_files_part
+            echo ",\"$filename\"" >> /tmp/deb_files_part
           fi
-          echo "\"$filename\"" >> /tmp/deb_files_part
         done
         
-        if [ -f /tmp/deb_files_part ]; then
-          deb_files="$deb_files$(cat /tmp/deb_files_part)]"
+        if [ -f /tmp/deb_files_part ] && [ -s /tmp/deb_files_part ]; then
+          # Join all lines into a single line and create valid JSON
+          deb_files="[$(tr -d '\n' < /tmp/deb_files_part)]"
         else
           deb_files="[]"
         fi
