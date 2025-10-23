@@ -299,7 +299,7 @@ jobs:
         echo "Triggering APT publish workflow with build run ID: ${{ github.run_id }}"
         gh workflow run apt-publish.yml \
           -f build_run_id="${{ github.run_id }}" \
-          -f distributions="bookworm,trixie"
+          -f distribution="bookworm,trixie"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
