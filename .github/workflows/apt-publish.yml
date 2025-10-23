@@ -130,7 +130,7 @@ jobs:
             -e INPUT_KEY_PASSPHRASE="${{ secrets.APT_SIGNING_PASSPHRASE }}" \
             -e INPUT_PUBLIC_KEY="${{ secrets.APT_SIGNING_PUBLIC_KEY }}" \
             -e GITHUB_REPOSITORY="${{ github.repository }}" \
-            maurodruwel/apt-repo-action:v4
+            ghcr.io/maurodruwel/apt-repo-action:v4
         done
 
     - name: List packages for Trixie
@@ -171,7 +171,7 @@ jobs:
             -e INPUT_KEY_PASSPHRASE="${{ secrets.APT_SIGNING_PASSPHRASE }}" \
             -e INPUT_PUBLIC_KEY="${{ secrets.APT_SIGNING_PUBLIC_KEY }}" \
             -e GITHUB_REPOSITORY="${{ github.repository }}" \
-            maurodruwel/apt-repo-action:v4
+            ghcr.io/maurodruwel/apt-repo-action:v4
         done
 
     - name: Summary
