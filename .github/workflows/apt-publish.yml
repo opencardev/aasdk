@@ -7,177 +7,153 @@ on:
         description: 'Build run ID to publish to APT repo'
         required: true
         type: string
-      distributions:
-        description: 'Distributions to publish to (comma separated: bookworm,trixie)'
+      distribution:
+        description: 'Distribution to publish to'
         required: false
-        default: 'bookworm,trixie'
-        type: string
-      
-  workflow_call:
-    inputs:
-      build_run_id:
-        description: 'Build run ID to publish to APT repo'
-        required: true
-        type: string
-      distributions:
-        description: 'Distributions to publish to (comma separated: bookworm,trixie)'
-        required: false
-        default: 'bookworm,trixie'
-        type: string
+        default: 'trixie'
+        type: choice
+        options:
+          - trixie
+          - bookworm
+          - both
 
 jobs:
-  upload-to-apt-repo:
+  # First job: get the list of .deb files from the build artifacts
+  prepare:
     runs-on: ubuntu-latest
-    
+    outputs:
+      deb_files: ${{ steps.list_files.outputs.deb_files }}
+      
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Parse distributions
-      id: parse_distros
-      run: |
-        DISTROS="${{ inputs.distributions }}"
-        echo "distributions=${DISTROS}" >> $GITHUB_OUTPUT
-        echo "Publishing to distributions: ${DISTROS}"
-
     - name: Download artifacts from build run
       run: |
         echo "Downloading artifacts from run ID: ${{ inputs.build_run_id }}"
         
-        # Create directory for apt packages
-        mkdir -p ./apt-packages
-        
         # Download all artifacts from the specified run
         gh run download ${{ inputs.build_run_id }} --dir ./downloaded-artifacts
         
-        # Move build artifacts to apt packages directory
-        if [ -d "./downloaded-artifacts" ]; then
-          find ./downloaded-artifacts -name "*.deb" -exec cp {} ./apt-packages/ \;
-        fi
-        
-        echo "Downloaded .deb packages:"
-        ls -la ./apt-packages/
+        echo "Downloaded artifacts structure:"
+        find ./downloaded-artifacts -type f -name "*.deb" | head -20
         
         # Verify we have packages
-        if [ ! "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
+        if [ ! "$(find ./downloaded-artifacts -name "*.deb" 2>/dev/null)" ]; then
           echo "Error: No .deb packages found in build run ${{ inputs.build_run_id }}"
           exit 1
         fi
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Prepare packages for APT repository
+    - name: List .deb files for matrix
+      id: list_files
       run: |
-        echo "Preparing packages for APT repository upload..."
+        echo "Creating matrix of .deb files..."
         
-        # Parse distributions
-        IFS=',' read -ra DIST_ARRAY <<< "${{ steps.parse_distros.outputs.distributions }}"
+        # Create JSON array of .deb files
+        deb_files="["
+        first=true
         
-        # Create distribution directories
-        for dist in "${DIST_ARRAY[@]}"; do
-          dist=$(echo "$dist" | xargs) # trim whitespace
-          echo "Creating directory for distribution: $dist"
-          mkdir -p "./apt-repo-upload/$dist"
-        done
-        
-        # Copy packages to appropriate distributions
-        for dist in "${DIST_ARRAY[@]}"; do
-          dist=$(echo "$dist" | xargs) # trim whitespace
-          if [ -d ./apt-packages ] && [ "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
-            cp ./apt-packages/*.deb "./apt-repo-upload/$dist/"
-            echo "Copied $(ls ./apt-packages/*.deb | wc -l) packages to $dist distribution"
+        find ./downloaded-artifacts -name "*.deb" -type f | while read -r deb_file; do
+          filename=$(basename "$deb_file")
+          if [ "$first" = true ]; then
+            first=false
+          else
+            echo "," >> /tmp/deb_files_part
           fi
+          echo "\"$filename\"" >> /tmp/deb_files_part
         done
         
-        echo "APT repository package structure:"
-        find ./apt-repo-upload -type f -name "*.deb" | sort
+        if [ -f /tmp/deb_files_part ]; then
+          deb_files="$deb_files$(cat /tmp/deb_files_part)]"
+        else
+          deb_files="[]"
+        fi
+        
+        echo "deb_files=$deb_files" >> $GITHUB_OUTPUT
+        echo "Found .deb files: $deb_files"
 
-    - name: List packages for Bookworm
-      if: contains(inputs.distributions, 'bookworm')
-      id: bookworm_packages
-      run: |
-        echo "Finding .deb packages for Bookworm..."
-        packages=""
-        for deb_file in ./apt-repo-upload/bookworm/*.deb; do
-          if [ -f "$deb_file" ]; then
-            if [ -n "$packages" ]; then
-              packages="$packages,"
-            fi
-            packages="$packages$(basename $deb_file)"
-          fi
-        done
-        echo "packages=$packages" >> $GITHUB_OUTPUT
-        echo "Bookworm packages: $packages"
+    - name: Upload .deb files as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: deb-files-for-apt
+        path: ./downloaded-artifacts/**/*.deb
+        retention-days: 1
 
-    - name: Upload each package to Bookworm
-      if: contains(inputs.distributions, 'bookworm') && steps.bookworm_packages.outputs.packages != ''
-      run: |
-        IFS=',' read -ra PACKAGES <<< "${{ steps.bookworm_packages.outputs.packages }}"
-        for package in "${PACKAGES[@]}"; do
-          echo "Uploading $package to Bookworm..."
-          
-          # Use the action for each package
-          docker run --rm \
-            -v "$(pwd)/apt-repo-upload/bookworm:/workspace" \
-            -w /workspace \
-            -e INPUT_GITHUB_TOKEN="${{ secrets.PACKAGES_REPO_TOKEN }}" \
-            -e INPUT_REPO_SUPPORTED_ARCH=$'amd64\narm64\narmhf' \
-            -e INPUT_REPO_SUPPORTED_VERSION="bookworm" \
-            -e INPUT_FILE="$package" \
-            -e INPUT_FILE_TARGET_VERSION="bookworm" \
-            -e INPUT_TARGET_REPOSITORY="opencardev/packages" \
-            -e INPUT_PRIVATE_KEY="${{ secrets.APT_SIGNING_KEY }}" \
-            -e INPUT_KEY_PASSPHRASE="${{ secrets.APT_SIGNING_PASSPHRASE }}" \
-            -e INPUT_PUBLIC_KEY="${{ secrets.APT_SIGNING_PUBLIC_KEY }}" \
-            -e GITHUB_REPOSITORY="${{ github.repository }}" \
-            ghcr.io/maurodruwel/apt-repo-action:v4
-        done
+  # Second job: upload each .deb file to APT repo using matrix strategy
+  upload-trixie:
+    needs: prepare
+    if: inputs.distribution == 'trixie' || inputs.distribution == 'both'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        deb_file: ${{ fromJson(needs.prepare.outputs.deb_files) }}
+      fail-fast: false
+      
+    steps:
+    - name: Download .deb files
+      uses: actions/download-artifact@v4
+      with:
+        name: deb-files-for-apt
+        path: ./deb-files
 
-    - name: List packages for Trixie
-      if: contains(inputs.distributions, 'trixie')
-      id: trixie_packages
-      run: |
-        echo "Finding .deb packages for Trixie..."
-        packages=""
-        for deb_file in ./apt-repo-upload/trixie/*.deb; do
-          if [ -f "$deb_file" ]; then
-            if [ -n "$packages" ]; then
-              packages="$packages,"
-            fi
-            packages="$packages$(basename $deb_file)"
-          fi
-        done
-        echo "packages=$packages" >> $GITHUB_OUTPUT
-        echo "Trixie packages: $packages"
+    - name: Upload ${{ matrix.deb_file }} to Trixie
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          trixie
+        file: ./deb-files/${{ matrix.deb_file }}
+        file_target_version: trixie
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
 
-    - name: Upload each package to Trixie
-      if: contains(inputs.distributions, 'trixie') && steps.trixie_packages.outputs.packages != ''
-      run: |
-        IFS=',' read -ra PACKAGES <<< "${{ steps.trixie_packages.outputs.packages }}"
-        for package in "${PACKAGES[@]}"; do
-          echo "Uploading $package to Trixie..."
-          
-          # Use the action for each package
-          docker run --rm \
-            -v "$(pwd)/apt-repo-upload/trixie:/workspace" \
-            -w /workspace \
-            -e INPUT_GITHUB_TOKEN="${{ secrets.PACKAGES_REPO_TOKEN }}" \
-            -e INPUT_REPO_SUPPORTED_ARCH=$'amd64\narm64\narmhf' \
-            -e INPUT_REPO_SUPPORTED_VERSION="trixie" \
-            -e INPUT_FILE="$package" \
-            -e INPUT_FILE_TARGET_VERSION="trixie" \
-            -e INPUT_TARGET_REPOSITORY="opencardev/packages" \
-            -e INPUT_PRIVATE_KEY="${{ secrets.APT_SIGNING_KEY }}" \
-            -e INPUT_KEY_PASSPHRASE="${{ secrets.APT_SIGNING_PASSPHRASE }}" \
-            -e INPUT_PUBLIC_KEY="${{ secrets.APT_SIGNING_PUBLIC_KEY }}" \
-            -e GITHUB_REPOSITORY="${{ github.repository }}" \
-            ghcr.io/maurodruwel/apt-repo-action:v4
-        done
+  upload-bookworm:
+    needs: prepare
+    if: inputs.distribution == 'bookworm' || inputs.distribution == 'both'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        deb_file: ${{ fromJson(needs.prepare.outputs.deb_files) }}
+      fail-fast: false
+      
+    steps:
+    - name: Download .deb files
+      uses: actions/download-artifact@v4
+      with:
+        name: deb-files-for-apt
+        path: ./deb-files
 
+    - name: Upload ${{ matrix.deb_file }} to Bookworm
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          bookworm
+        file: ./deb-files/${{ matrix.deb_file }}
+        file_target_version: bookworm
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+  summary:
+    needs: [prepare, upload-trixie, upload-bookworm]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
     - name: Summary
       run: |
         echo "## APT Repository Upload Complete"
         echo "Build Run ID: ${{ inputs.build_run_id }}"
-        echo "Distributions: ${{ inputs.distributions }}"
-        echo "Packages uploaded:"
-        find ./apt-repo-upload -name "*.deb" -exec basename {} \; | sort
+        echo "Distribution: ${{ inputs.distribution }}"
+        echo "Files processed: ${{ needs.prepare.outputs.deb_files }}"
