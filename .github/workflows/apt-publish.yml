@@ -118,6 +118,27 @@ jobs:
         name: deb-files-for-apt
         path: ./deb-files
 
+    - name: Debug - List downloaded files
+      run: |
+        echo "Contents of deb-files directory:"
+        find ./deb-files -type f -name "*.deb" | head -20
+        echo "Looking for specific file: ${{ matrix.deb_file }}"
+        find ./deb-files -name "${{ matrix.deb_file }}" -type f
+
+    - name: Find and prepare .deb file
+      id: find_file
+      run: |
+        # Find the actual path of the .deb file
+        deb_path=$(find ./deb-files -name "${{ matrix.deb_file }}" -type f | head -1)
+        
+        if [ -z "$deb_path" ]; then
+          echo "Error: Could not find ${{ matrix.deb_file }}"
+          exit 1
+        fi
+        
+        echo "Found file at: $deb_path"
+        echo "file_path=$deb_path" >> $GITHUB_OUTPUT
+
     - name: Upload ${{ matrix.deb_file }} to Trixie
       uses: MauroDruwel/apt-repo-action@v4
       with:
@@ -128,7 +149,7 @@ jobs:
           armhf
         repo_supported_version: |
           trixie
-        file: ./deb-files/${{ matrix.deb_file }}
+        file: ${{ steps.find_file.outputs.file_path }}
         file_target_version: trixie
         target_repository: opencardev/packages
         private_key: ${{ secrets.APT_SIGNING_KEY }}
