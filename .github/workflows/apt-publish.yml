@@ -95,55 +95,87 @@ jobs:
         name: deb-files-for-apt
         path: ./deb-files
 
-    - name: Upload ${{ matrix.deb_file }} to Trixie
-      uses: MauroDruwel/apt-repo-action@v4
-      with:
-        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
-        repo_supported_arch: |
-          amd64
-          arm64
-          armhf
-        repo_supported_version: |
-          trixie
-        file: ./deb-files/${{ matrix.deb_file }}
-        file_target_version: trixie
-        target_repository: opencardev/packages
-        private_key: ${{ secrets.APT_SIGNING_KEY }}
-        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
-        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+    - name: List packages for Bookworm
+      if: contains(inputs.distributions, 'bookworm')
+      id: bookworm_packages
+      run: |
+        echo "Finding .deb packages for Bookworm..."
+        packages=""
+        for deb_file in ./apt-repo-upload/bookworm/*.deb; do
+          if [ -f "$deb_file" ]; then
+            if [ -n "$packages" ]; then
+              packages="$packages,"
+            fi
+            packages="$packages$(basename $deb_file)"
+          fi
+        done
+        echo "packages=$packages" >> $GITHUB_OUTPUT
+        echo "Bookworm packages: $packages"
 
-  upload-bookworm:
-    needs: prepare
-    if: inputs.distribution == 'bookworm' || inputs.distribution == 'both'
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        deb_file: ${{ fromJson(needs.prepare.outputs.deb_files) }}
-      fail-fast: false
-      
-    steps:
-    - name: Download .deb files
-      uses: actions/download-artifact@v4
-      with:
-        name: deb-files-for-apt
-        path: ./deb-files
+    - name: Upload each package to Bookworm
+      if: contains(inputs.distributions, 'bookworm') && steps.bookworm_packages.outputs.packages != ''
+      run: |
+        IFS=',' read -ra PACKAGES <<< "${{ steps.bookworm_packages.outputs.packages }}"
+        for package in "${PACKAGES[@]}"; do
+          echo "Uploading $package to Bookworm..."
+          
+          # Use the action for each package
+          docker run --rm \
+            -v "$(pwd)/apt-repo-upload/bookworm:/workspace" \
+            -w /workspace \
+            -e INPUT_GITHUB_TOKEN="${{ secrets.PACKAGES_REPO_TOKEN }}" \
+            -e INPUT_REPO_SUPPORTED_ARCH=$'amd64\narm64\narmhf' \
+            -e INPUT_REPO_SUPPORTED_VERSION="bookworm" \
+            -e INPUT_FILE="$package" \
+            -e INPUT_FILE_TARGET_VERSION="bookworm" \
+            -e INPUT_TARGET_REPOSITORY="opencardev/packages" \
+            -e INPUT_PRIVATE_KEY="${{ secrets.APT_SIGNING_KEY }}" \
+            -e INPUT_KEY_PASSPHRASE="${{ secrets.APT_SIGNING_PASSPHRASE }}" \
+            -e INPUT_PUBLIC_KEY="${{ secrets.APT_SIGNING_PUBLIC_KEY }}" \
+            -e GITHUB_REPOSITORY="${{ github.repository }}" \
+            maurodruwel/apt-repo-action:v4
+        done
 
-    - name: Upload ${{ matrix.deb_file }} to Bookworm
-      uses: MauroDruwel/apt-repo-action@v4
-      with:
-        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
-        repo_supported_arch: |
-          amd64
-          arm64
-          armhf
-        repo_supported_version: |
-          bookworm
-        file: ./deb-files/${{ matrix.deb_file }}
-        file_target_version: bookworm
-        target_repository: opencardev/packages
-        private_key: ${{ secrets.APT_SIGNING_KEY }}
-        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
-        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+    - name: List packages for Trixie
+      if: contains(inputs.distributions, 'trixie')
+      id: trixie_packages
+      run: |
+        echo "Finding .deb packages for Trixie..."
+        packages=""
+        for deb_file in ./apt-repo-upload/trixie/*.deb; do
+          if [ -f "$deb_file" ]; then
+            if [ -n "$packages" ]; then
+              packages="$packages,"
+            fi
+            packages="$packages$(basename $deb_file)"
+          fi
+        done
+        echo "packages=$packages" >> $GITHUB_OUTPUT
+        echo "Trixie packages: $packages"
+
+    - name: Upload each package to Trixie
+      if: contains(inputs.distributions, 'trixie') && steps.trixie_packages.outputs.packages != ''
+      run: |
+        IFS=',' read -ra PACKAGES <<< "${{ steps.trixie_packages.outputs.packages }}"
+        for package in "${PACKAGES[@]}"; do
+          echo "Uploading $package to Trixie..."
+          
+          # Use the action for each package
+          docker run --rm \
+            -v "$(pwd)/apt-repo-upload/trixie:/workspace" \
+            -w /workspace \
+            -e INPUT_GITHUB_TOKEN="${{ secrets.PACKAGES_REPO_TOKEN }}" \
+            -e INPUT_REPO_SUPPORTED_ARCH=$'amd64\narm64\narmhf' \
+            -e INPUT_REPO_SUPPORTED_VERSION="trixie" \
+            -e INPUT_FILE="$package" \
+            -e INPUT_FILE_TARGET_VERSION="trixie" \
+            -e INPUT_TARGET_REPOSITORY="opencardev/packages" \
+            -e INPUT_PRIVATE_KEY="${{ secrets.APT_SIGNING_KEY }}" \
+            -e INPUT_KEY_PASSPHRASE="${{ secrets.APT_SIGNING_PASSPHRASE }}" \
+            -e INPUT_PUBLIC_KEY="${{ secrets.APT_SIGNING_PUBLIC_KEY }}" \
+            -e GITHUB_REPOSITORY="${{ github.repository }}" \
+            maurodruwel/apt-repo-action:v4
+        done
 
   summary:
     needs: [prepare, upload-trixie, upload-bookworm]
