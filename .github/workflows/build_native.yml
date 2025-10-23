@@ -1,4 +1,4 @@
-name: AASDK Build Multi-Architecture
+name: AASDK Build and Test
 
 on:
   push:
@@ -38,8 +38,13 @@ on:
           - amd64
           - arm64
           - armhf
-      create_release:
-        description: 'Create GitHub release'
+      trigger_release:
+        description: 'Trigger release workflow after build'
+        required: false
+        default: false
+        type: boolean
+      trigger_apt_publish:
+        description: 'Trigger APT publish workflow after build'
         required: false
         default: false
         type: boolean
@@ -269,319 +274,47 @@ jobs:
         path: test-report.md
         retention-days: 90
 
-  release:
+  trigger-workflows:
     needs: [prepare, build, test]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') #|| (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    if: github.event.inputs.trigger_release == 'true' || github.event.inputs.trigger_apt_publish == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-
-    - name: Generate release info
-      id: release_info
+    - name: Trigger Release Workflow
+      if: github.event.inputs.trigger_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
-        # Use manual version if provided, otherwise generate using same scheme as CMake
-        if [ -n "${{ github.event.inputs.version }}" ]; then
-          VERSION="${{ github.event.inputs.version }}"
-        else
-          # Match CMakeLists.txt date-based versioning: YYYY.MM.DD
-          BUILD_YEAR=$(date -u +"%Y")
-          BUILD_MONTH=$(date -u +"%m")
-          BUILD_DAY=$(date -u +"%d")
-          VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
-          
-          # Add git commit info if available (match CMake logic)
-          COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          if [ "$COMMIT_SHA" != "unknown" ]; then
-            VERSION="${VERSION}+git.${COMMIT_SHA}"
-          fi
-        fi
-        
-        COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
-        
-        # Generate changelog since last tag or last 10 commits
-        echo "Generating changelog..."
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-        
-        # Create the full release notes file
-        cat > RELEASE_NOTES.md << EOF
-        ## AASDK Release ${VERSION}
-        
-        **Build Information:**
-        - Version: \`${VERSION}\`
-        - Commit: \`${COMMIT_SHA}\`
-        - Build Date: \`${BUILD_DATE}\`
-        - Architectures: \`amd64\`, \`arm64\`, \`armhf\`
-        
-        EOF
-        
-        # Add changelog
-        if [ -n "$LAST_TAG" ] && [ "$LAST_TAG" != "" ]; then
-          echo "## What's Changed Since ${LAST_TAG}" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-          # Verify the tag exists and is reachable before using it in git log
-          if git rev-parse --verify "${LAST_TAG}" >/dev/null 2>&1; then
-            if git log --pretty=format:"- %s (%h)" "${LAST_TAG}..HEAD" 2>/dev/null | head -20 >> RELEASE_NOTES.md && [ -s RELEASE_NOTES.md ]; then
-              echo "" >> RELEASE_NOTES.md
-            else
-              echo "- No changes since ${LAST_TAG}" >> RELEASE_NOTES.md
-              echo "" >> RELEASE_NOTES.md
-            fi
-          else
-            echo "- Previous tag ${LAST_TAG} not found, showing recent commits" >> RELEASE_NOTES.md
-            echo "" >> RELEASE_NOTES.md
-            git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md
-            echo "" >> RELEASE_NOTES.md
-          fi
-        else
-          echo "## What's Changed" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-          git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-        fi
-        
-        # Add package and installation info
-        cat >> RELEASE_NOTES.md << EOF
-        
-        **Package Contents:**
-        This release includes packages for all supported architectures:
-        - **AMD64**: Intel/AMD 64-bit systems
-        - **ARM64**: ARM 64-bit systems (e.g., Raspberry Pi 4, Apple Silicon)
-        - **ARMHF**: ARM 32-bit hard-float systems (e.g., Raspberry Pi 3)
-        
-        **Installation:**
-        \`\`\`bash
-        # Download the appropriate package for your architecture
-        # For example, on ARM64:
-        sudo dpkg -i libaasdk-arm64_*.deb
-        sudo dpkg -i libaasdk-arm64-dev_*.deb
-        
-        # Fix any dependency issues
-        sudo apt-get install -f
-        \`\`\`
-        
-        **Package Verification:**
-        SHA256 checksums are provided for all packages. Download \`SHA256SUMS\` and verify packages:
-        \`\`\`bash
-        # Verify all packages
-        sha256sum -c SHA256SUMS
-        
-        # Or verify individual packages
-        sha256sum -c libaasdk-arm64_*.deb.sha256
-        \`\`\`
-        
-        **Dependencies:**
-        - libboost-all-dev
-        - libprotobuf-dev
-        - libusb-1.0-0-dev
-        - libssl-dev
-        EOF
-        
-        echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
-        echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
-        
-        echo "Release version: ${VERSION}"
-        echo "Generated release notes:"
-        cat RELEASE_NOTES.md
-
-    - name: Debug - List available artifacts
-      run: |
-        echo "Available artifacts in this workflow run:"
-        gh api repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts --jq '.artifacts[] | {name: .name, size_in_bytes: .size_in_bytes}'
+        echo "Triggering release workflow with build run ID: ${{ github.run_id }}"
+        gh workflow run release.yml \
+          -f build_run_id="${{ github.run_id }}" \
+          -f version="${{ github.event.inputs.version }}" \
+          -f create_draft="false"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Download all build artifacts (merged)
-      uses: actions/download-artifact@v4
-      with:
-        pattern: aasdk-packages-*
-        merge-multiple: true
-        path: ./release-packages
-
-    - name: Download test report
-      uses: actions/download-artifact@v4
-      with:
-        name: aasdk-test-report-${{ github.run_number }}
-        path: ./release-packages
-
-    - name: Download artifacts separately (for comparison)
-      uses: actions/download-artifact@v4
-      with:
-        pattern: aasdk-packages-*
-        merge-multiple: false
-        path: ./separate-artifacts
-
-    - name: Generate SHA256 hashes
+    - name: Trigger APT Publish Workflow
+      if: github.event.inputs.trigger_apt_publish == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
-        echo "Generating SHA256 hash files..."
-        cd ./release-packages
-        
-        # Generate individual hash files for each package
-        for pattern in "*.deb" "*.tar.*"; do
-          for file in $pattern; do
-            if [ -f "$file" ]; then
-              echo "Generating hash for $file"
-              sha256sum "$file" > "$file.sha256"
-            fi
-          done 2>/dev/null || true
-        done
-        
-        # Generate a combined hash file
-        echo "# AASDK Release ${{ steps.release_info.outputs.version }} - SHA256 Checksums" > SHA256SUMS
-        echo "# Generated on $(date -u)" >> SHA256SUMS
-        echo "" >> SHA256SUMS
-        
-        # Add checksums for .deb files
-        if ls *.deb >/dev/null 2>&1; then
-          sha256sum *.deb >> SHA256SUMS
-        fi
-        
-        # Add checksums for .tar.* files
-        if ls *.tar.* >/dev/null 2>&1; then
-          sha256sum *.tar.* >> SHA256SUMS
-        fi
-        
-        echo "Hash files generated:"
-        ls -la *.sha256 SHA256SUMS 2>/dev/null || echo "No hash files found"
-
-    - name: Add SHA256 hashes to release notes
-      run: |
-        cd ./release-packages
-        
-        # Add SHA256 section to release notes
-        echo "" >> ../RELEASE_NOTES.md
-        echo "**SHA256 Checksums:**" >> ../RELEASE_NOTES.md
-        echo "\`\`\`" >> ../RELEASE_NOTES.md
-        
-        # Add checksums for each architecture organized
-        if [ -f SHA256SUMS ]; then
-          # Sort by architecture for better presentation
-          for arch in amd64 arm64 armhf; do
-            if grep -q "$arch" SHA256SUMS 2>/dev/null; then
-              echo "# $arch packages:" >> ../RELEASE_NOTES.md
-              grep "$arch" SHA256SUMS >> ../RELEASE_NOTES.md || true
-            fi
-          done
-          
-          # Add any other files (source packages, etc.)
-          if grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >/dev/null 2>&1; then
-            echo "# Other files:" >> ../RELEASE_NOTES.md
-            grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >> ../RELEASE_NOTES.md || true
-          fi
-        fi
-        
-        echo "\`\`\`" >> ../RELEASE_NOTES.md
-        
-        echo "Updated release notes with SHA256 checksums:"
-        echo "--- FINAL RELEASE NOTES ---"
-        cat ../RELEASE_NOTES.md
-
-    - name: Debug - List downloaded artifacts
-      run: |
-        echo "Contents of release-packages directory:"
-        find ./release-packages -type f -name "*.deb" | sort
-        echo ""
-        echo "All files in release-packages:"
-        ls -la ./release-packages/
-        echo ""
-        echo "Architecture breakdown:"
-        for arch in amd64 arm64 armhf; do
-          echo "=== $arch packages ==="
-          find ./release-packages -name "*${arch}*" | sort
-        done
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release_info.outputs.version }}
-        name: AASDK Release ${{ steps.release_info.outputs.version }}
-        body_path: RELEASE_NOTES.md
-        files: |
-          ./release-packages/*.deb
-          ./release-packages/*.tar.*
-          ./release-packages/*.sha256
-          ./release-packages/SHA256SUMS
-          ./release-packages/test-report.md
-        fail_on_unmatched_files: false
-        generate_release_notes: false
-        draft: ${{ github.event.inputs.create_release == 'true' && !startsWith(github.ref, 'refs/tags/') }}
-        prerelease: ${{ contains(steps.release_info.outputs.version, 'git') }}
+        echo "Triggering APT publish workflow with build run ID: ${{ github.run_id }}"
+        gh workflow run apt-publish.yml \
+          -f build_run_id="${{ github.run_id }}" \
+          -f distributions="bookworm,trixie"
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  upload-to-apt-repo:
-    needs: [release]
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') #|| (github.event_name == 'push' && github.ref == 'refs/heads/develop')
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Download all build artifacts for APT repo
-      uses: actions/download-artifact@v4
-      with:
-        pattern: aasdk-packages-*
-        merge-multiple: true
-        path: ./apt-packages
-
-    - name: Prepare packages for APT repository
+    - name: Build Summary
       run: |
-        echo "Preparing packages for APT repository upload..."
-        
-        # Create distribution directories
-        mkdir -p ./apt-repo-upload/bookworm
-        mkdir -p ./apt-repo-upload/trixie
-        
-        # Copy packages to appropriate distributions
-        # For now, we'll upload to all supported distributions
-        for dist in bookworm trixie; do
-          if [ -d ./apt-packages ] && [ "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
-            cp ./apt-packages/*.deb ./apt-repo-upload/$dist/
-            echo "Copied $(ls ./apt-packages/*.deb | wc -l) packages to $dist distribution"
-          fi
-        done
-        
-        echo "APT repository package structure:"
-        find ./apt-repo-upload -type f -name "*.deb" | sort
-
-    - name: Upload to APT Repository (Bookworm)
-      uses: MauroDruwel/apt-repo-action@v4
-      with:
-        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
-        repo_supported_arch: |
-          amd64
-          arm64
-          armhf
-        repo_supported_distro: |
-          bookworm
-        file: ./apt-repo-upload/bookworm/*.deb
-        file_target_version: bookworm
-        target_repo: opencardev/packages
-        target_repo_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
-        private_key: ${{ secrets.APT_SIGNING_KEY }}
-        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
-        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
-
-    - name: Upload to APT Repository (Trixie)
-      uses: MauroDruwel/apt-repo-action@v4
-      with:
-        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
-        repo_supported_arch: |
-          amd64
-          arm64
-          armhf
-        repo_supported_distro: |
-          trixie
-        file: ./apt-repo-upload/trixie/*.deb
-        file_target_version: trixie
-        target_repo: opencardev/packages
-        target_repo_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
-        private_key: ${{ secrets.APT_SIGNING_KEY }}
-        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
-        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+        echo "## Build Complete! 🎉"
+        echo "Build Run ID: \`${{ github.run_id }}\`"
+        echo ""
+        echo "### Next Steps:"
+        echo "You can now manually trigger workflows using this build:"
+        echo ""
+        echo "**Create Release:**"
+        echo "\`\`\`"
+        echo "gh workflow run release.yml -f build_run_id=${{ github.run_id }}"
+        echo "\`\`\`"
+        echo ""
+        echo "**Publish to APT:**"
+        echo "\`\`\`"
+        echo "gh workflow run apt-publish.yml -f build_run_id=${{ github.run_id }}"
+        echo "\`\`\`"
