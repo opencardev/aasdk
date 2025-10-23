@@ -274,7 +274,7 @@ jobs:
         path: test-report.md
         retention-days: 90
 
-  trigger-workflows:
+  release:
     needs: [prepare, build, test]
     runs-on: ubuntu-latest
     if: github.event.inputs.trigger_release == 'true' || github.event.inputs.trigger_apt_publish == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
@@ -309,12 +309,99 @@ jobs:
         echo "### Next Steps:"
         echo "You can now manually trigger workflows using this build:"
         echo ""
-        echo "**Create Release:**"
-        echo "\`\`\`"
-        echo "gh workflow run release.yml -f build_run_id=${{ github.run_id }}"
-        echo "\`\`\`"
-        echo ""
-        echo "**Publish to APT:**"
-        echo "\`\`\`"
-        echo "gh workflow run apt-publish.yml -f build_run_id=${{ github.run_id }}"
-        echo "\`\`\`"
+        echo "Architecture breakdown:"
+        for arch in amd64 arm64 armhf; do
+          echo "=== $arch packages ==="
+          find ./release-packages -name "*${arch}*" | sort
+        done
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || steps.release_info.outputs.version }}
+        name: AASDK Release ${{ steps.release_info.outputs.version }}
+        body_path: RELEASE_NOTES.md
+        files: |
+          ./release-packages/*.deb
+          ./release-packages/*.tar.*
+          ./release-packages/*.sha256
+          ./release-packages/SHA256SUMS
+          ./release-packages/test-report.md
+        fail_on_unmatched_files: false
+        generate_release_notes: false
+        draft: ${{ github.event.inputs.create_release == 'true' && !startsWith(github.ref, 'refs/tags/') }}
+        prerelease: ${{ contains(steps.release_info.outputs.version, 'git') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-to-apt-repo:
+    needs: [release]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') #|| (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download all build artifacts for APT repo
+      uses: actions/download-artifact@v4
+      with:
+        pattern: aasdk-packages-*
+        merge-multiple: true
+        path: ./apt-packages
+
+    - name: Prepare packages for APT repository
+      run: |
+        echo "Preparing packages for APT repository upload..."
+        
+        # Create distribution directories
+        mkdir -p ./apt-repo-upload/bookworm
+        mkdir -p ./apt-repo-upload/trixie
+        
+        # Copy packages to appropriate distributions
+        # For now, we'll upload to all supported distributions
+        for dist in bookworm trixie; do
+          if [ -d ./apt-packages ] && [ "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
+            cp ./apt-packages/*.deb ./apt-repo-upload/$dist/
+            echo "Copied $(ls ./apt-packages/*.deb | wc -l) packages to $dist distribution"
+          fi
+        done
+        
+        echo "APT repository package structure:"
+        find ./apt-repo-upload -type f -name "*.deb" | sort
+
+    - name: Upload to APT Repository (Bookworm)
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_distro: |
+          bookworm
+        file: ./apt-repo-upload/bookworm/*.deb
+        file_target_version: bookworm
+        target_repo: opencardev/packages
+        target_repo_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload to APT Repository (Trixie)
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_distro: |
+          trixie
+        file: ./apt-repo-upload/trixie/*.deb
+        file_target_version: trixie
+        target_repo: opencardev/packages
+        target_repo_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
