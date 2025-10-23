@@ -72,43 +72,30 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create APT Repository for Trixie
-      if: inputs.distribution == 'trixie' 
+      if: inputs.distribution == 'trixie' || inputs.distribution == 'both'
       uses: jinnatar/actions-aptly-repo@v2
       with:
         name: opencardev-trixie
         repo_url: https://opencardev.github.io/packages
         repos: |
-          trixie,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
+          trixie,main,\"amd64 arm64 armhf\",false,./debs/*/*.deb
         gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
         gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
         artifact_name: aasdk-trixie-apt-repo
 
     - name: Create APT Repository for Bookworm
-      if: inputs.distribution == 'bookworm'
+      if: inputs.distribution == 'bookworm' || inputs.distribution == 'both'
       uses: jinnatar/actions-aptly-repo@v2
       with:
         name: opencardev-bookworm
         repo_url: https://opencardev.github.io/packages
         repos: |
-          bookworm,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
+          bookworm,main,\"amd64 arm64 armhf\",false,./debs/*/*.deb
         gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
         gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
         artifact_name: aasdk-bookworm-apt-repo
-        prefix: bookworm
 
-    - name: Create APT Repository for Both Distributions
-      if: inputs.distribution == 'both'
-      uses: jinnatar/actions-aptly-repo@v2
-      with:
-        name: aasdk
-        repo_url: https://opencardev.github.io/packages
-        repos: |
-          trixie,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
-          bookworm,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
-        gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
-        gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
-        artifact_name: aasdk-combined-apt-repo
-        prefix: combined
+
 
   deploy-apt-repo:
     needs: create-apt-repo
