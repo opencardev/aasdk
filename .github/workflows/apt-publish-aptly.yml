@@ -75,41 +75,27 @@ jobs:
       if: inputs.distribution == 'trixie' || inputs.distribution == 'both'
       uses: jinnatar/actions-aptly-repo@v2
       with:
-        name: aasdk
+        name: opencardev-trixie
         repo_url: https://opencardev.github.io/packages
         repos: |
-          trixie,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+          trixie,main,\"amd64 arm64 armhf\",false,./debs/*/*.deb
         gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
         gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
         artifact_name: aasdk-trixie-apt-repo
-        prefix: trixie
 
     - name: Create APT Repository for Bookworm
       if: inputs.distribution == 'bookworm' || inputs.distribution == 'both'
       uses: jinnatar/actions-aptly-repo@v2
       with:
-        name: aasdk
+        name: opencardev-bookworm
         repo_url: https://opencardev.github.io/packages
         repos: |
-          bookworm,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+          bookworm,main,\"amd64 arm64 armhf\",false,./debs/*/*.deb
         gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
         gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
         artifact_name: aasdk-bookworm-apt-repo
-        prefix: bookworm
 
-    - name: Create APT Repository for Both Distributions
-      if: inputs.distribution == 'both'
-      uses: jinnatar/actions-aptly-repo@v2
-      with:
-        name: aasdk
-        repo_url: https://opencardev.github.io/packages
-        repos: |
-          trixie,main,"amd64,arm64,armhf",false,./debs/*/*.deb
-          bookworm,main,"amd64,arm64,armhf",false,./debs/*/*.deb
-        gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
-        gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
-        artifact_name: aasdk-combined-apt-repo
-        prefix: combined
+
 
   deploy-apt-repo:
     needs: create-apt-repo
@@ -152,9 +138,16 @@ jobs:
           tar -xzf "../apt-artifacts/aasdk-bookworm-apt-repo.tar.gz" -C .
         fi
         
-        if [ -f "../apt-artifacts/aasdk-combined-apt-repo.tar.gz" ]; then
-          echo "Extracting Combined repository..."
-          tar -xzf "../apt-artifacts/aasdk-combined-apt-repo.tar.gz" -C .
+        # Ensure GPG public key is available in the repository
+        if [ ! -f "opencardev.gpg.key" ]; then
+          echo "Exporting GPG public key..."
+          echo "${{ secrets.APT_SIGNING_KEY }}" | gpg --import --batch --yes
+          # Get the key ID from the imported key
+          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | head -1 | sed 's/.*\/\([A-F0-9]*\) .*/\1/')
+          gpg --armor --export $KEY_ID > opencardev.gpg.key
+          echo "GPG public key exported to opencardev.gpg.key"
+        else
+          echo "GPG public key already exists"
         fi
         
         echo "Updated packages repo structure:"
@@ -172,13 +165,7 @@ jobs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update APT repository from AASDK build ${{ inputs.build_run_id }}
-
-Distribution: ${{ inputs.distribution }}
-Build Run: ${{ inputs.build_run_id }}
-Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-
-Automated update via jinnatar/actions-aptly-repo@v2"
+          git commit -m "Update APT repository from AASDK build ${{ inputs.build_run_id }} - Distribution: ${{ inputs.distribution }} - Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC') - Automated update via jinnatar/actions-aptly-repo@v2"
           
           echo "Pushing changes..."
           git push
@@ -208,21 +195,23 @@ Automated update via jinnatar/actions-aptly-repo@v2"
           echo "To use the repository:"
           echo "```bash"
           echo "# Add GPG key"
-          echo "curl -fsSL https://opencardev.github.io/packages/aasdk.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/aasdk.gpg"
+          echo "curl -fsSL https://opencardev.github.io/packages/opencardev.gpg.key | sudo gpg --dearmor -o /usr/share/keyrings/opencardev-archive-keyring.gpg"
           echo ""
           case "${{ inputs.distribution }}" in
             "trixie")
               echo "# Add Trixie repository"
-              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/trixie trixie main' | sudo tee /etc/apt/sources.list.d/aasdk.list"
+              echo "echo 'deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/opencardev-archive-keyring.gpg] https://opencardev.github.io/packages trixie main' | sudo tee /etc/apt/sources.list.d/opencardev.list"
               ;;
             "bookworm")
               echo "# Add Bookworm repository"
-              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/bookworm bookworm main' | sudo tee /etc/apt/sources.list.d/aasdk.list"
+              echo "echo 'deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/opencardev-archive-keyring.gpg] https://opencardev.github.io/packages bookworm main' | sudo tee /etc/apt/sources.list.d/opencardev.list"
               ;;
             "both")
-              echo "# Add both repositories"
-              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/trixie trixie main' | sudo tee /etc/apt/sources.list.d/aasdk-trixie.list"
-              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/bookworm bookworm main' | sudo tee /etc/apt/sources.list.d/aasdk-bookworm.list"
+              echo "# Add repositories (choose your distribution)"
+              echo "# For Trixie (Debian 13):"
+              echo "echo 'deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/opencardev-archive-keyring.gpg] https://opencardev.github.io/packages trixie main' | sudo tee /etc/apt/sources.list.d/opencardev.list"
+              echo "# For Bookworm (Debian 12):"
+              echo "echo 'deb [arch=\$(dpkg --print-architecture) signed-by=/usr/share/keyrings/opencardev-archive-keyring.gpg] https://opencardev.github.io/packages bookworm main' | sudo tee /etc/apt/sources.list.d/opencardev.list"
               ;;
           esac
           echo ""

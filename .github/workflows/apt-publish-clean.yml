@@ -1,4 +1,3 @@
-
 name: AASDK APT Repository Upload
 
 on:
@@ -75,6 +74,7 @@ jobs:
         
         echo "deb_files=$deb_files" >> $GITHUB_OUTPUT
         echo "Found .deb files: $deb_files"
+
     - name: Upload .deb files as artifact
       uses: actions/upload-artifact@v4
       with:
@@ -82,7 +82,7 @@ jobs:
         path: ./downloaded-artifacts/**/*.deb
         retention-days: 1
 
-  # Second job: upload each .deb file to APT repo using matrix strategy
+  # Second job: upload each .deb file to APT repo sequentially
   upload-trixie:
     needs: prepare
     if: inputs.distribution == 'trixie' || inputs.distribution == 'both'
@@ -99,16 +99,29 @@ jobs:
       id: find_files
       run: |
         echo "Finding .deb files..."
-        find ./deb-files -name "*.deb" -type f > deb_file_list.txt
+        find ./deb-files -name "*.deb" -type f | sort > deb_file_list.txt
+        echo "Found files:"
         cat deb_file_list.txt
+        
+        # Show file details
+        echo "File details:"
+        while IFS= read -r file; do
+          if [ -f "$file" ]; then
+            basename_file=$(basename "$file")
+            echo "File: $basename_file | Path: $file | Size: $(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo 'unknown')"
+          fi
+        done < deb_file_list.txt
         
         # Store files as individual outputs
         count=0
         while IFS= read -r file; do
           count=$((count + 1))
           echo "file_${count}=${file}" >> $GITHUB_OUTPUT
+          echo "Setting file_${count} to: ${file}"
         done < deb_file_list.txt
         echo "total_files=${count}" >> $GITHUB_OUTPUT
+        echo "Total files found: ${count}"
+
     - name: Upload file 1 to Trixie
       if: steps.find_files.outputs.total_files >= '1'
       uses: MauroDruwel/apt-repo-action@v4
@@ -225,6 +238,7 @@ jobs:
           echo "file_${count}=${file}" >> $GITHUB_OUTPUT
         done < deb_file_list.txt
         echo "total_files=${count}" >> $GITHUB_OUTPUT
+
     - name: Upload file 1 to Bookworm
       if: steps.find_files.outputs.total_files >= '1'
       uses: MauroDruwel/apt-repo-action@v4
@@ -276,7 +290,7 @@ jobs:
         file_target_version: bookworm
         target_repository: opencardev/packages
         private_key: ${{ secrets.APT_SIGNING_KEY }}
-        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        key_passphrase: ${{ secrets.APT_SIGNING_passphrase }}
         public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
 
     - name: Upload file 4 to Bookworm
