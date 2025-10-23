@@ -1,0 +1,137 @@
+name: AASDK APT Repository Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Build run ID to publish to APT repo'
+        required: true
+        type: string
+      distributions:
+        description: 'Distributions to publish to (comma separated: bookworm,trixie)'
+        required: false
+        default: 'bookworm,trixie'
+        type: string
+      
+  workflow_call:
+    inputs:
+      build_run_id:
+        description: 'Build run ID to publish to APT repo'
+        required: true
+        type: string
+      distributions:
+        description: 'Distributions to publish to (comma separated: bookworm,trixie)'
+        required: false
+        default: 'bookworm,trixie'
+        type: string
+
+jobs:
+  upload-to-apt-repo:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Parse distributions
+      id: parse_distros
+      run: |
+        DISTROS="${{ inputs.distributions }}"
+        echo "distributions=${DISTROS}" >> $GITHUB_OUTPUT
+        echo "Publishing to distributions: ${DISTROS}"
+
+    - name: Download artifacts from build run
+      run: |
+        echo "Downloading artifacts from run ID: ${{ inputs.build_run_id }}"
+        
+        # Create directory for apt packages
+        mkdir -p ./apt-packages
+        
+        # Download all artifacts from the specified run
+        gh run download ${{ inputs.build_run_id }} --dir ./downloaded-artifacts
+        
+        # Move build artifacts to apt packages directory
+        if [ -d "./downloaded-artifacts" ]; then
+          find ./downloaded-artifacts -name "*.deb" -exec cp {} ./apt-packages/ \;
+        fi
+        
+        echo "Downloaded .deb packages:"
+        ls -la ./apt-packages/
+        
+        # Verify we have packages
+        if [ ! "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
+          echo "Error: No .deb packages found in build run ${{ inputs.build_run_id }}"
+          exit 1
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Prepare packages for APT repository
+      run: |
+        echo "Preparing packages for APT repository upload..."
+        
+        # Parse distributions
+        IFS=',' read -ra DIST_ARRAY <<< "${{ steps.parse_distros.outputs.distributions }}"
+        
+        # Create distribution directories
+        for dist in "${DIST_ARRAY[@]}"; do
+          dist=$(echo "$dist" | xargs) # trim whitespace
+          echo "Creating directory for distribution: $dist"
+          mkdir -p "./apt-repo-upload/$dist"
+        done
+        
+        # Copy packages to appropriate distributions
+        for dist in "${DIST_ARRAY[@]}"; do
+          dist=$(echo "$dist" | xargs) # trim whitespace
+          if [ -d ./apt-packages ] && [ "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
+            cp ./apt-packages/*.deb "./apt-repo-upload/$dist/"
+            echo "Copied $(ls ./apt-packages/*.deb | wc -l) packages to $dist distribution"
+          fi
+        done
+        
+        echo "APT repository package structure:"
+        find ./apt-repo-upload -type f -name "*.deb" | sort
+
+    - name: Upload to APT Repository (Bookworm)
+      if: contains(inputs.distributions, 'bookworm')
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          bookworm
+        file: ./apt-repo-upload/bookworm/*.deb
+        file_target_version: bookworm
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload to APT Repository (Trixie)
+      if: contains(inputs.distributions, 'trixie')
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          trixie
+        file: ./apt-repo-upload/trixie/*.deb
+        file_target_version: trixie
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Summary
+      run: |
+        echo "## APT Repository Upload Complete"
+        echo "Build Run ID: ${{ inputs.build_run_id }}"
+        echo "Distributions: ${{ inputs.distributions }}"
+        echo "Packages uploaded:"
+        find ./apt-repo-upload -name "*.deb" -exec basename {} \; | sort
