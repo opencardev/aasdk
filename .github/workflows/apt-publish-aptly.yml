@@ -72,7 +72,7 @@ jobs:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Create APT Repository for Trixie
-      if: inputs.distribution == 'trixie' || inputs.distribution == 'both'
+      if: inputs.distribution == 'trixie' 
       uses: jinnatar/actions-aptly-repo@v2
       with:
         name: aasdk
@@ -85,7 +85,7 @@ jobs:
         prefix: trixie
 
     - name: Create APT Repository for Bookworm
-      if: inputs.distribution == 'bookworm' || inputs.distribution == 'both'
+      if: inputs.distribution == 'bookworm'
       uses: jinnatar/actions-aptly-repo@v2
       with:
         name: aasdk
