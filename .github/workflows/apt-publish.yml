@@ -165,7 +165,7 @@ jobs:
         public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
 
   summary:
-    needs: [prepare, upload-trixie, upload-bookworm]
+    needs: [prepare]
     if: always()
     runs-on: ubuntu-latest
     
