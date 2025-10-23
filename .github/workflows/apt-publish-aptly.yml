@@ -78,7 +78,7 @@ jobs:
         name: aasdk
         repo_url: https://opencardev.github.io/packages
         repos: |
-          trixie,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+          trixie,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
         gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
         gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
         artifact_name: aasdk-trixie-apt-repo
@@ -91,7 +91,7 @@ jobs:
         name: aasdk
         repo_url: https://opencardev.github.io/packages
         repos: |
-          bookworm,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+          bookworm,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
         gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
         gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
         artifact_name: aasdk-bookworm-apt-repo
@@ -104,8 +104,8 @@ jobs:
         name: aasdk
         repo_url: https://opencardev.github.io/packages
         repos: |
-          trixie,main,"amd64,arm64,armhf",false,./debs/*/*.deb
-          bookworm,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+          trixie,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
+          bookworm,main,\"amd64,arm64,armhf\",false,./debs/*/*.deb
         gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
         gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
         artifact_name: aasdk-combined-apt-repo
