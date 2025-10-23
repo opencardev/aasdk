@@ -1,0 +1,343 @@
+name: AASDK APT Repository Upload
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Build run ID to publish to APT repo'
+        required: true
+        type: string
+      distribution:
+        description: 'Distribution to publish to'
+        required: false
+        default: 'trixie'
+        type: choice
+        options:
+          - trixie
+          - bookworm
+          - both
+
+jobs:
+  # First job: get the list of .deb files from the build artifacts
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      deb_files: ${{ steps.list_files.outputs.deb_files }}
+      
+    steps:
+    - name: Download artifacts from build run
+      run: |
+        echo "Downloading artifacts from run ID: ${{ inputs.build_run_id }}"
+        
+        # Download all artifacts from the specified run
+        gh run download ${{ inputs.build_run_id }} --repo ${{ github.repository }} --dir ./downloaded-artifacts
+        
+        echo "Downloaded artifacts structure:"
+        find ./downloaded-artifacts -type f -name "*.deb" | head -20
+        
+        # Verify we have packages
+        if [ ! "$(find ./downloaded-artifacts -name "*.deb" 2>/dev/null)" ]; then
+          echo "Error: No .deb packages found in build run ${{ inputs.build_run_id }}"
+          exit 1
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: List .deb files for matrix
+      id: list_files
+      run: |
+        echo "Creating matrix of .deb files..."
+        
+        # Create JSON array of .deb files
+        deb_files="["
+        first=true
+        
+        # Clear temp file
+        > /tmp/deb_files_part
+        
+        find ./downloaded-artifacts -name "*.deb" -type f | sort | while read -r deb_file; do
+          filename=$(basename "$deb_file")
+          if [ "$first" = true ]; then
+            echo "\"$filename\"" >> /tmp/deb_files_part
+            first=false
+          else
+            echo ",\"$filename\"" >> /tmp/deb_files_part
+          fi
+        done
+        
+        if [ -f /tmp/deb_files_part ] && [ -s /tmp/deb_files_part ]; then
+          # Join all lines into a single line and create valid JSON
+          deb_files="[$(tr -d '\n' < /tmp/deb_files_part)]"
+        else
+          deb_files="[]"
+        fi
+        
+        echo "deb_files=$deb_files" >> $GITHUB_OUTPUT
+        echo "Found .deb files: $deb_files"
+
+    - name: Upload .deb files as artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: deb-files-for-apt
+        path: ./downloaded-artifacts/**/*.deb
+        retention-days: 1
+
+  # Second job: upload each .deb file to APT repo sequentially
+  upload-trixie:
+    needs: prepare
+    if: inputs.distribution == 'trixie' || inputs.distribution == 'both'
+    runs-on: ubuntu-latest
+      
+    steps:
+    - name: Download .deb files
+      uses: actions/download-artifact@v4
+      with:
+        name: deb-files-for-apt
+        path: ./deb-files
+
+    - name: Find .deb files
+      id: find_files
+      run: |
+        echo "Finding .deb files..."
+        find ./deb-files -name "*.deb" -type f | sort > deb_file_list.txt
+        echo "Found files:"
+        cat deb_file_list.txt
+        
+        # Show file details
+        echo "File details:"
+        while IFS= read -r file; do
+          if [ -f "$file" ]; then
+            basename_file=$(basename "$file")
+            echo "File: $basename_file | Path: $file | Size: $(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo 'unknown')"
+          fi
+        done < deb_file_list.txt
+        
+        # Store files as individual outputs
+        count=0
+        while IFS= read -r file; do
+          count=$((count + 1))
+          echo "file_${count}=${file}" >> $GITHUB_OUTPUT
+          echo "Setting file_${count} to: ${file}"
+        done < deb_file_list.txt
+        echo "total_files=${count}" >> $GITHUB_OUTPUT
+        echo "Total files found: ${count}"
+
+    - name: Upload file 1 to Trixie
+      if: steps.find_files.outputs.total_files >= '1'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          trixie
+        file: ${{ steps.find_files.outputs.file_1 }}
+        file_target_version: trixie
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 2 to Trixie
+      if: steps.find_files.outputs.total_files >= '2'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          trixie
+        file: ${{ steps.find_files.outputs.file_2 }}
+        file_target_version: trixie
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 3 to Trixie
+      if: steps.find_files.outputs.total_files >= '3'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          trixie
+        file: ${{ steps.find_files.outputs.file_3 }}
+        file_target_version: trixie
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 4 to Trixie
+      if: steps.find_files.outputs.total_files >= '4'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          trixie
+        file: ${{ steps.find_files.outputs.file_4 }}
+        file_target_version: trixie
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 5 to Trixie
+      if: steps.find_files.outputs.total_files >= '5'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          trixie
+        file: ${{ steps.find_files.outputs.file_5 }}
+        file_target_version: trixie
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+  upload-bookworm:
+    needs: prepare
+    if: inputs.distribution == 'bookworm' || inputs.distribution == 'both'
+    runs-on: ubuntu-latest
+      
+    steps:
+    - name: Download .deb files
+      uses: actions/download-artifact@v4
+      with:
+        name: deb-files-for-apt
+        path: ./deb-files
+
+    - name: Find .deb files
+      id: find_files
+      run: |
+        echo "Finding .deb files..."
+        find ./deb-files -name "*.deb" -type f > deb_file_list.txt
+        cat deb_file_list.txt
+        
+        # Store files as individual outputs
+        count=0
+        while IFS= read -r file; do
+          count=$((count + 1))
+          echo "file_${count}=${file}" >> $GITHUB_OUTPUT
+        done < deb_file_list.txt
+        echo "total_files=${count}" >> $GITHUB_OUTPUT
+
+    - name: Upload file 1 to Bookworm
+      if: steps.find_files.outputs.total_files >= '1'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          bookworm
+        file: ${{ steps.find_files.outputs.file_1 }}
+        file_target_version: bookworm
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 2 to Bookworm
+      if: steps.find_files.outputs.total_files >= '2'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          bookworm
+        file: ${{ steps.find_files.outputs.file_2 }}
+        file_target_version: bookworm
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 3 to Bookworm
+      if: steps.find_files.outputs.total_files >= '3'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          bookworm
+        file: ${{ steps.find_files.outputs.file_3 }}
+        file_target_version: bookworm
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_passphrase }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 4 to Bookworm
+      if: steps.find_files.outputs.total_files >= '4'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          bookworm
+        file: ${{ steps.find_files.outputs.file_4 }}
+        file_target_version: bookworm
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+    - name: Upload file 5 to Bookworm
+      if: steps.find_files.outputs.total_files >= '5'
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_version: |
+          bookworm
+        file: ${{ steps.find_files.outputs.file_5 }}
+        file_target_version: bookworm
+        target_repository: opencardev/packages
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
+
+  summary:
+    needs: [prepare]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Summary
+      run: |
+        echo "## APT Repository Upload Complete"
+        echo "Build Run ID: ${{ inputs.build_run_id }}"
+        echo "Distribution: ${{ inputs.distribution }}"
+        echo "Files processed: ${{ needs.prepare.outputs.deb_files }}"

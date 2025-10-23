@@ -172,13 +172,7 @@ jobs:
         if git diff --staged --quiet; then
           echo "No changes to commit"
         else
-          git commit -m "Update APT repository from AASDK build ${{ inputs.build_run_id }}
-
-Distribution: ${{ inputs.distribution }}
-Build Run: ${{ inputs.build_run_id }}
-Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-
-Automated update via jinnatar/actions-aptly-repo@v2"
+          git commit -m "Update APT repository from AASDK build ${{ inputs.build_run_id }} - Distribution: ${{ inputs.distribution }} - Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC') - Automated update via jinnatar/actions-aptly-repo@v2"
           
           echo "Pushing changes..."
           git push
