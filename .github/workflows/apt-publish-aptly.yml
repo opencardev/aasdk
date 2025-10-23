@@ -1,0 +1,235 @@
+name: AASDK APT Repository Upload (Aptly)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Build run ID to publish to APT repo'
+        required: true
+        type: string
+      distribution:
+        description: 'Distribution to publish to'
+        required: false
+        default: 'trixie'
+        type: choice
+        options:
+          - trixie
+          - bookworm
+          - both
+
+jobs:
+  create-apt-repo:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Download artifacts from build run
+      run: |
+        echo "Downloading artifacts from run ID: ${{ inputs.build_run_id }}"
+        
+        # Download all artifacts from the specified run
+        gh run download ${{ inputs.build_run_id }} --repo ${{ github.repository }} --dir ./downloaded-artifacts
+        
+        echo "Downloaded artifacts structure:"
+        find ./downloaded-artifacts -type f -name "*.deb" | head -20
+        
+        # Verify we have packages
+        if [ ! "$(find ./downloaded-artifacts -name "*.deb" 2>/dev/null)" ]; then
+          echo "Error: No .deb packages found in build run ${{ inputs.build_run_id }}"
+          exit 1
+        fi
+        
+        # Create a consolidated debs directory with organized structure
+        mkdir -p ./debs
+        
+        # Copy and organize .deb files by architecture and distribution
+        find ./downloaded-artifacts -name "*.deb" -type f | while read -r deb_file; do
+          filename=$(basename "$deb_file")
+          echo "Processing: $filename"
+          
+          # Determine architecture from filename
+          if [[ "$filename" == *"amd64"* ]]; then
+            arch_dir="amd64"
+          elif [[ "$filename" == *"arm64"* ]]; then
+            arch_dir="arm64"
+          elif [[ "$filename" == *"armhf"* ]]; then
+            arch_dir="armhf"
+          else
+            arch_dir="unknown"
+          fi
+          
+          # Create architecture directory and copy file
+          mkdir -p "./debs/$arch_dir"
+          cp "$deb_file" "./debs/$arch_dir/"
+          echo "Copied $filename to debs/$arch_dir/"
+        done
+        
+        echo "Final debs structure:"
+        find ./debs -type f -name "*.deb"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create APT Repository for Trixie
+      if: inputs.distribution == 'trixie' || inputs.distribution == 'both'
+      uses: jinnatar/actions-aptly-repo@v2
+      with:
+        name: aasdk
+        repo_url: https://opencardev.github.io/packages
+        repos: |
+          trixie,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+        gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
+        gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        artifact_name: aasdk-trixie-apt-repo
+        prefix: trixie
+
+    - name: Create APT Repository for Bookworm
+      if: inputs.distribution == 'bookworm' || inputs.distribution == 'both'
+      uses: jinnatar/actions-aptly-repo@v2
+      with:
+        name: aasdk
+        repo_url: https://opencardev.github.io/packages
+        repos: |
+          bookworm,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+        gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
+        gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        artifact_name: aasdk-bookworm-apt-repo
+        prefix: bookworm
+
+    - name: Create APT Repository for Both Distributions
+      if: inputs.distribution == 'both'
+      uses: jinnatar/actions-aptly-repo@v2
+      with:
+        name: aasdk
+        repo_url: https://opencardev.github.io/packages
+        repos: |
+          trixie,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+          bookworm,main,"amd64,arm64,armhf",false,./debs/*/*.deb
+        gpg_private_key: ${{ secrets.APT_SIGNING_KEY }}
+        gpg_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        artifact_name: aasdk-combined-apt-repo
+        prefix: combined
+
+  deploy-apt-repo:
+    needs: create-apt-repo
+    runs-on: ubuntu-latest
+    if: always() && needs.create-apt-repo.result == 'success'
+    
+    steps:
+    - name: Checkout packages repository
+      uses: actions/checkout@v4
+      with:
+        repository: opencardev/packages
+        token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        path: packages-repo
+
+    - name: Download APT repository artifacts
+      uses: actions/download-artifact@v4
+      with:
+        pattern: aasdk-*-apt-repo
+        path: ./apt-artifacts
+        merge-multiple: true
+
+    - name: Deploy to packages repository
+      run: |
+        cd packages-repo
+        
+        echo "Current packages repo structure:"
+        ls -la
+        
+        echo "Available APT artifacts:"
+        find ../apt-artifacts -type f | head -20
+        
+        # Extract and deploy the apt repository
+        if [ -f "../apt-artifacts/aasdk-trixie-apt-repo.tar.gz" ]; then
+          echo "Extracting Trixie repository..."
+          tar -xzf "../apt-artifacts/aasdk-trixie-apt-repo.tar.gz" -C .
+        fi
+        
+        if [ -f "../apt-artifacts/aasdk-bookworm-apt-repo.tar.gz" ]; then
+          echo "Extracting Bookworm repository..."
+          tar -xzf "../apt-artifacts/aasdk-bookworm-apt-repo.tar.gz" -C .
+        fi
+        
+        if [ -f "../apt-artifacts/aasdk-combined-apt-repo.tar.gz" ]; then
+          echo "Extracting Combined repository..."
+          tar -xzf "../apt-artifacts/aasdk-combined-apt-repo.tar.gz" -C .
+        fi
+        
+        echo "Updated packages repo structure:"
+        find . -name "*.deb" | head -10
+        find . -name "Packages*" | head -10
+        find . -name "Release*" | head -10
+        
+        # Configure git
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+        
+        # Add changes
+        git add .
+        
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "Update APT repository from AASDK build ${{ inputs.build_run_id }}
+
+Distribution: ${{ inputs.distribution }}
+Build Run: ${{ inputs.build_run_id }}
+Generated: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+
+Automated update via jinnatar/actions-aptly-repo@v2"
+          
+          echo "Pushing changes..."
+          git push
+          
+          echo "APT repository successfully updated!"
+        fi
+
+  summary:
+    needs: [create-apt-repo, deploy-apt-repo]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Summary
+      run: |
+        echo "## AASDK APT Repository Update Complete (Aptly)"
+        echo "Build Run ID: ${{ inputs.build_run_id }}"
+        echo "Distribution: ${{ inputs.distribution }}"
+        echo "APT Repo Creation: ${{ needs.create-apt-repo.result }}"
+        echo "Deployment: ${{ needs.deploy-apt-repo.result }}"
+        echo ""
+        echo "Repository URL: https://opencardev.github.io/packages"
+        echo ""
+        if [[ "${{ needs.create-apt-repo.result }}" == "success" && "${{ needs.deploy-apt-repo.result }}" == "success" ]]; then
+          echo "✅ APT repository successfully created and deployed using Aptly!"
+          echo ""
+          echo "To use the repository:"
+          echo "```bash"
+          echo "# Add GPG key"
+          echo "curl -fsSL https://opencardev.github.io/packages/aasdk.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/aasdk.gpg"
+          echo ""
+          case "${{ inputs.distribution }}" in
+            "trixie")
+              echo "# Add Trixie repository"
+              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/trixie trixie main' | sudo tee /etc/apt/sources.list.d/aasdk.list"
+              ;;
+            "bookworm")
+              echo "# Add Bookworm repository"
+              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/bookworm bookworm main' | sudo tee /etc/apt/sources.list.d/aasdk.list"
+              ;;
+            "both")
+              echo "# Add both repositories"
+              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/trixie trixie main' | sudo tee /etc/apt/sources.list.d/aasdk-trixie.list"
+              echo "echo 'deb [arch=amd64,arm64,armhf signed-by=/etc/apt/trusted.gpg.d/aasdk.gpg] https://opencardev.github.io/packages/bookworm bookworm main' | sudo tee /etc/apt/sources.list.d/aasdk-bookworm.list"
+              ;;
+          esac
+          echo ""
+          echo "# Update and install"
+          echo "sudo apt update"
+          echo "sudo apt install libaasdk"
+          echo "```"
+        else
+          echo "❌ APT repository update failed. Check the logs above for details."
+        fi

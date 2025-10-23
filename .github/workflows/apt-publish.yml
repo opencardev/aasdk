@@ -118,16 +118,28 @@ jobs:
       id: find_files
       run: |
         echo "Finding .deb files..."
-        find ./deb-files -name "*.deb" -type f > deb_file_list.txt
+        find ./deb-files -name "*.deb" -type f | sort > deb_file_list.txt
+        echo "Found files:"
         cat deb_file_list.txt
+        
+        # Show file details
+        echo "File details:"
+        while IFS= read -r file; do
+          if [ -f "$file" ]; then
+            basename_file=$(basename "$file")
+            echo "File: $basename_file | Path: $file | Size: $(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo 'unknown')"
+          fi
+        done < deb_file_list.txt
         
         # Store files as individual outputs
         count=0
         while IFS= read -r file; do
           count=$((count + 1))
           echo "file_${count}=${file}" >> $GITHUB_OUTPUT
+          echo "Setting file_${count} to: ${file}"
         done < deb_file_list.txt
         echo "total_files=${count}" >> $GITHUB_OUTPUT
+        echo "Total files found: ${count}"
 
     - name: Upload file 1 to Trixie
       if: steps.find_files.outputs.total_files >= '1'
