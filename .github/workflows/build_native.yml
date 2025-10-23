@@ -535,11 +535,12 @@ jobs:
         echo "Preparing packages for APT repository upload..."
         
         # Create distribution directories
-        mkdir -p ./apt-repo-upload/{trixie}
+        mkdir -p ./apt-repo-upload/bookworm
+        mkdir -p ./apt-repo-upload/trixie
         
         # Copy packages to appropriate distributions
         # For now, we'll upload to all supported distributions
-        for dist in trixie; do
+        for dist in bookworm trixie; do
           if [ -d ./apt-packages ] && [ "$(ls -A ./apt-packages/*.deb 2>/dev/null)" ]; then
             cp ./apt-packages/*.deb ./apt-repo-upload/$dist/
             echo "Copied $(ls ./apt-packages/*.deb | wc -l) packages to $dist distribution"
@@ -548,6 +549,24 @@ jobs:
         
         echo "APT repository package structure:"
         find ./apt-repo-upload -type f -name "*.deb" | sort
+
+    - name: Upload to APT Repository (Bookworm)
+      uses: MauroDruwel/apt-repo-action@v4
+      with:
+        github_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        repo_supported_arch: |
+          amd64
+          arm64
+          armhf
+        repo_supported_distro: |
+          bookworm
+        file: ./apt-repo-upload/bookworm/*.deb
+        file_target_version: bookworm
+        target_repo: opencardev/packages
+        target_repo_token: ${{ secrets.PACKAGES_REPO_TOKEN }}
+        private_key: ${{ secrets.APT_SIGNING_KEY }}
+        key_passphrase: ${{ secrets.APT_SIGNING_PASSPHRASE }}
+        public_key: ${{ secrets.APT_SIGNING_PUBLIC_KEY }}
 
     - name: Upload to APT Repository (Trixie)
       uses: MauroDruwel/apt-repo-action@v4
