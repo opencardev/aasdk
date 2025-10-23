@@ -43,7 +43,7 @@ jobs:
         echo "Downloading artifacts from run ID: ${{ inputs.build_run_id }}"
         
         # Download all artifacts from the specified run
-        gh run download ${{ inputs.build_run_id }} --dir ./downloaded-artifacts
+        gh run download ${{ inputs.build_run_id }} --repo ${{ github.repository }} --dir ./downloaded-artifacts
         
         echo "Downloaded artifacts structure:"
         find ./downloaded-artifacts -type f -name "*.deb" | head -20
