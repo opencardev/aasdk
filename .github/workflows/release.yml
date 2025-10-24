@@ -123,8 +123,8 @@ jobs:
         \`\`\`bash
         # Download the appropriate package for your architecture
         # For example, on ARM64:
-        sudo dpkg -i libaasdk-arm64_*.deb
-        sudo dpkg -i libaasdk-arm64-dev_*.deb
+        sudo dpkg -i libaasdk_*_arm64.deb
+        sudo dpkg -i libaasdk-dev_*_arm64.deb
         
         # Fix any dependency issues
         sudo apt-get install -f
@@ -137,7 +137,7 @@ jobs:
         sha256sum -c SHA256SUMS
         
         # Or verify individual packages
-        sha256sum -c libaasdk-arm64_*.deb.sha256
+        sha256sum -c libaasdk_*_arm64.deb.sha256
         \`\`\`
         
         **Dependencies:**
