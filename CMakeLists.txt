@@ -436,18 +436,19 @@ set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
 # Configure different packages based on build type and architecture
-set(ARCH_SUFFIX "-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
+# Note: Package names follow Debian multi-arch conventions - architecture is specified in control file, not package name
+# But file names still include architecture for clarity: libaasdk_version_arch.deb
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CPACK_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}-dbg")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}-dbg")
+    set(CPACK_PACKAGE_NAME "libaasdk-dbg")
+    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk-dbg")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library (Debug) for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
     set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) debug library with debugging symbols and information for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
     set(CPACK_DEBIAN_PACKAGE_SECTION "debug")
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
 else()
-    set(CPACK_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}")
+    set(CPACK_PACKAGE_NAME "libaasdk")
+    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
     set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
 endif()
