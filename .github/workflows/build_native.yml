@@ -286,22 +286,24 @@ jobs:
       if: github.event.inputs.trigger_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
         echo "Triggering release workflow with build run ID: ${{ github.run_id }}"
-        gh workflow run release.yml \
+        gh workflow run release.yml --repo ${{ github.repository }} \
           -f build_run_id="${{ github.run_id }}" \
           -f version="${{ github.event.inputs.version }}" \
           -f create_draft="false"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
 
     - name: Trigger APT Publish Workflow
       if: github.event.inputs.trigger_apt_publish == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
         echo "Triggering APT publish workflow with build run ID: ${{ github.run_id }}"
-        gh workflow run apt-publish.yml \
+        gh workflow run apt-publish.yml --repo ${{ github.repository }} \
           -f build_run_id="${{ github.run_id }}" \
           -f distribution="bookworm,trixie"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_REPO: ${{ github.repository }}
 
     - name: Build Summary
       run: |
