@@ -297,13 +297,23 @@ jobs:
     - name: Trigger APT Publish Workflow
       if: github.event.inputs.trigger_apt_publish == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
-        echo "Triggering APT publish workflow with build run ID: ${{ github.run_id }}"
-        gh workflow run apt-publish.yml --repo ${{ github.repository }} \
-          -f build_run_id="${{ github.run_id }}" \
-          -f distribution="bookworm,trixie"
+          echo "Dispatching to packages repo Aptly workflow with build run ID: ${{ github.run_id }}"
+          curl -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token ${{ secrets.PACKAGES_REPO_TOKEN }}" \
+            https://api.github.com/repos/opencardev/packages/dispatches \
+            -d '{
+              "event_type": "publish-apt-packages",
+              "client_payload": {
+                "source_repo": "${{ github.repository }}",
+                "build_run_id": "${{ github.run_id }}",
+                "distribution": "both"
+              }
+            }'
+          echo "✅ APT repository update triggered successfully!"
+          echo "Check: https://github.com/opencardev/packages/actions"
       env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GH_REPO: ${{ github.repository }}
+          PACKAGES_REPO_TOKEN: ${{ secrets.PACKAGES_REPO_TOKEN }}
 
     - name: Build Summary
       run: |
