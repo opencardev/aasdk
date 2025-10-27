@@ -18,7 +18,7 @@
 #
 # Environment Variables:
 #   TARGET_ARCH   - Target architecture (amd64, arm64, armhf, i386)
-#   JOBS          - Number of parallel build jobs (default: nproc)
+#   JOBS          - Number of parallel build jobs (default: nproc-1)
 #   CMAKE_ARGS    - Additional CMake arguments
 #   CROSS_COMPILE - Enable cross-compilation (true/false, default: true)
 
@@ -34,7 +34,14 @@ NC='\033[0m' # No Color
 # Default values
 BUILD_TYPE=${1:-debug}
 TARGET_ARCH=${TARGET_ARCH:-amd64}
-JOBS=${JOBS:-$(nproc)}
+# Use one fewer core by default to reduce memory pressure on small devices
+NPROC=$(nproc 2>/dev/null || echo 1)
+if [ "$NPROC" -gt 1 ]; then
+    JOBS_DEFAULT=$((NPROC-1))
+else
+    JOBS_DEFAULT=1
+fi
+JOBS=${JOBS:-$JOBS_DEFAULT}
 CMAKE_ARGS=${CMAKE_ARGS:-}
 CROSS_COMPILE=${CROSS_COMPILE:-true}
 
@@ -253,14 +260,22 @@ build_protobuf() {
         
         mkdir -p protobuf/build
         cd protobuf/build
+        # Stage installs under the project to avoid requiring root
+        STAGING_DIR="$(pwd)/_staging"
+        mkdir -p "$STAGING_DIR"
         
-        cmake -DCMAKE_BUILD_TYPE=Release \
-              -DTARGET_ARCH=$TARGET_ARCH \
-              $CMAKE_ARGS \
-              ..
+      cmake -DCMAKE_BUILD_TYPE=Release \
+          -DTARGET_ARCH=$TARGET_ARCH \
+          -DCMAKE_INSTALL_PREFIX="/usr/local" \
+          $CMAKE_ARGS \
+          ..
         
-        make -j$JOBS
-        make install
+    make -j$JOBS
+    # Install to a local staging dir so no sudo is required
+    make install DESTDIR="$STAGING_DIR"
+        
+    # Ensure main build can discover the staged install if it uses find_package
+    export CMAKE_PREFIX_PATH="$STAGING_DIR/usr/local:${CMAKE_PREFIX_PATH}"
         cd ../..
         
         print_success "AAP Protobuf built successfully"
@@ -470,8 +485,9 @@ show_usage() {
     echo
     echo "Environment Variables:"
     echo "  TARGET_ARCH    Target architecture (amd64, arm64, armhf, i386)"
-    echo "  JOBS           Number of parallel build jobs (default: nproc)"
+    echo "  JOBS           Number of parallel build jobs (default: nproc-1)"
     echo "  CMAKE_ARGS     Additional CMake arguments"
+    echo "  CROSS_COMPILE  Enable cross-compilation (true/false, default: true)"
     echo
     echo "Examples:"
     echo "  $0 debug                    # Debug build"
@@ -503,7 +519,9 @@ main() {
     # Build process
     check_dependencies
     setup_cross_compilation
-    build_protobuf
+    # NOTE: aap_protobuf is built via add_subdirectory(protobuf) inside the main CMake build.
+    # Prebuilding and installing it separately is unnecessary and can require elevated privileges.
+    # The previous step has been disabled to keep dry runs Pi-safe and rootless.
     configure_cmake
     build_project
     validate_build

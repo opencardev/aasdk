@@ -40,6 +40,15 @@ on:
           - amd64
           - arm64
           - armhf
+      distribution:
+        description: 'Debian distribution to build (trixie, bookworm, both)'
+        required: false
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - trixie
+          - bookworm
       trigger_release:
         description: 'Trigger release workflow after build'
         required: false
@@ -60,25 +69,68 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      distribution: ${{ steps.matrix.outputs.distribution }}
     steps:
       - name: Generate build matrix
         id: matrix
         run: |
-          # Check if we're on develop branch
-          if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
-            # For develop branch, only build amd64 for faster feedback
-            echo 'matrix={"include":[{"arch":"amd64","platform":"linux/amd64"}]}' >> $GITHUB_OUTPUT
-            echo "Building only amd64 for develop branch"
-          elif [ "${{ github.event.inputs.architecture }}" = "amd64" ]; then
-            echo 'matrix={"include":[{"arch":"amd64","platform":"linux/amd64"}]}' >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.inputs.architecture }}" = "arm64" ]; then
-            echo 'matrix={"include":[{"arch":"arm64","platform":"linux/arm64"}]}' >> $GITHUB_OUTPUT
-          elif [ "${{ github.event.inputs.architecture }}" = "armhf" ]; then
-            echo 'matrix={"include":[{"arch":"armhf","platform":"linux/arm/v7"}]}' >> $GITHUB_OUTPUT
+          # Determine distributions
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DISTRO_INPUT="${{ github.event.inputs.distribution }}"
           else
-            # Default: build all architectures
-            echo 'matrix={"include":[{"arch":"amd64","platform":"linux/amd64"},{"arch":"arm64","platform":"linux/arm64"},{"arch":"armhf","platform":"linux/arm/v7"}]}' >> $GITHUB_OUTPUT
+            DISTRO_INPUT="both"
           fi
+
+          # Determine architectures
+          ARCH_INPUT="${{ github.event.inputs.architecture }}"
+          if [ -z "$ARCH_INPUT" ] || [ "$ARCH_INPUT" = "all" ]; then
+            ARCHES="amd64 arm64 armhf"
+          else
+            ARCHES="$ARCH_INPUT"
+          fi
+
+          # On develop branch, limit to amd64 for faster feedback
+          if [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            ARCHES="amd64"
+            echo "Building only amd64 for develop branch"
+          fi
+
+          # Expand distributions list
+          if [ "$DISTRO_INPUT" = "both" ]; then
+            DISTROS="bookworm trixie"
+            echo "distribution=both" >> $GITHUB_OUTPUT
+          else
+            DISTROS="$DISTRO_INPUT"
+            echo "distribution=$DISTRO_INPUT" >> $GITHUB_OUTPUT
+          fi
+
+          # Helper to map arch to platform
+          platform_for_arch() {
+            case "$1" in
+              amd64) echo "linux/amd64";;
+              arm64) echo "linux/arm64";;
+              armhf) echo "linux/arm/v7";;
+              *) echo "linux/amd64";;
+            esac
+          }
+
+          # Build matrix JSON
+          MATRIX="{\"include\":["
+          first=true
+          for d in $DISTROS; do
+            for a in $ARCHES; do
+              plat=$(platform_for_arch "$a")
+              entry="{\\\"arch\\\":\\\"$a\\\",\\\"platform\\\":\\\"$plat\\\",\\\"distro\\\":\\\"$d\\\"}"
+              if [ "$first" = true ]; then
+                MATRIX+="$entry"
+                first=false
+              else
+                MATRIX+=" ,$entry"
+              fi
+            done
+          done
+          MATRIX+="]}"
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   build:
     needs: prepare
@@ -87,7 +139,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
 
-    name: Build AASDK for ${{ matrix.arch }}
+  name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
 
     steps:
     - name: Checkout code
@@ -153,7 +205,7 @@ jobs:
         echo "Generated version: ${VERSION}"
         echo "Release version: ${RELEASE_VERSION}"
 
-    - name: Build AASDK for ${{ matrix.arch }}
+    - name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
       run: |
         echo "Building AASDK for ${{ matrix.arch }} architecture"
         
@@ -164,7 +216,7 @@ jobs:
         docker buildx build \
           --platform ${{ matrix.platform }} \
           --build-arg TARGET_ARCH=${{ matrix.arch }} \
-          --build-arg DEBIAN_VERSION=trixie \
+          --build-arg DEBIAN_VERSION=${{ matrix.distro }} \
           --tag aasdk-build:${{ matrix.arch }} \
           --load \
           .
@@ -202,12 +254,12 @@ jobs:
         ls -la ./build-output/ || echo "No build-output directory found"
         echo "DEB files found:"
         find ./build-output -name "*.deb" 2>/dev/null || echo "No .deb files found"
-        echo "Artifact name will be: aasdk-packages-${{ matrix.arch }}"
+  echo "Artifact name will be: aasdk-packages-${{ matrix.distro }}-${{ matrix.arch }}"
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: aasdk-packages-${{ matrix.arch }}
+        name: aasdk-packages-${{ matrix.distro }}-${{ matrix.arch }}
         path: |
           ./build-output/*.deb
           ./build-output/*.tar.*
@@ -297,7 +349,7 @@ jobs:
     - name: Trigger APT Publish Workflow
       if: github.event.inputs.trigger_apt_publish == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
       run: |
-          echo "Dispatching to packages repo Aptly workflow with build run ID: ${{ github.run_id }}"
+          echo "Dispatching to packages repo Aptly workflow with build run ID: ${{ github.run_id }} (distribution: ${{ needs.prepare.outputs.distribution }})"
           curl -X POST \
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: token ${{ secrets.PACKAGES_REPO_TOKEN }}" \
@@ -307,7 +359,7 @@ jobs:
               "client_payload": {
                 "source_repo": "${{ github.repository }}",
                 "build_run_id": "${{ github.run_id }}",
-                "distribution": "both"
+                "distribution": "${{ needs.prepare.outputs.distribution }}"
               }
             }'
           echo "✅ APT repository update triggered successfully!"

@@ -18,7 +18,9 @@
 # Multi-stage build for AASDK with native compilation for each architecture
 # This Dockerfile builds AASDK natively on each target platform using QEMU emulation
 
-FROM debian:trixie-slim
+# Allow selecting Debian base (bookworm or trixie). Default to trixie.
+ARG DEBIAN_VERSION=trixie
+FROM debian:${DEBIAN_VERSION}-slim
 
 # Build arguments
 ARG TARGET_ARCH=amd64
