@@ -133,13 +133,12 @@ jobs:
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   build:
+    name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
     needs: prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
-
-  name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
 
     steps:
     - name: Checkout code
@@ -254,7 +253,6 @@ jobs:
         ls -la ./build-output/ || echo "No build-output directory found"
         echo "DEB files found:"
         find ./build-output -name "*.deb" 2>/dev/null || echo "No .deb files found"
-  echo "Artifact name will be: aasdk-packages-${{ matrix.distro }}-${{ matrix.arch }}"
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

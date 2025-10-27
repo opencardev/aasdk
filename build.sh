@@ -21,6 +21,7 @@
 #   JOBS          - Number of parallel build jobs (default: nproc-1)
 #   CMAKE_ARGS    - Additional CMake arguments
 #   CROSS_COMPILE - Enable cross-compilation (true/false, default: true)
+#   DRY_RUN       - If set to true/1, skip any system installation steps
 
 set -e  # Exit on any error
 
@@ -44,6 +45,8 @@ fi
 JOBS=${JOBS:-$JOBS_DEFAULT}
 CMAKE_ARGS=${CMAKE_ARGS:-}
 CROSS_COMPILE=${CROSS_COMPILE:-true}
+# Dry run mode (skip system install)
+DRY_RUN=${DRY_RUN:-false}
 
 # Parse command line arguments
 CLEAN=false
@@ -68,6 +71,9 @@ for arg in "$@"; do
         package)
             CREATE_PACKAGES=true
             ;;
+        dryrun)
+            DRY_RUN=true
+            ;;
         *)
             # Unknown option
             ;;
@@ -86,6 +92,7 @@ print_header() {
     echo -e "Run Tests:      ${GREEN}${RUN_TESTS}${NC}"
     echo -e "Install:        ${GREEN}${INSTALL}${NC}"
     echo -e "Create Packages: ${GREEN}${CREATE_PACKAGES}${NC}"
+    echo -e "Dry Run:        ${GREEN}${DRY_RUN}${NC}"
     echo -e "${BLUE}================================================${NC}"
     echo
 }
@@ -366,6 +373,10 @@ run_tests() {
 
 install_project() {
     if [ "$INSTALL" = true ]; then
+        if [ "$DRY_RUN" = true ] || [ "$DRY_RUN" = 1 ]; then
+            print_step "Dry run enabled: skipping system installation"
+            return 0
+        fi
         print_step "Installing AASDK..."
         
         cd "$BUILD_DIR"
