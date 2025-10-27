@@ -416,22 +416,12 @@ set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/opencardev/aasdk")
 
-# Build dynamic dependencies string with detected Boost version
-set(BOOST_SYSTEM_DEP "libboost-system${BOOST_PACKAGE_VERSION}")
-set(BOOST_LOG_DEP "libboost-log${BOOST_PACKAGE_VERSION}")
-# Add fallback for common versions to ensure compatibility
-if(BOOST_PACKAGE_VERSION VERSION_EQUAL "1.83.0")
-    set(BOOST_SYSTEM_FALLBACK " | libboost-system1.81.0 | libboost-system1.74.0")
-    set(BOOST_LOG_FALLBACK " | libboost-log1.81.0 | libboost-log1.74.0")
-elseif(BOOST_PACKAGE_VERSION VERSION_EQUAL "1.81.0")
-    set(BOOST_SYSTEM_FALLBACK " | libboost-system1.74.0 | libboost-system1.83.0")
-    set(BOOST_LOG_FALLBACK " | libboost-log1.74.0 | libboost-log1.83.0")
-else()
-    set(BOOST_SYSTEM_FALLBACK " | libboost-system1.83.0 | libboost-system1.81.0 | libboost-system1.74.0")
-    set(BOOST_LOG_FALLBACK " | libboost-log1.83.0 | libboost-log1.81.0 | libboost-log1.74.0")
-endif()
-
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), ${BOOST_SYSTEM_DEP}${BOOST_SYSTEM_FALLBACK}, ${BOOST_LOG_DEP}${BOOST_LOG_FALLBACK}, libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
+# Compute runtime Depends automatically per distro/arch using dpkg-shlibdeps
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+# Ensure component runtime also gets shlibdeps
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_SHLIBDEPS ON)
+# Help dpkg-shlibdeps find private libs in the build tree (if any)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/lib;${CMAKE_CURRENT_BINARY_DIR}")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
@@ -471,7 +461,7 @@ set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}")
 set(CPACK_DEBIAN_RUNTIME_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}")
+# Do not hardcode Depends here; let dpkg-shlibdeps compute per-distro/arch
 
 # Development package (headers and cmake files)
 set(CPACK_COMPONENT_DEVELOPMENT_DISPLAY_NAME "AASDK Development Files for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
