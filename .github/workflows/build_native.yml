@@ -114,22 +114,22 @@ jobs:
             esac
           }
 
-          # Build matrix JSON
-          MATRIX="{\"include\":["
+          # Build matrix JSON (ensure valid JSON without over-escaping)
+          MATRIX='{"include":['
           first=true
           for d in $DISTROS; do
             for a in $ARCHES; do
               plat=$(platform_for_arch "$a")
-              entry="{\\\"arch\\\":\\\"$a\\\",\\\"platform\\\":\\\"$plat\\\",\\\"distro\\\":\\\"$d\\\"}"
+              entry=$(printf '{"arch":"%s","platform":"%s","distro":"%s"}' "$a" "$plat" "$d")
               if [ "$first" = true ]; then
                 MATRIX+="$entry"
                 first=false
               else
-                MATRIX+=" ,$entry"
+                MATRIX+=",$entry"
               fi
             done
           done
-          MATRIX+="]}"
+          MATRIX+=']}'
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
 
   build:
