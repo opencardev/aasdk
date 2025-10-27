@@ -329,6 +329,30 @@ jobs:
           find ./release-packages -name "*${arch}*" | sort
         done
 
+    - name: Download build artifacts for release
+      uses: actions/download-artifact@v4
+      with:
+        pattern: aasdk-packages-*
+        merge-multiple: true
+        path: ./release-packages
+
+    - name: Generate release info
+      id: release_info
+      shell: bash
+      run: |
+        # Prefer manually provided version; otherwise generate date-based version with short SHA
+        if [ -n "${{ github.event.inputs.version }}" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          BUILD_YEAR=$(date -u +"%Y")
+          BUILD_MONTH=$(date -u +"%m")
+          BUILD_DAY=$(date -u +"%d")
+          SHORT_SHA=${GITHUB_SHA::7}
+          VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}+git.${SHORT_SHA}"
+        fi
+        echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+        echo "Release version: ${VERSION}"
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
@@ -351,7 +375,7 @@ jobs:
   upload-to-apt-repo:
     needs: [release]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event.inputs.create_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') #|| (github.event_name == 'push' && github.ref == 'refs/heads/develop')
+    if: false
     
     steps:
     - name: Checkout code
