@@ -77,38 +77,11 @@ ARG CROSS_COMPILE=false
 RUN export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
         echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
         # Compute distro-specific release suffix for DEB packages
-        . /etc/os-release && \
-        ID_LC="$(echo "$ID" | tr '[:upper:]' '[:lower:]')" && \
-        SUITE="${VERSION_CODENAME:-unknown}" && \
-        VERID="${VERSION_ID:-0}" && \
-        case "$ID_LC" in \
-            debian)
-                case "$SUITE" in \
-                    bookworm) DEB_NUM=12 ;; \
-                    trixie)   DEB_NUM=13 ;; \
-                    *)        DEB_NUM="${VERID%%.*}" ;; \
-                esac; \
-                if [ -n "$DEB_NUM" ]; then \
-                    CPACK_DEB_RELEASE="1+deb${DEB_NUM}u1"; \
-                else \
-                    CPACK_DEB_RELEASE="1~debian${SUITE}1"; \
-                fi \
-                ;;
-            ubuntu)
-                SERIES="${VERID}"; \
-                CPACK_DEB_RELEASE="0ubuntu1~${SERIES}" \
-                ;;
-            raspbian|raspios)
-                SERIES="${VERID%%.*}"; \
-                CPACK_DEB_RELEASE="1+rpi${SERIES}u1" \
-                ;;
-            *)
-                CPACK_DEB_RELEASE="1~${ID_LC}${VERID}-${SUITE}" \
-                ;;
-        esac && \
+        DISTRO_DEB_RELEASE=$(bash /src/scripts/distro_release.sh) && \
+        CPACK_DEB_RELEASE="$DISTRO_DEB_RELEASE" && \
         echo "Using CPACK_DEBIAN_PACKAGE_RELEASE: $CPACK_DEB_RELEASE" && \
         # Pass through to CMake via build.sh using CMAKE_ARGS
-        env CMAKE_ARGS="$CMAKE_ARGS -DCPACK_DEBIAN_PACKAGE_RELEASE=$CPACK_DEB_RELEASE" \
+        env DISTRO_DEB_RELEASE="$CPACK_DEB_RELEASE" CMAKE_ARGS="$CMAKE_ARGS -DCPACK_DEBIAN_PACKAGE_RELEASE=$CPACK_DEB_RELEASE -DCPACK_PROJECT_CONFIG_FILE=/src/cmake_modules/CPackProjectConfig.cmake" \
             CROSS_COMPILE=${CROSS_COMPILE} \
             ./build.sh release clean package && \
     if [ -d "packages" ]; then \
