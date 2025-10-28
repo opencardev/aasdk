@@ -425,30 +425,54 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/lib
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
-# Configure different packages based on build type and architecture
-# Note: Package names follow Debian multi-arch conventions - architecture is specified in control file, not package name
-# But file names still include architecture for clarity: libaasdk_version_arch.deb
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CPACK_PACKAGE_NAME "libaasdk-dbg")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk-dbg")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library (Debug) for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-    set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) debug library with debugging symbols and information for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
-    set(CPACK_DEBIAN_PACKAGE_SECTION "debug")
-    set(CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
+# Detect suite/codename for filename
+if(DEFINED ENV{DISTRO_DEB_SUITE} AND NOT "$ENV{DISTRO_DEB_SUITE}" STREQUAL "")
+    set(DEB_SUITE "$ENV{DISTRO_DEB_SUITE}")
+elseif(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
+    # Try to extract suite from release string (e.g. +deb12u1 -> bookworm, +deb13u1 -> trixie)
+    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+deb12")
+        set(DEB_SUITE "bookworm")
+    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+deb13")
+        set(DEB_SUITE "trixie")
+    else()
+        set(DEB_SUITE "unknown")
+    endif()
 else()
-    set(CPACK_PACKAGE_NAME "libaasdk")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-    set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
+    set(DEB_SUITE "unknown")
 endif()
 
-# File naming based on build type and architecture
+# Detect debian version for filename (e.g. deb13, deb12)
+set(DEB_VERSION "unknown")
+if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
+    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+deb([0-9]+)")
+        set(DEB_VERSION "deb${CMAKE_MATCH_1}")
+    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "0ubuntu1~([0-9]+\.[0-9]+)")
+        set(DEB_VERSION "ubuntu${CMAKE_MATCH_1}")
+    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+rpi([0-9]+)")
+        set(DEB_VERSION "rpi${CMAKE_MATCH_1}")
+    else()
+        set(DEB_VERSION "unknown")
+    endif()
+endif()
+
+# Use full release string for filename (e.g. deb13u1, deb12u2, 0ubuntu1~22.04)
+set(DEB_RELEASE "unknown")
+if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
+    # Remove any leading version numbers (e.g. 1+deb13u1 -> deb13u1)
+    string(REGEX REPLACE "^[0-9]+[+~]?" "" DEB_RELEASE "${CPACK_DEBIAN_PACKAGE_RELEASE}")
+else()
+    set(DEB_RELEASE "unknown")
+endif()
+
+# File naming based on build type, release, and architecture
 if(DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
-    set(CPACK_DEBIAN_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+    set(CPACK_DEBIAN_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${DEB_RELEASE}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
 else()
     set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
 endif()
+
+set(CPACK_DEBIAN_RUNTIME_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${DEB_RELEASE}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_DEVELOPMENT_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev_${LIBRARY_VERSION_STRING}_${DEB_RELEASE}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
 
 # Component configuration for multi-package builds
 set(CPACK_DEB_COMPONENT_INSTALL ON)
