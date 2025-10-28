@@ -75,8 +75,15 @@ RUN if [ -f "build.sh" ]; then \
 # Build and package AASDK using the simplified build.sh approach
 ARG CROSS_COMPILE=false
 RUN export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
-    echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
-    CROSS_COMPILE=${CROSS_COMPILE} ./build.sh release clean package && \
+        echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
+        # Compute distro-specific release suffix for DEB packages
+        DISTRO_DEB_RELEASE=$(bash /src/scripts/distro_release.sh) && \
+        CPACK_DEB_RELEASE="$DISTRO_DEB_RELEASE" && \
+        echo "Using CPACK_DEBIAN_PACKAGE_RELEASE: $CPACK_DEB_RELEASE" && \
+        # Pass through to CMake via build.sh using CMAKE_ARGS
+        env DISTRO_DEB_RELEASE="$CPACK_DEB_RELEASE" CMAKE_ARGS="$CMAKE_ARGS -DCPACK_DEBIAN_PACKAGE_RELEASE=$CPACK_DEB_RELEASE -DCPACK_PROJECT_CONFIG_FILE=/src/cmake_modules/CPackProjectConfig.cmake" \
+            CROSS_COMPILE=${CROSS_COMPILE} \
+            ./build.sh release clean package && \
     if [ -d "packages" ]; then \
         cp packages/*.deb /output/ 2>/dev/null || true && \
         echo "Packages built:" && \
