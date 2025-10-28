@@ -52,8 +52,9 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /src
 
-# Copy source code
+# Copy source code and .git for version info
 COPY . .
+COPY .git .git
 
 # Debug: List what was copied
 RUN echo "Contents of /src:" && ls -la
