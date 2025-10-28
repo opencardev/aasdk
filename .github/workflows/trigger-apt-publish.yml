@@ -15,7 +15,7 @@ on:
         options:
           - trixie
           - bookworm
-          - both
+          - all
 
 jobs:
   trigger-apt-update:
