@@ -5,6 +5,7 @@ message(STATUS "Resolving GIT Version")
 
 set(_build_version "unknown")
 set(_build_branch "unknown")
+set(_build_describe "unknown")
 set(_commit_timestamp "unknown")
 set(_build_changes "")
 
@@ -61,6 +62,16 @@ if(GIT_FOUND)
       OUTPUT_STRIP_TRAILING_WHITESPACE
     )
     message(STATUS "GIT_BRANCH from git command: ${_build_branch}")
+  endif()
+  if(_build_describe STREQUAL "unknown")
+    execute_process(
+      COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --always
+      WORKING_DIRECTORY "${local_dir}"
+      OUTPUT_VARIABLE _build_describe
+      ERROR_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    message(STATUS "GIT_DESCRIBE from git command: ${_build_describe}")
   endif()
   execute_process(
     COMMAND ${GIT_EXECUTABLE} log -1 --format=%at
