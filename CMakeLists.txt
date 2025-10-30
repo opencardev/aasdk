@@ -72,47 +72,25 @@ string(TIMESTAMP LIBRARY_BUILD_YEAR "%Y" UTC)      # Major version = Year (e.g.,
 string(TIMESTAMP LIBRARY_BUILD_MONTH "%m" UTC)     # Minor version = Month (01-12)
 string(TIMESTAMP LIBRARY_BUILD_DAY "%d" UTC)       # Patch version = Day (01-31)
 
-# Get git commit information
-find_package(Git QUIET)
-if(GIT_FOUND)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_ID
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_BRANCH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --always
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_DESCRIBE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    # Check if repository is dirty (has uncommitted changes)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} diff --quiet
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GIT_DIRTY
-        ERROR_QUIET
-    )
-else()
-    set(GIT_COMMIT_ID "unknown")
-    set(GIT_BRANCH "unknown")
-    set(GIT_DESCRIBE "unknown")
-    set(GIT_DIRTY 0)
-endif()
+# Set CMAKE_MODULE_PATH early so we can include gitversion.cmake
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/")
+
+# Get git commit information using gitversion.cmake module
+set(local_dir ${CMAKE_CURRENT_SOURCE_DIR})
+include(gitversion)
+
+# Include DEB package filename generation module
+include(DebPackageFilename)
 
 # Clean up git commit ID (remove any unwanted characters)
-if(NOT GIT_COMMIT_ID)
+if(NOT GIT_COMMIT_ID OR GIT_COMMIT_ID STREQUAL "")
     set(GIT_COMMIT_ID "unknown")
+endif()
+if(NOT GIT_BRANCH OR GIT_BRANCH STREQUAL "")
+    set(GIT_BRANCH "unknown")
+endif()
+if(NOT GIT_DESCRIBE OR GIT_DESCRIBE STREQUAL "")
+    set(GIT_DESCRIBE "unknown")
 endif()
 
 # Set version components
@@ -137,7 +115,6 @@ message(STATUS "Configuring CMAKE")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT} -fPIC -Wall -pedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
@@ -309,6 +286,7 @@ message(STATUS "Project Version: ${LIBRARY_VERSION_STRING}")
 message(STATUS "Git Branch: ${GIT_BRANCH}")
 message(STATUS "Git Commit: ${GIT_COMMIT_ID}")
 message(STATUS "Git Describe: ${GIT_DESCRIBE}")
+message(STATUS "Git Timestamp: ${GIT_COMMIT_TIMESTAMP}")
 if(GIT_DIRTY GREATER 0)
     message(STATUS "Repository Status: DIRTY (has uncommitted changes)")
 else()
@@ -399,6 +377,7 @@ endif(AASDK_TEST)
 set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGE_NAME "libaasdk")
 set(CPACK_PACKAGE_VENDOR "AASDK")
+set(CPACK_PACKAGE_CONTACT "OpenCarDev Team <opencardevuk@gmail.com>")
 set(CPACK_PACKAGE_VERSION ${LIBRARY_VERSION_STRING})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library")
 set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications.")
@@ -425,30 +404,14 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/lib
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
-# Configure different packages based on build type and architecture
-# Note: Package names follow Debian multi-arch conventions - architecture is specified in control file, not package name
-# But file names still include architecture for clarity: libaasdk_version_arch.deb
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CPACK_PACKAGE_NAME "libaasdk-dbg")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk-dbg")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library (Debug) for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-    set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) debug library with debugging symbols and information for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
-    set(CPACK_DEBIAN_PACKAGE_SECTION "debug")
-    set(CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
-else()
-    set(CPACK_PACKAGE_NAME "libaasdk")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-    set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
-endif()
-
-# File naming based on build type and architecture
-if(DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
-    set(CPACK_DEBIAN_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
-else()
-    set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-endif()
+# Configure DEB package filename using the DebPackageFilename module
+configure_deb_filename(
+    PACKAGE_NAME "${CPACK_PACKAGE_NAME}"
+    VERSION "${LIBRARY_VERSION_STRING}"
+    ARCHITECTURE "${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}"
+    RUNTIME_PACKAGE_NAME "${CPACK_PACKAGE_NAME}"
+    DEVELOPMENT_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-dev"
+)
 
 # Component configuration for multi-package builds
 set(CPACK_DEB_COMPONENT_INSTALL ON)
@@ -457,8 +420,7 @@ set(CPACK_COMPONENTS_ALL runtime development)
 # Runtime package (libraries only)
 set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "AASDK Runtime Libraries for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 set(CPACK_COMPONENT_RUNTIME_DESCRIPTION "Runtime libraries for Android Auto SDK on ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture")
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}")
-set(CPACK_DEBIAN_RUNTIME_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_PRIORITY "optional")
 # Do not hardcode Depends here; let dpkg-shlibdeps compute per-distro/arch
@@ -466,11 +428,10 @@ set(CPACK_DEBIAN_RUNTIME_PACKAGE_PRIORITY "optional")
 # Development package (headers and cmake files)
 set(CPACK_COMPONENT_DEVELOPMENT_DISPLAY_NAME "AASDK Development Files for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 set(CPACK_COMPONENT_DEVELOPMENT_DESCRIPTION "Development headers and CMake files for Android Auto SDK on ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture")
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev")
-set(CPACK_DEBIAN_DEVELOPMENT_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-dev")
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_SECTION "libdevel")
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_NAME} (= ${LIBRARY_VERSION_STRING})")
+set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_PACKAGE_NAME} (= ${LIBRARY_VERSION_STRING})")
 
 # Package relationships
 set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)

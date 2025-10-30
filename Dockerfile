@@ -25,6 +25,26 @@ FROM debian:${DEBIAN_VERSION}-slim
 # Build arguments
 ARG TARGET_ARCH=amd64
 ARG DEBIAN_FRONTEND=noninteractive
+ARG GIT_COMMIT_ID=unknown
+ARG GIT_BRANCH=unknown
+ARG GIT_DESCRIBE=unknown
+ARG GIT_COMMIT_TIMESTAMP=unknown
+ARG GIT_DIRTY=unknown
+
+# Export git info as environment variables
+ENV GIT_COMMIT_ID=${GIT_COMMIT_ID}
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_DESCRIBE=${GIT_DESCRIBE}
+ENV GIT_COMMIT_TIMESTAMP=${GIT_COMMIT_TIMESTAMP}
+ENV GIT_DIRTY=${GIT_DIRTY}
+
+# Debug: Print git variables
+RUN echo "Docker build args received:" && \
+    echo "  GIT_COMMIT_ID=${GIT_COMMIT_ID}" && \
+    echo "  GIT_BRANCH=${GIT_BRANCH}" && \
+    echo "  GIT_DESCRIBE=${GIT_DESCRIBE}" && \
+    echo "  GIT_COMMIT_TIMESTAMP=${GIT_COMMIT_TIMESTAMP}" && \
+    echo "  GIT_DIRTY=${GIT_DIRTY}"
 
 # Set locale to avoid encoding issues
 ENV LANG=C.UTF-8
@@ -38,6 +58,7 @@ RUN apt-get update && apt-get install -y \
     ninja-build \
     pkg-config \
     git \
+    lsb-release \
     # Development libraries (native for this platform)
     libboost-all-dev \
     libprotobuf-dev \
@@ -52,7 +73,7 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /src
 
-# Copy source code
+# Copy source code.
 COPY . .
 
 # Debug: List what was copied
@@ -74,7 +95,14 @@ RUN if [ -f "build.sh" ]; then \
 
 # Build and package AASDK using the simplified build.sh approach
 ARG CROSS_COMPILE=false
-RUN export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
+RUN echo "=== Git environment variables before build ===" && \
+    echo "  GIT_COMMIT_ID=$GIT_COMMIT_ID" && \
+    echo "  GIT_BRANCH=$GIT_BRANCH" && \
+    echo "  GIT_DESCRIBE=$GIT_DESCRIBE" && \
+    echo "  GIT_COMMIT_TIMESTAMP=$GIT_COMMIT_TIMESTAMP" && \
+    echo "  GIT_DIRTY=$GIT_DIRTY" && \
+    echo "=============================================" && \
+    export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
         echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
         # Compute distro-specific release suffix for DEB packages
         DISTRO_DEB_RELEASE=$(bash /src/scripts/distro_release.sh) && \
