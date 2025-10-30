@@ -20,7 +20,7 @@
 
 # Allow selecting Debian base (bookworm or trixie). Default to trixie.
 ARG DEBIAN_VERSION=trixie
-FROM debian:${DEBIAN_VERSION}
+FROM debian:${DEBIAN_VERSION}-slim
 
 # Build arguments
 ARG TARGET_ARCH=amd64
