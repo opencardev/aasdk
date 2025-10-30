@@ -73,6 +73,7 @@ show_usage() {
 GIT_COMMIT_ID="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
 GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
 GIT_DESCRIBE="$(git describe --tags --dirty --always 2>/dev/null || echo unknown)"
+GIT_COMMIT_TIMESTAMP="$(git log -1 --format=%at 2>/dev/null || echo unknown)"
 GIT_DIRTY="$(git diff --quiet 2>/dev/null; echo $?)"
 
 # Container engine selection
@@ -148,7 +149,7 @@ build_architecture() {
     fi
 
     # Pass git info as build args
-    local git_args="--build-arg GIT_COMMIT_ID=${GIT_COMMIT_ID} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_DESCRIBE=${GIT_DESCRIBE} --build-arg GIT_DIRTY=${GIT_DIRTY}"
+    local git_args="--build-arg GIT_COMMIT_ID=${GIT_COMMIT_ID} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_DESCRIBE=${GIT_DESCRIBE} --build-arg GIT_COMMIT_TIMESTAMP=${GIT_COMMIT_TIMESTAMP} --build-arg GIT_DIRTY=${GIT_DIRTY}"
 
     if [ "$CONTAINER_CMD" = "docker" ]; then
         docker buildx build \

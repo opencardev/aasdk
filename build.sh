@@ -97,6 +97,7 @@ print_header() {
     echo "  GIT_COMMIT_ID: $GIT_COMMIT_ID"
     echo "  GIT_BRANCH:    $GIT_BRANCH"
     echo "  GIT_DESCRIBE:  $GIT_DESCRIBE"
+    echo "  GIT_TIMESTAMP: $GIT_COMMIT_TIMESTAMP"
     echo "  GIT_DIRTY:     $GIT_DIRTY"
     echo -e "${BLUE}================================================${NC}"
     echo
