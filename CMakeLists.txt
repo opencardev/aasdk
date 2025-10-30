@@ -77,7 +77,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/
 
 # Get git commit information using gitversion.cmake module
 set(local_dir ${CMAKE_CURRENT_SOURCE_DIR})
-include(${CMAKE_MODULE_PATH}/gitversion.cmake)
+include(gitversion)
+
+# Include DEB package filename generation module
+include(DebPackageFilename)
 
 # Clean up git commit ID (remove any unwanted characters)
 if(NOT GIT_COMMIT_ID OR GIT_COMMIT_ID STREQUAL "")
@@ -400,54 +403,14 @@ set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/lib
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
-# Detect suite/codename for filename
-if(DEFINED ENV{DISTRO_DEB_SUITE} AND NOT "$ENV{DISTRO_DEB_SUITE}" STREQUAL "")
-    set(DEB_SUITE "$ENV{DISTRO_DEB_SUITE}")
-elseif(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
-    # Try to extract suite from release string (e.g. +deb12u1 -> bookworm, +deb13u1 -> trixie)
-    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+deb12")
-        set(DEB_SUITE "bookworm")
-    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+deb13")
-        set(DEB_SUITE "trixie")
-    else()
-        set(DEB_SUITE "unknown")
-    endif()
-else()
-    set(DEB_SUITE "unknown")
-endif()
-
-# Detect debian version for filename (e.g. deb13, deb12)
-set(DEB_VERSION "unknown")
-if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
-    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+deb([0-9]+)")
-        set(DEB_VERSION "deb${CMAKE_MATCH_1}")
-    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "0ubuntu1~([0-9]+\\.[0-9]+)")
-        set(DEB_VERSION "ubuntu${CMAKE_MATCH_1}")
-    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+rpi([0-9]+)")
-        set(DEB_VERSION "rpi${CMAKE_MATCH_1}")
-    else()
-        set(DEB_VERSION "unknown")
-    endif()
-endif()
-
-# Use full release string for filename (e.g. deb13u1, deb12u2, 0ubuntu1~22.04)
-set(DEB_RELEASE "unknown")
-if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
-    # Remove any leading version numbers (e.g. 1+deb13u1 -> deb13u1)
-    string(REGEX REPLACE "^[0-9]+[+~]?" "" DEB_RELEASE "${CPACK_DEBIAN_PACKAGE_RELEASE}")
-else()
-    set(DEB_RELEASE "unknown")
-endif()
-
-# File naming based on build type, release, and architecture
-if(DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
-    set(CPACK_DEBIAN_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${DEB_RELEASE}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
-else()
-    set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-endif()
-
-set(CPACK_DEBIAN_RUNTIME_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${DEB_RELEASE}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
-set(CPACK_DEBIAN_DEVELOPMENT_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev_${LIBRARY_VERSION_STRING}_${DEB_RELEASE}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+# Configure DEB package filename using the DebPackageFilename module
+configure_deb_filename(
+    PACKAGE_NAME "${CPACK_PACKAGE_NAME}"
+    VERSION "${LIBRARY_VERSION_STRING}"
+    ARCHITECTURE "${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}"
+    RUNTIME_PACKAGE_NAME "${CPACK_PACKAGE_NAME}"
+    DEVELOPMENT_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-dev"
+)
 
 # Component configuration for multi-package builds
 set(CPACK_DEB_COMPONENT_INSTALL ON)
@@ -456,8 +419,7 @@ set(CPACK_COMPONENTS_ALL runtime development)
 # Runtime package (libraries only)
 set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "AASDK Runtime Libraries for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 set(CPACK_COMPONENT_RUNTIME_DESCRIPTION "Runtime libraries for Android Auto SDK on ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture")
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}")
-set(CPACK_DEBIAN_RUNTIME_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_PRIORITY "optional")
 # Do not hardcode Depends here; let dpkg-shlibdeps compute per-distro/arch
@@ -465,11 +427,10 @@ set(CPACK_DEBIAN_RUNTIME_PACKAGE_PRIORITY "optional")
 # Development package (headers and cmake files)
 set(CPACK_COMPONENT_DEVELOPMENT_DISPLAY_NAME "AASDK Development Files for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 set(CPACK_COMPONENT_DEVELOPMENT_DESCRIPTION "Development headers and CMake files for Android Auto SDK on ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture")
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev")
-set(CPACK_DEBIAN_DEVELOPMENT_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-dev")
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_SECTION "libdevel")
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_NAME} (= ${LIBRARY_VERSION_STRING})")
+set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_PACKAGE_NAME} (= ${LIBRARY_VERSION_STRING})")
 
 # Package relationships
 set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)
