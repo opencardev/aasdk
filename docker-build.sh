@@ -18,6 +18,7 @@
 # *  along with openauto. If not, see <http://www.gnu.org/licenses/>.
 
 set -e
+set -u
 
 # Colors for output
 RED='\033[0;31m'
@@ -28,7 +29,7 @@ NC='\033[0m' # No Color
 
 print_header() {
     echo -e "${BLUE}================================================${NC}"
-    echo -e "${BLUE}  AASDK Docker Build Script${NC}"
+    echo -e "${BLUE}  AASDK Docker/Podman Build Script${NC}"
     echo -e "${BLUE}================================================${NC}"
 }
 
@@ -45,7 +46,7 @@ print_error() {
 }
 
 show_usage() {
-    echo "AASDK Docker Build Script"
+    echo "AASDK Docker/Podman Build Script"
     echo
     echo "Usage: $0 [ARCHITECTURE] [OPTIONS]"
     echo
@@ -57,49 +58,28 @@ show_usage() {
     echo
     echo "OPTIONS:"
     echo "  --clean     Clean build output directory before building"
-    echo "  --no-cache  Don't use Docker build cache"
+    echo "  --no-cache  Don't use build cache"
+    echo "  --podman    Use Podman instead of Docker"
     echo "  --help      Show this help message"
     echo
     echo "Examples:"
     echo "  $0 amd64           # Build for AMD64"
-    echo "  $0 arm64 --clean  # Clean build for ARM64"
-    echo "  $0 all             # Build for all architectures"
+    echo "  $0 arm64 --clean   # Clean build for ARM64"
+    echo "  $0 all --podman    # Build for all architectures using Podman"
     echo
 }
 
-build_architecture() {
-    local arch=$1
-    local no_cache_flag=$2
-    
-    print_step "Building AASDK for ${arch}..."
-    
-    # Create output directory
-    mkdir -p build-output
-    
-    # Build Docker image
-    local build_args=""
-    if [ "$no_cache_flag" = "--no-cache" ]; then
-        build_args="--no-cache"
-    fi
-    
-    docker buildx build \
-        $build_args \
-        --platform linux/${arch} \
-        --build-arg TARGET_ARCH=${arch} \
-        --tag aasdk-build:${arch} \
-        --load \
-        .
-    
-    # Extract packages from container
-    local container_id=$(docker create aasdk-build:${arch})
-    docker cp ${container_id}:/output/. ./build-output/
-    docker rm ${container_id} > /dev/null
-    
-    print_success "Build completed for ${arch}"
-}
+# Collect git details
+GIT_COMMIT_ID="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+GIT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo unknown)"
+GIT_DESCRIBE="$(git describe --tags --dirty --always 2>/dev/null || echo unknown)"
+GIT_DIRTY="$(git diff --quiet 2>/dev/null; echo $?)"
 
-# Parse command line arguments
-ARCH=${1:-amd64}
+# Container engine selection
+CONTAINER_CMD="docker"
+USE_PODMAN=false
+
+ARCH="amd64"
 CLEAN=false
 NO_CACHE=""
 
@@ -111,6 +91,9 @@ for arg in "$@"; do
         --no-cache)
             NO_CACHE="--no-cache"
             ;;
+        --podman)
+            USE_PODMAN=true
+            ;;
         --help|-h)
             show_usage
             exit 0
@@ -121,20 +104,79 @@ for arg in "$@"; do
     esac
 done
 
-# Main execution
+if [ "$USE_PODMAN" = true ]; then
+    if command -v podman &> /dev/null; then
+        CONTAINER_CMD="podman"
+        print_step "Using Podman as container engine."
+    else
+        print_error "Podman requested but not installed."
+        exit 1
+    fi
+else
+    if ! command -v docker &> /dev/null; then
+        if command -v podman &> /dev/null; then
+            CONTAINER_CMD="podman"
+            print_step "Docker not found, falling back to Podman."
+        else
+            print_error "Neither Docker nor Podman is installed."
+            exit 1
+        fi
+    fi
+fi
+
 print_header
 
-# Check if Docker is available
-if ! command -v docker &> /dev/null; then
-    print_error "Docker is not installed or not in PATH"
-    exit 1
+# Check if Buildx is available (only for Docker)
+if [ "$CONTAINER_CMD" = "docker" ]; then
+    if ! docker buildx version &> /dev/null; then
+        print_error "Docker Buildx is not available"
+        exit 1
+    fi
 fi
 
-# Check if Docker Buildx is available
-if ! docker buildx version &> /dev/null; then
-    print_error "Docker Buildx is not available"
-    exit 1
-fi
+build_architecture() {
+    local arch=$1
+    local no_cache_flag=$2
+
+    print_step "Building AASDK for ${arch}..."
+
+    mkdir -p build-output
+
+    local build_args=""
+    if [ "$no_cache_flag" = "--no-cache" ]; then
+        build_args="--no-cache"
+    fi
+
+    # Pass git info as build args
+    local git_args="--build-arg GIT_COMMIT_ID=${GIT_COMMIT_ID} --build-arg GIT_BRANCH=${GIT_BRANCH} --build-arg GIT_DESCRIBE=${GIT_DESCRIBE} --build-arg GIT_DIRTY=${GIT_DIRTY}"
+
+    if [ "$CONTAINER_CMD" = "docker" ]; then
+        docker buildx build \
+            $build_args \
+            --platform linux/${arch} \
+            --build-arg TARGET_ARCH=${arch} \
+            $git_args \
+            --tag aasdk-build:${arch} \
+            --load \
+            .
+        local container_id=$(docker create aasdk-build:${arch})
+        docker cp ${container_id}:/output/. ./build-output/
+        docker rm ${container_id} > /dev/null
+    else
+        podman build \
+            $build_args \
+            --arch ${arch} \
+            --build-arg TARGET_ARCH=${arch} \
+            $git_args \
+            --tag aasdk-build:${arch} \
+            .
+        local container_id=$(podman create aasdk-build:${arch})
+        podman cp ${container_id}:/output/. ./build-output/
+        podman rm ${container_id} > /dev/null
+    fi
+
+    print_success "Build completed for ${arch}"
+}
 
 # Clean output directory if requested
 if [ "$CLEAN" = true ]; then
@@ -143,15 +185,12 @@ if [ "$CLEAN" = true ]; then
     mkdir -p build-output
 fi
 
-# Build based on architecture selection
 case $ARCH in
     amd64|arm64|armhf)
-        # Map armhf to arm/v7 platform
-        local platform_arch=$ARCH
+        platform_arch=$ARCH
         if [ "$ARCH" = "armhf" ]; then
             platform_arch="arm/v7"
         fi
-        
         build_architecture $platform_arch "$NO_CACHE"
         ;;
     all)
@@ -168,7 +207,6 @@ case $ARCH in
         ;;
 esac
 
-# Show results
 print_step "Build results:"
 if [ -d "build-output" ]; then
     ls -la build-output/

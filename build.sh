@@ -93,6 +93,11 @@ print_header() {
     echo -e "Install:        ${GREEN}${INSTALL}${NC}"
     echo -e "Create Packages: ${GREEN}${CREATE_PACKAGES}${NC}"
     echo -e "Dry Run:        ${GREEN}${DRY_RUN}${NC}"
+    echo -e "${YELLOW}Git details:${NC}"
+    echo "  GIT_COMMIT_ID: $GIT_COMMIT_ID"
+    echo "  GIT_BRANCH:    $GIT_BRANCH"
+    echo "  GIT_DESCRIBE:  $GIT_DESCRIBE"
+    echo "  GIT_DIRTY:     $GIT_DIRTY"
     echo -e "${BLUE}================================================${NC}"
     echo
 }

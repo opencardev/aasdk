@@ -72,47 +72,22 @@ string(TIMESTAMP LIBRARY_BUILD_YEAR "%Y" UTC)      # Major version = Year (e.g.,
 string(TIMESTAMP LIBRARY_BUILD_MONTH "%m" UTC)     # Minor version = Month (01-12)
 string(TIMESTAMP LIBRARY_BUILD_DAY "%d" UTC)       # Patch version = Day (01-31)
 
-# Get git commit information
-find_package(Git QUIET)
-if(GIT_FOUND)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_ID
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_BRANCH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --always
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_DESCRIBE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    # Check if repository is dirty (has uncommitted changes)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} diff --quiet
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GIT_DIRTY
-        ERROR_QUIET
-    )
-else()
-    set(GIT_COMMIT_ID "unknown")
-    set(GIT_BRANCH "unknown")
-    set(GIT_DESCRIBE "unknown")
-    set(GIT_DIRTY 0)
-endif()
+# Set CMAKE_MODULE_PATH early so we can include gitversion.cmake
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/")
+
+# Get git commit information using gitversion.cmake module
+set(local_dir ${CMAKE_CURRENT_SOURCE_DIR})
+include(${CMAKE_MODULE_PATH}/gitversion.cmake)
 
 # Clean up git commit ID (remove any unwanted characters)
-if(NOT GIT_COMMIT_ID)
+if(NOT GIT_COMMIT_ID OR GIT_COMMIT_ID STREQUAL "")
     set(GIT_COMMIT_ID "unknown")
+endif()
+if(NOT GIT_BRANCH OR GIT_BRANCH STREQUAL "")
+    set(GIT_BRANCH "unknown")
+endif()
+if(NOT GIT_DESCRIBE OR GIT_DESCRIBE STREQUAL "")
+    set(GIT_DESCRIBE "unknown")
 endif()
 
 # Set version components
@@ -137,7 +112,6 @@ message(STATUS "Configuring CMAKE")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT} -fPIC -Wall -pedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
@@ -431,9 +405,9 @@ if(DEFINED ENV{DISTRO_DEB_SUITE} AND NOT "$ENV{DISTRO_DEB_SUITE}" STREQUAL "")
     set(DEB_SUITE "$ENV{DISTRO_DEB_SUITE}")
 elseif(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
     # Try to extract suite from release string (e.g. +deb12u1 -> bookworm, +deb13u1 -> trixie)
-    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+deb12")
+    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+deb12")
         set(DEB_SUITE "bookworm")
-    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+deb13")
+    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+deb13")
         set(DEB_SUITE "trixie")
     else()
         set(DEB_SUITE "unknown")
@@ -445,11 +419,11 @@ endif()
 # Detect debian version for filename (e.g. deb13, deb12)
 set(DEB_VERSION "unknown")
 if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
-    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+deb([0-9]+)")
+    if(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+deb([0-9]+)")
         set(DEB_VERSION "deb${CMAKE_MATCH_1}")
-    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "0ubuntu1~([0-9]+\.[0-9]+)")
+    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "0ubuntu1~([0-9]+\\.[0-9]+)")
         set(DEB_VERSION "ubuntu${CMAKE_MATCH_1}")
-    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\+rpi([0-9]+)")
+    elseif(CPACK_DEBIAN_PACKAGE_RELEASE MATCHES "\\+rpi([0-9]+)")
         set(DEB_VERSION "rpi${CMAKE_MATCH_1}")
     else()
         set(DEB_VERSION "unknown")
@@ -460,7 +434,7 @@ endif()
 set(DEB_RELEASE "unknown")
 if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE)
     # Remove any leading version numbers (e.g. 1+deb13u1 -> deb13u1)
-    string(REGEX REPLACE "^[0-9]+[\+~]?" "" DEB_RELEASE "${CPACK_DEBIAN_PACKAGE_RELEASE}")
+    string(REGEX REPLACE "^[0-9]+[+~]?" "" DEB_RELEASE "${CPACK_DEBIAN_PACKAGE_RELEASE}")
 else()
     set(DEB_RELEASE "unknown")
 endif()

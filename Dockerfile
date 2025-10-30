@@ -20,11 +20,28 @@
 
 # Allow selecting Debian base (bookworm or trixie). Default to trixie.
 ARG DEBIAN_VERSION=trixie
-FROM debian:${DEBIAN_VERSION}-slim
+FROM debian:${DEBIAN_VERSION}
 
 # Build arguments
 ARG TARGET_ARCH=amd64
 ARG DEBIAN_FRONTEND=noninteractive
+ARG GIT_COMMIT_ID=unknown
+ARG GIT_BRANCH=unknown
+ARG GIT_DESCRIBE=unknown
+ARG GIT_DIRTY=unknown
+
+# Export git info as environment variables
+ENV GIT_COMMIT_ID=${GIT_COMMIT_ID}
+ENV GIT_BRANCH=${GIT_BRANCH}
+ENV GIT_DESCRIBE=${GIT_DESCRIBE}
+ENV GIT_DIRTY=${GIT_DIRTY}
+
+# Debug: Print git variables
+RUN echo "Docker build args received:" && \
+    echo "  GIT_COMMIT_ID=${GIT_COMMIT_ID}" && \
+    echo "  GIT_BRANCH=${GIT_BRANCH}" && \
+    echo "  GIT_DESCRIBE=${GIT_DESCRIBE}" && \
+    echo "  GIT_DIRTY=${GIT_DIRTY}"
 
 # Set locale to avoid encoding issues
 ENV LANG=C.UTF-8
@@ -52,9 +69,8 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /src
 
-# Copy source code and .git for version info
+# Copy source code.
 COPY . .
-COPY .git .git
 
 # Debug: List what was copied
 RUN echo "Contents of /src:" && ls -la
@@ -75,7 +91,13 @@ RUN if [ -f "build.sh" ]; then \
 
 # Build and package AASDK using the simplified build.sh approach
 ARG CROSS_COMPILE=false
-RUN export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
+RUN echo "=== Git environment variables before build ===" && \
+    echo "  GIT_COMMIT_ID=$GIT_COMMIT_ID" && \
+    echo "  GIT_BRANCH=$GIT_BRANCH" && \
+    echo "  GIT_DESCRIBE=$GIT_DESCRIBE" && \
+    echo "  GIT_DIRTY=$GIT_DIRTY" && \
+    echo "=============================================" && \
+    export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
         echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
         # Compute distro-specific release suffix for DEB packages
         DISTRO_DEB_RELEASE=$(bash /src/scripts/distro_release.sh) && \
