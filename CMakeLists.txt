@@ -378,10 +378,9 @@ set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGE_NAME "libaasdk")
 set(CPACK_PACKAGE_VENDOR "AASDK")
 set(CPACK_PACKAGE_CONTACT "OpenCarDev Team <opencardevuk@gmail.com>")
-set(CPACK_PACKAGE_VERSION ${LIBRARY_VERSION_STRING})
+set(CPACK_PACKAGE_VERSION ${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library")
 set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications.")
-set(CPACK_PACKAGE_CONTACT "AASDK <aasdk@example.com>")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/opencardev/aasdk")
 
 # Set the correct install prefix for packaging
