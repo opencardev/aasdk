@@ -327,6 +327,15 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/aasdk/Version.hpp"
         COMPONENT development
 )
 
+# Install SSL certificate and key files
+install(FILES 
+        "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.crt"
+        "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.key"
+        DESTINATION /etc/openauto
+        PERMISSIONS OWNER_READ GROUP_READ
+        COMPONENT runtime
+)
+
 # Export the targets to a script
 install(EXPORT aasdkTargets
         FILE aasdkTargets.cmake
