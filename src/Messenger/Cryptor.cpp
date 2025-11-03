@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2024 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,6 +18,8 @@
 
 #include <algorithm>
 #include <functional>
+#include <fstream>
+#include <sstream>
 #include <aasdk/Messenger/Cryptor.hpp>
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Common/Log.hpp>
@@ -24,6 +27,63 @@
 
 namespace aasdk {
   namespace messenger {
+
+    // Helper function to read file contents
+    static std::string readFileContents(const std::string& filepath) {
+      std::ifstream file(filepath);
+      if (!file.is_open()) {
+        AASDK_LOG(error) << "[Cryptor] Failed to open file: " << filepath;
+        return "";
+      }
+      
+      std::stringstream buffer;
+      buffer << file.rdbuf();
+      return buffer.str();
+    }
+
+    // Helper to try multiple certificate paths
+    static std::string loadCertificate() {
+      // Try paths in order of preference
+      std::vector<std::string> certPaths = {
+        "/etc/openauto/headunit.crt",           // Installed system path
+        "/usr/share/aasdk/cert/headunit.crt",   // Alternative system path
+        "./cert/headunit.crt",                   // Development path
+        "../cert/headunit.crt"                   // Alternative development path
+      };
+      
+      for (const auto& path : certPaths) {
+        std::string content = readFileContents(path);
+        if (!content.empty()) {
+          AASDK_LOG(info) << "[Cryptor] Loaded certificate from: " << path;
+          return content;
+        }
+      }
+      
+      AASDK_LOG(warning) << "[Cryptor] Could not load certificate from file, using embedded fallback";
+      return cCertificate;  // Fallback to embedded certificate
+    }
+
+    // Helper to try multiple private key paths
+    static std::string loadPrivateKey() {
+      // Try paths in order of preference
+      std::vector<std::string> keyPaths = {
+        "/etc/openauto/headunit.key",           // Installed system path
+        "/usr/share/aasdk/cert/headunit.key",   // Alternative system path
+        "./cert/headunit.key",                   // Development path
+        "../cert/headunit.key"                   // Alternative development path
+      };
+      
+      for (const auto& path : keyPaths) {
+        std::string content = readFileContents(path);
+        if (!content.empty()) {
+          AASDK_LOG(info) << "[Cryptor] Loaded private key from: " << path;
+          return content;
+        }
+      }
+      
+      AASDK_LOG(warning) << "[Cryptor] Could not load private key from file, using embedded fallback";
+      return cPrivateKey;  // Fallback to embedded key
+    }
 
     Cryptor::Cryptor(transport::ISSLWrapper::Pointer sslWrapper)
         : sslWrapper_(std::move(sslWrapper)), maxBufferSize_(1024 * 20), certificate_(nullptr), privateKey_(nullptr),
@@ -34,13 +94,17 @@ namespace aasdk {
     void Cryptor::init() {
       std::lock_guard<decltype(mutex_)> lock(mutex_);
 
-      certificate_ = sslWrapper_->readCertificate(cCertificate);
+      // Load certificate from file or fallback to embedded
+      std::string certContent = loadCertificate();
+      certificate_ = sslWrapper_->readCertificate(certContent);
 
       if (certificate_ == nullptr) {
         throw error::Error(error::ErrorCode::SSL_READ_CERTIFICATE);
       }
 
-      privateKey_ = sslWrapper_->readPrivateKey(cPrivateKey);
+      // Load private key from file or fallback to embedded
+      std::string keyContent = loadPrivateKey();
+      privateKey_ = sslWrapper_->readPrivateKey(keyContent);
 
       if (privateKey_ == nullptr) {
         throw error::Error(error::ErrorCode::SSL_READ_PRIVATE_KEY);

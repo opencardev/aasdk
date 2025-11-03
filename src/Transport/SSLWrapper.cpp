@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2024 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -77,7 +78,25 @@ namespace aasdk {
     }
 
     SSL_CTX *SSLWrapper::createContext(const SSL_METHOD *method) {
-      return SSL_CTX_new(method);
+      SSL_CTX *ctx = SSL_CTX_new(method);
+      if (ctx != nullptr) {
+        // Configure for Android Auto compatibility with OpenSSL 3.x
+        // Set minimum TLS version to 1.2 (Android Auto uses TLS 1.2+)
+        SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION);
+        SSL_CTX_set_max_proto_version(ctx, TLS1_3_VERSION);
+        
+        // Lower security level for compatibility (Android Auto uses older ciphers)
+        SSL_CTX_set_security_level(ctx, 1);
+        
+        // Set cipher list to include ciphers Android Auto expects
+        SSL_CTX_set_cipher_list(ctx, "DEFAULT:@SECLEVEL=1");
+        
+        // Enable legacy renegotiation for older Android Auto versions
+        SSL_CTX_set_options(ctx, SSL_OP_LEGACY_SERVER_CONNECT);
+        
+        AASDK_LOG(info) << "[SSLWrapper] SSL context configured for Android Auto (TLS 1.2-1.3, SECLEVEL=1)";
+      }
+      return ctx;
     }
 
     bool SSLWrapper::useCertificate(SSL_CTX *context, X509 *certificate) {
