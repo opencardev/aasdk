@@ -79,6 +79,7 @@ namespace aasdk {
 
     SSL_CTX *SSLWrapper::createContext(const SSL_METHOD *method) {
       SSL_CTX *ctx = SSL_CTX_new(method);
+      /*
       if (ctx != nullptr) {
         // Configure for Android Auto compatibility with OpenSSL 3.x
         // Set minimum TLS version to 1.2 (Android Auto uses TLS 1.2+)
@@ -96,6 +97,7 @@ namespace aasdk {
         
         AASDK_LOG(info) << "[SSLWrapper] SSL context configured for Android Auto (TLS 1.2-1.3, SECLEVEL=1)";
       }
+      */
       return ctx;
     }
 
