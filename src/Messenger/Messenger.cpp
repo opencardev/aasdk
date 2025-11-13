@@ -123,8 +123,17 @@ namespace aasdk::messenger {
   }
 
   void Messenger::stop() {
+    // Stop receive operations and reject pending promises
     receiveStrand_.dispatch([this, self = this->shared_from_this()]() {
       channelReceiveMessageQueue_.clear();
+      // Reject all pending receive promises to prevent callbacks after stop
+      this->rejectReceivePromiseQueue(error::Error(error::ErrorCode::OPERATION_ABORTED));
+    });
+    
+    // Stop send operations and reject pending promises
+    sendStrand_.dispatch([this, self = this->shared_from_this()]() {
+      // Reject all pending send promises to prevent callbacks after stop
+      this->rejectSendPromiseQueue(error::Error(error::ErrorCode::OPERATION_ABORTED));
     });
   }
 
