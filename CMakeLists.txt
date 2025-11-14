@@ -384,7 +384,14 @@ endif(AASDK_TEST)
 
 # CPack Configuration for DEB packages
 set(CPACK_GENERATOR "DEB")
-set(CPACK_PACKAGE_NAME "libaasdk")
+
+# Add debug suffix to package name for debug builds
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CPACK_PACKAGE_NAME "libaasdk-dbg")
+else()
+    set(CPACK_PACKAGE_NAME "libaasdk")
+endif()
+
 set(CPACK_PACKAGE_VENDOR "AASDK")
 set(CPACK_PACKAGE_CONTACT "OpenCarDev Team <opencardevuk@gmail.com>")
 set(CPACK_PACKAGE_VERSION ${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE})

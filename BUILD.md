@@ -153,12 +153,19 @@ The project includes convenience scripts for common build scenarios:
 
 **Linux/macOS/DevContainer:**
 ```bash
-./build.sh debug     # Debug build with optimizations disabled
+# Auto-detect build type from git branch (main/master → release, others → debug)
+./build.sh
+
+# Explicit build type (overrides branch detection)
+./build.sh debug     # Debug build with optimizations disabled (creates libaasdk-dbg packages)
 ./build.sh release   # Release build with optimizations enabled
+
+# Build with options
 ./build.sh debug clean    # Clean debug build
 ./build.sh release clean  # Clean release build
 ./build.sh debug test     # Debug build with tests
 ./build.sh release package # Release build with package creation
+./build.sh package         # Auto-detect build type and create packages
 ```
 
 **Windows:**
