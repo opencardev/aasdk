@@ -33,7 +33,17 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-BUILD_TYPE=${1:-debug}
+# Auto-detect build type based on git branch if not specified
+if [ -z "$1" ]; then
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+        BUILD_TYPE="release"
+    else
+        BUILD_TYPE="debug"
+    fi
+else
+    BUILD_TYPE="$1"
+fi
 TARGET_ARCH=${TARGET_ARCH:-amd64}
 # Use one fewer core by default to reduce memory pressure on small devices
 NPROC=$(nproc 2>/dev/null || echo 1)

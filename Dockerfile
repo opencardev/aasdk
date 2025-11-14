@@ -24,6 +24,7 @@ FROM debian:${DEBIAN_VERSION}-slim
 
 # Build arguments
 ARG TARGET_ARCH=amd64
+ARG BUILD_TYPE=release
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_COMMIT_ID=unknown
 ARG GIT_BRANCH=unknown
@@ -111,7 +112,7 @@ RUN echo "=== Git environment variables before build ===" && \
         # Pass through to CMake via build.sh using CMAKE_ARGS
         env DISTRO_DEB_RELEASE="$CPACK_DEB_RELEASE" CMAKE_ARGS="$CMAKE_ARGS -DCPACK_DEBIAN_PACKAGE_RELEASE=$CPACK_DEB_RELEASE -DCPACK_PROJECT_CONFIG_FILE=/src/cmake_modules/CPackProjectConfig.cmake" \
             CROSS_COMPILE=${CROSS_COMPILE} \
-            ./build.sh release clean package && \
+            ./build.sh ${BUILD_TYPE} clean package && \
     if [ -d "packages" ]; then \
         cp packages/*.deb /output/ 2>/dev/null || true && \
         echo "Packages built:" && \
