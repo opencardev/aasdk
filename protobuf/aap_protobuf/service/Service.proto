@@ -18,7 +18,7 @@ import "aap_protobuf/service/radio/RadioService.proto";
 
 package aap_protobuf.service;
 
-message Service
+message ServiceConfiguration
 {
     required int32 id = 1;
     optional sensorsource.SensorSourceService sensor_source_service = 2;
