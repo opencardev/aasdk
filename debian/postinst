@@ -2,12 +2,13 @@
 # postinst script for libaasdk
 
 set -e
+export DEBIAN_FRONTEND=noninteractive
 
 case "$1" in
     configure)
         # Update the dynamic linker cache
         if [ -x /sbin/ldconfig ]; then
-            /sbin/ldconfig
+            /sbin/ldconfig || true
         fi
         ;;
 

@@ -2,10 +2,15 @@
 # prerm script for libaasdk
 
 set -e
+export DEBIAN_FRONTEND=noninteractive
 
 case "$1" in
-    remove|upgrade|deconfigure)
-        # Nothing specific to do
+    remove|deconfigure)
+        # Library removal - nothing specific to do
+        ;;
+    
+    upgrade)
+        # During upgrade, nothing to do for a library package
         ;;
 
     failed-upgrade)
