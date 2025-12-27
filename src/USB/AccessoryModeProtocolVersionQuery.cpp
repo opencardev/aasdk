@@ -31,6 +31,9 @@ namespace aasdk {
       data_.resize(8 + sizeof(ProtocolVersion));
       usbWrapper.fillControlSetup(&data_[0], LIBUSB_ENDPOINT_IN | USB_TYPE_VENDOR, ACC_REQ_GET_PROTOCOL, 0, 0,
                                   sizeof(ProtocolVersion));
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        AASDK_LOG(info) << "[AccessoryModeProtocolVersionQuery] Prepared GET_PROTOCOL request";
+      }
     }
 
     void AccessoryModeProtocolVersionQuery::start(Promise::Pointer promise) {
@@ -42,6 +45,9 @@ namespace aasdk {
 
           auto usbEndpointPromise = IUSBEndpoint::Promise::defer(strand_);
           usbEndpointPromise->then([this, self = this->shared_from_this()](size_t bytesTransferred) mutable {
+                                     if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+                                       AASDK_LOG(info) << "[AccessoryModeProtocolVersionQuery] GET_PROTOCOL completed bytes=" << bytesTransferred;
+                                     }
                                      this->protocolVersionHandler(bytesTransferred);
                                    },
                                    [this, self = this->shared_from_this()](const error::Error &e) mutable {
@@ -55,6 +61,10 @@ namespace aasdk {
 
     void AccessoryModeProtocolVersionQuery::protocolVersionHandler(size_t bytesTransferred) {
       ProtocolVersion protocolVersion = static_cast<const uint16_t &>(data_[8]);
+
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        AASDK_LOG(info) << "[AccessoryModeProtocolVersionQuery] protocolVersion=" << protocolVersion;
+      }
 
       if (protocolVersion == 1 || protocolVersion == 2) {
         promise_->resolve(usbEndpoint_);

@@ -180,6 +180,10 @@ public:
     // Status
     size_t getQueueSize() const;
     size_t getDroppedMessages() const;
+
+    // Verbose USB control (useful for AOAP debugging)
+    void setVerboseUsb(bool enabled);
+    bool isVerboseUsb() const;
     
     // Public method for checking if logging should happen
     bool shouldLog(LogLevel level, LogCategory category) const;
@@ -201,6 +205,7 @@ private:
     std::map<LogCategory, LogLevel> categoryLevels_;
     std::vector<std::shared_ptr<LogSink>> sinks_;
     std::shared_ptr<LogFormatter> formatter_;
+    std::atomic<bool> verboseUsbEnabled_;
     
     // Async processing
     bool async_;

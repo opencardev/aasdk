@@ -28,6 +28,9 @@ namespace aasdk {
         : AccessoryModeQuery(ioService, std::move(usbEndpoint)) {
       data_.resize(8);
       usbWrapper.fillControlSetup(&data_[0], LIBUSB_ENDPOINT_OUT | USB_TYPE_VENDOR, ACC_REQ_START, 0, 0, 0);
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        AASDK_LOG(info) << "[AccessoryModeStartQuery] Prepared START control transfer";
+      }
     }
 
     void AccessoryModeStartQuery::start(Promise::Pointer promise) {
