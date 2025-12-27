@@ -16,6 +16,7 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <aasdk/USB/USBWrapper.hpp>
+#include <aasdk/Common/Log.hpp>
 #include <sstream>
 #include <iomanip>
 

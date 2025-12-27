@@ -16,6 +16,7 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <iomanip>
+#include <aasdk/Common/Log.hpp>
 #include <aasdk/USB/AccessoryModeStartQuery.hpp>
 #include <aasdk/USB/USBEndpoint.hpp>
 
