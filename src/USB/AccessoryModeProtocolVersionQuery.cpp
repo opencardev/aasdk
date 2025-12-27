@@ -17,6 +17,7 @@
 
 #include <iomanip>
 #include <aasdk/Common/Log.hpp>
+#include <aasdk/Common/ModernLogger.hpp>
 #include <aasdk/Error/ErrorCode.hpp>
 #include <aasdk/USB/AccessoryModeProtocolVersionQuery.hpp>
 #include <aasdk/USB/USBEndpoint.hpp>

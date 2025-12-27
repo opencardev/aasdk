@@ -17,6 +17,7 @@
 
 #include <iomanip>
 #include <aasdk/Common/Log.hpp>
+#include <aasdk/Common/ModernLogger.hpp>
 #include <aasdk/USB/AccessoryModeSendStringQuery.hpp>
 #include <aasdk/USB/USBEndpoint.hpp>
 
