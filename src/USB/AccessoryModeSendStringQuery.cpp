@@ -16,6 +16,8 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <iomanip>
+#include <aasdk/Common/Log.hpp>
+#include <aasdk/Common/ModernLogger.hpp>
 #include <aasdk/USB/AccessoryModeSendStringQuery.hpp>
 #include <aasdk/USB/USBEndpoint.hpp>
 
@@ -33,8 +35,11 @@ namespace aasdk {
       data_.insert(data_.end(), queryValue.begin(), queryValue.end());
       data_.push_back('\0');
 
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        AASDK_LOG(info) << "[AccessoryModeSendStringQuery] Preparing SEND_STRING (type=" << static_cast<int>(sendStringType_) << ") value='" << std::string(data_.begin() + 8, data_.end() - 1) << "'";
+      }
       usbWrapper.fillControlSetup(&data_[0], LIBUSB_ENDPOINT_OUT | USB_TYPE_VENDOR, ACC_REQ_SEND_STRING, 0,
-                                  static_cast<uint16_t>(sendStringType_), data_.size() - 8);
+                  static_cast<uint16_t>(sendStringType_), data_.size() - 8);
     }
 
     void AccessoryModeSendStringQuery::start(Promise::Pointer promise) {

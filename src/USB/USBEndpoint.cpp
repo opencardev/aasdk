@@ -83,6 +83,10 @@ namespace aasdk {
       strand_.dispatch([this, self = this->shared_from_this(), transfer, promise = std::move(promise)]() mutable {
         auto submitResult = usbWrapper_.submitTransfer(transfer);
 
+        if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+          AASDK_LOG(info) << "[USBEndpoint] submitTransfer result=" << submitResult << " endpoint=" << static_cast<int>(endpointAddress_);
+        }
+
         if (submitResult == libusb_error::LIBUSB_SUCCESS) {
           // guarantee that endpoint will live until all transfers are finished
           if (self_ == nullptr) {
@@ -91,7 +95,9 @@ namespace aasdk {
 
           transfers_.insert(std::make_pair(transfer, std::move(promise)));
         } else {
-          AASDK_LOG(debug) << "[USBEndpoint] USB Failure " << submitResult;
+          if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+            AASDK_LOG(info) << "[USBEndpoint] USB Failure submitResult=" << submitResult << " endpoint=" << static_cast<int>(endpointAddress_);
+          }
           promise->reject(error::Error(error::ErrorCode::USB_TRANSFER, submitResult));
           usbWrapper_.freeTransfer(transfer);
         }
@@ -115,22 +121,30 @@ namespace aasdk {
     }
 
     void USBEndpoint::transferHandler(libusb_transfer *transfer) {
-      AASDK_LOG_USB(debug, "transferHandler()");
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        AASDK_LOG_USB(info, "transferHandler() endpoint=" << static_cast<int>(reinterpret_cast<USBEndpoint *>(transfer->user_data)->endpointAddress_));
+      }
       auto self = reinterpret_cast<USBEndpoint *>(transfer->user_data)->shared_from_this();
 
       self->strand_.dispatch([self, transfer]() mutable {
         if (self->transfers_.count(transfer) == 0) {
-          AASDK_LOG_USB(debug, "No more transfers.");
+          if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+            AASDK_LOG_USB(info, "No more transfers.");
+          }
           return;
         }
 
         auto promise(std::move(self->transfers_.at(transfer)));
 
         if (transfer->status == LIBUSB_TRANSFER_COMPLETED) {
-          AASDK_LOG_USB(debug, "Transfer Complete.");
+          if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+            AASDK_LOG_USB(info, "Transfer Complete. actual_length=" << transfer->actual_length);
+          }
           promise->resolve(transfer->actual_length);
         } else {
-          AASDK_LOG_USB(debug, "Transfer Cancelled.");
+          if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+            AASDK_LOG_USB(info, "Transfer Cancelled. status=" << transfer->status);
+          }
           auto error = transfer->status ==
               LIBUSB_TRANSFER_CANCELLED ? error::Error(error::ErrorCode::OPERATION_ABORTED)
                                                                      : error::Error(error::ErrorCode::USB_TRANSFER,
