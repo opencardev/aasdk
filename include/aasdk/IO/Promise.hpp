@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -28,13 +29,16 @@ namespace aasdk {
   namespace io {
 
     template<typename ResolveArgumentType, typename ErrorArgumentType = error::Error>
-    class Promise : boost::noncopyable {
+    class Promise {
     public:
-      typedef ResolveArgumentType ValueType;
-      typedef ErrorArgumentType ErrorType;
-      typedef std::function<void(ResolveArgumentType)> ResolveHandler;
-      typedef std::function<void(ErrorArgumentType)> RejectHandler;
-      typedef std::shared_ptr<Promise> Pointer;
+      Promise(const Promise &) = delete;
+      Promise &operator=(const Promise &) = delete;
+
+      using ValueType = ResolveArgumentType;
+      using ErrorType = ErrorArgumentType;
+      using ResolveHandler = std::function<void(ResolveArgumentType)>;
+      using RejectHandler = std::function<void(ErrorArgumentType)>;
+      using Pointer = std::shared_ptr<Promise>;
 
       static Pointer defer(boost::asio::io_service &ioService) {
         return std::make_shared<Promise>(ioService);
@@ -100,9 +104,12 @@ namespace aasdk {
     };
 
     template<typename ErrorArgumentType>
-    class Promise<void, ErrorArgumentType> : boost::noncopyable {
+    class Promise<void, ErrorArgumentType> {
     public:
-      typedef ErrorArgumentType ErrorType;
+      Promise(const Promise &) = delete;
+      Promise &operator=(const Promise &) = delete;
+
+      using ErrorType = ErrorArgumentType;
       typedef std::function<void()> ResolveHandler;
       typedef std::function<void(ErrorArgumentType)> RejectHandler;
       typedef std::shared_ptr<Promise> Pointer;
@@ -170,9 +177,12 @@ namespace aasdk {
     };
 
     template<>
-    class Promise<void, void> : boost::noncopyable {
+    class Promise<void, void> {
     public:
-      typedef std::function<void()> ResolveHandler;
+      Promise(const Promise &) = delete;
+      Promise &operator=(const Promise &) = delete;
+
+      using ResolveHandler = std::function<void()>;
       typedef std::function<void()> RejectHandler;
       typedef std::shared_ptr<Promise> Pointer;
 
@@ -236,9 +246,12 @@ namespace aasdk {
       RejectHandler rejectHandler_;
       IOContextWrapper ioContextWrapper_;
       std::mutex mutex_;
-    };
+    };{
+    public:
+      Promise(const Promise &) = delete;
+      Promise &operator=(const Promise &) = delete;
 
-    template<typename ResolveArgumentType>
+      using ValueType = ResolveArgumentpe>
     class Promise<ResolveArgumentType, void> : boost::noncopyable {
     public:
       typedef ResolveArgumentType ValueType;

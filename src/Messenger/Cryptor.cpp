@@ -2,6 +2,7 @@
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
 // Copyright (C) 2024 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -208,7 +209,7 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
         ssl_ = nullptr;
       }
 
-      bIOs_ = std::make_pair(nullptr, nullptr);
+      bIOs_ = {nullptr, nullptr};
 
       if (context_ != nullptr) {
         sslWrapper_->free(context_);

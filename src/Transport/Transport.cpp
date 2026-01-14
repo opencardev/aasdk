@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,7 +30,7 @@ namespace aasdk {
     void Transport::receive(size_t size, ReceivePromise::Pointer promise) {
       AASDK_LOG_TRANSPORT(debug, "receive()");
       receiveStrand_.dispatch([this, self = this->shared_from_this(), size, promise = std::move(promise)]() mutable {
-        receiveQueue_.emplace_back(std::make_pair(size, std::move(promise)));
+        receiveQueue_.emplace_back(size, std::move(promise));
 
         if (receiveQueue_.size() == 1) {
           try {
@@ -87,7 +88,7 @@ namespace aasdk {
     void Transport::send(common::Data data, SendPromise::Pointer promise) {
       sendStrand_.dispatch(
           [this, self = this->shared_from_this(), data = std::move(data), promise = std::move(promise)]() mutable {
-            sendQueue_.emplace_back(std::make_pair(std::move(data), std::move(promise)));
+            sendQueue_.emplace_back(std::move(data), std::move(promise));
 
             if (sendQueue_.size() == 1) {
               this->enqueueSend(sendQueue_.begin());

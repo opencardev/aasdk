@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -56,7 +57,7 @@ namespace aasdk::messenger {
   void Messenger::enqueueSend(Message::Pointer message, SendPromise::Pointer promise) {
     sendStrand_.dispatch(
         [this, self = this->shared_from_this(), message = std::move(message), promise = std::move(promise)]() mutable {
-          channelSendPromiseQueue_.emplace_back(std::make_pair(std::move(message), std::move(promise)));
+          channelSendPromiseQueue_.emplace_back(std::move(message), std::move(promise));
 
           if (channelSendPromiseQueue_.size() == 1) {
             this->doSend();

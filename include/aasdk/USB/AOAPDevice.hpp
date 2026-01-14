@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -27,12 +28,16 @@
 namespace aasdk {
   namespace usb {
 
-    class AOAPDevice : public IAOAPDevice, boost::noncopyable {
+    class AOAPDevice : public IAOAPDevice {
     public:
       AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
                  const libusb_interface_descriptor *interfaceDescriptor);
 
       ~AOAPDevice() override;
+
+      // Deleted copy operations
+      AOAPDevice(const AOAPDevice &) = delete;
+      AOAPDevice &operator=(const AOAPDevice &) = delete;
 
       IUSBEndpoint &getInEndpoint() override;
 

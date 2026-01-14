@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -26,8 +27,8 @@ namespace aasdk {
 
     class ISSLWrapper {
     public:
-      typedef std::pair<BIO *, BIO *> BIOs;
-      typedef std::shared_ptr<ISSLWrapper> Pointer;
+      using BIOs = std::pair<BIO *, BIO *>;
+      using Pointer = std::shared_ptr<ISSLWrapper>;
 
       ISSLWrapper() = default;
 

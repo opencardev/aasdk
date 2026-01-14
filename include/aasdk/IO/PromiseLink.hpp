@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -30,8 +31,8 @@ namespace aasdk {
     class PromiseLink
         : public std::enable_shared_from_this<PromiseLink<SourceResolveArgumentType, DestinationResolveArgumentType>> {
     public:
-      typedef std::shared_ptr<PromiseLink<SourceResolveArgumentType, DestinationResolveArgumentType>> Pointer;
-      typedef std::function<DestinationResolveArgumentType(SourceResolveArgumentType)> TransformFunctor;
+      using Pointer = std::shared_ptr<PromiseLink<SourceResolveArgumentType, DestinationResolveArgumentType>>;
+      using TransformFunctor = std::function<DestinationResolveArgumentType(SourceResolveArgumentType)>;
 
       PromiseLink(typename Promise<DestinationResolveArgumentType>::Pointer promise, TransformFunctor transformFunctor)
           : promise_(std::move(promise)),
@@ -78,7 +79,7 @@ namespace aasdk {
     template<>
     class PromiseLink<void, void> : public std::enable_shared_from_this<PromiseLink<void, void>> {
     public:
-      typedef std::shared_ptr<PromiseLink<void, void>> Pointer;
+      using Pointer = std::shared_ptr<PromiseLink<void, void>>;
 
       PromiseLink(typename Promise<void>::Pointer promise)
           : promise_(std::move(promise)) {

@@ -112,7 +112,7 @@ set(include_ut_directory ${base_directory}/unit_test)
 
 # Configure CMAKE
 message(STATUS "Configuring CMAKE")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT} -fPIC -Wall -pedantic")
