@@ -197,7 +197,13 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     find_package(protobuf REQUIRED CONFIG)
     find_package(absl REQUIRED)
 else ()
-    find_package(Protobuf REQUIRED)
+    # Prefer the fetched Protobuf from the protobuf subproject when available
+    if(TARGET protobuf::libprotobuf)
+        message(STATUS "Using fetched Protobuf (protobuf::libprotobuf)")
+    else()
+        find_package(Protobuf REQUIRED)
+        message(STATUS "Using system Protobuf")
+    endif()
 endif ()
 
 include(FindProtobuf)
@@ -250,16 +256,17 @@ else()
 endif()
 target_include_directories(aasdk PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>
+    $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:include/aap_protobuf>
 )
 
 target_link_libraries(aasdk PUBLIC
-        ${LIBUSB_1_LIBRARIES}
-        ${Boost_LIBRARIES}
-        ${PROTOBUF_LIBRARIES}
-        aap_protobuf
-        ${OPENSSL_LIBRARIES}
-        ${WINSOCK2_LIBRARIES})
+    ${LIBUSB_1_LIBRARIES}
+    ${Boost_LIBRARIES}
+    aap_protobuf
+    ${OPENSSL_LIBRARIES}
+    ${WINSOCK2_LIBRARIES}
+    $<IF:$<TARGET_EXISTS:protobuf::libprotobuf>,protobuf::libprotobuf,${PROTOBUF_LIBRARIES}>)
 
 # Link nlohmann/json if available and JSON logging is enabled
 if(ENABLE_JSON_LOGGING AND nlohmann_json_FOUND)
