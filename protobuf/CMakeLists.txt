@@ -100,6 +100,7 @@ target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
 target_include_directories(aap_protobuf PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
+    $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
     $<INSTALL_INTERFACE:include/aap_protobuf>
 )
 
