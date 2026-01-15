@@ -69,48 +69,25 @@ set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 message(STATUS "Fetching Protobuf v30.0...")
 FetchContent_MakeAvailable(protobuf)
 
-# Get the protobuf module path from the fetched content
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${protobuf_SOURCE_DIR}/cmake)
-
-# Use the fetched protobuf's protoc compiler
-set(PROTOBUF_PROTOC_EXECUTABLE $<TARGET_FILE:protobuf::protoc>)
-
 # Locate all proto files
-file(GLOB_RECURSE source_proto_files ${CMAKE_CURRENT_SOURCE_DIR}/*.proto)
+file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
 
-# Compile ProtoBuf files using the fetched protobuf
-foreach(proto_file ${source_proto_files})
-    get_filename_component(proto_file_abs ${proto_file} ABSOLUTE)
-    get_filename_component(proto_dir ${proto_file_abs} DIRECTORY)
-    get_filename_component(proto_name ${proto_file_abs} NAME_WE)
-    
-    set(proto_src "${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf/${proto_name}.pb.cc")
-    set(proto_hdr "${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf/${proto_name}.pb.h")
-    
-    list(APPEND PROTO_SRCS ${proto_src})
-    list(APPEND PROTO_HDRS ${proto_hdr})
-    
-    add_custom_command(
-        OUTPUT ${proto_src} ${proto_hdr}
-        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
-        COMMAND protobuf::protoc
-        ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
-             --proto_path=${proto_dir}
-             ${proto_file_abs}
-        DEPENDS ${proto_file_abs} protobuf::protoc
-        COMMENT "Running C++ protobuf compiler on ${proto_file}"
-        VERBATIM
-    )
-endforeach()
-
-# Generate Library
+# Create the library first (empty, will be populated by protobuf_generate)
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     message(NOTICE "Configuring STATIC Library for MacOS")
-    add_library(aap_protobuf STATIC ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(aap_protobuf STATIC)
 else()
     message(NOTICE "Configuring SHARED Library")
-    add_library(aap_protobuf SHARED ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(aap_protobuf SHARED)
 endif()
+
+# Use the modern protobuf_generate function from FetchContent protobuf
+protobuf_generate(
+    TARGET aap_protobuf
+    PROTOS ${PROTO_FILES}
+    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
+)
 
 # Link against the fetched protobuf library
 target_link_libraries(aap_protobuf PUBLIC protobuf::libprotobuf)
