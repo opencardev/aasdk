@@ -61,13 +61,21 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
   GIT_TAG v30.0
   GIT_SHALLOW TRUE
-  SOURCE_SUBDIR cmake
 )
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
 set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
 message(STATUS "Fetching Protobuf v30.0...")
+
+# Make protobuf available - this will configure and build it
 FetchContent_MakeAvailable(protobuf)
+
+# The protobuf_generate function should now be available from the protobuf package
+# Include it if not already available
+if(NOT COMMAND protobuf_generate)
+    include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
+endif()
 
 # Locate all proto files
 file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
@@ -87,8 +95,8 @@ protobuf_generate(
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
 )
 
-# Link against the fetched protobuf library
-target_link_libraries(aap_protobuf PUBLIC protobuf::libprotobuf)
+# Link against the fetched protobuf library (PRIVATE to avoid export issues)
+target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
 target_include_directories(aap_protobuf PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
