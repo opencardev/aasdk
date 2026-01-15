@@ -24,9 +24,9 @@
 
 namespace aasdk::channel::bluetooth {
 
-  BluetoothService::BluetoothService(boost::asio::io_service::strand &strand,
-                                     messenger::IMessenger::Pointer messenger)
-      : Channel(strand, std::move(messenger), messenger::ChannelId::BLUETOOTH) {
+BluetoothService::BluetoothService(boost::asio::io_service::strand &strand,
+                                   messenger::IMessenger::Pointer messenger)
+    : Channel(strand, std::move(messenger), messenger::ChannelId::BLUETOOTH) {
 
   }
 
@@ -149,5 +149,6 @@ namespace aasdk::channel::bluetooth {
   }
 
 }
+
 
 
