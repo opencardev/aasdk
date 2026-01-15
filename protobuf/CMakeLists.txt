@@ -92,7 +92,7 @@ endif()
 # Use the modern protobuf_generate function
 protobuf_generate(
     TARGET aap_protobuf
-    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
+    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
 )
 
 # Link against the fetched protobuf library (PRIVATE to avoid export issues)
