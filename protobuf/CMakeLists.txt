@@ -39,27 +39,69 @@ if(NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Building on a Mac requires Abseil
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
-    # macOS specific command
-    message(STATUS "MacOS System Detected")
-    find_package(protobuf REQUIRED CONFIG)
-    find_package(absl)
-else()
-    # Linux specific command
-    find_package(Protobuf REQUIRED)
-endif()
+# Use FetchContent to build Protobuf v30.0 with C++20 support
+message(STATUS "Using FetchContent to download and build Protobuf v30.0")
+include(FetchContent)
 
-include(FindProtobuf)
+# Fetch Abseil (required by Protobuf v22.0+)
+FetchContent_Declare(
+  abseil
+  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  GIT_TAG 20240722.0  # LTS 2024-07-22, compatible with Protobuf v30.0
+  GIT_SHALLOW TRUE
+)
+set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
+set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+message(STATUS "Fetching Abseil LTS 2024-07-22...")
+FetchContent_MakeAvailable(abseil)
 
-# Turn off Path Appending
-set(PROTOBUF_GENERATE_CPP_APPEND_PATH OFF)
+# Fetch Protobuf v30.0
+FetchContent_Declare(
+  protobuf
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG v30.0
+  GIT_SHALLOW TRUE
+  SOURCE_SUBDIR cmake
+)
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
+set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+message(STATUS "Fetching Protobuf v30.0...")
+FetchContent_MakeAvailable(protobuf)
+
+# Get the protobuf module path from the fetched content
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${protobuf_SOURCE_DIR}/cmake)
+
+# Use the fetched protobuf's protoc compiler
+set(PROTOBUF_PROTOC_EXECUTABLE $<TARGET_FILE:protobuf::protoc>)
 
 # Locate all proto files
 file(GLOB_RECURSE source_proto_files ${CMAKE_CURRENT_SOURCE_DIR}/*.proto)
 
-# Compile ProtoBuf files
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${source_proto_files})
+# Compile ProtoBuf files using the fetched protobuf
+foreach(proto_file ${source_proto_files})
+    get_filename_component(proto_file_abs ${proto_file} ABSOLUTE)
+    get_filename_component(proto_dir ${proto_file_abs} DIRECTORY)
+    get_filename_component(proto_name ${proto_file_abs} NAME_WE)
+    
+    set(proto_src "${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf/${proto_name}.pb.cc")
+    set(proto_hdr "${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf/${proto_name}.pb.h")
+    
+    list(APPEND PROTO_SRCS ${proto_src})
+    list(APPEND PROTO_HDRS ${proto_hdr})
+    
+    add_custom_command(
+        OUTPUT ${proto_src} ${proto_hdr}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
+        COMMAND protobuf::protoc
+        ARGS --cpp_out=${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
+             --proto_path=${proto_dir}
+             ${proto_file_abs}
+        DEPENDS ${proto_file_abs} protobuf::protoc
+        COMMENT "Running C++ protobuf compiler on ${proto_file}"
+        VERBATIM
+    )
+endforeach()
 
 # Generate Library
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
@@ -70,11 +112,12 @@ else()
     add_library(aap_protobuf SHARED ${PROTO_SRCS} ${PROTO_HDRS})
 endif()
 
-target_link_libraries(aap_protobuf PUBLIC ${PROTOBUF_LIBRARIES})
-include_directories(
-        ${CMAKE_CURRENT_BINARY_DIR}
-        ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
-        ${PROTOBUF_INCLUDE_DIR}
+# Link against the fetched protobuf library
+target_link_libraries(aap_protobuf PUBLIC protobuf::libprotobuf)
+target_include_directories(aap_protobuf PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
+    $<INSTALL_INTERFACE:include/aap_protobuf>
 )
 
 set(LIBRARY_BUILD_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")

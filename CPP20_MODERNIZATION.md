@@ -3,12 +3,92 @@
 ## Overview
 This document describes the modernization of the AASDK codebase to leverage C++20 features and best practices.
 
-## Changes Made
+## ⚠️ IMPORTANT: C++20 Migration Path - Current Status: C++17
+
+**Status**: C++20 standard has been **reverted to C++17** due to protobuf compatibility issues with version 3.21.12.
+
+### Root Cause Analysis
+Per the official [Protobuf Migration Guide](https://protobuf.dev/support/migration/):
+- **Protobuf v22.0+** is required for proper C++20 support (added C++20 keyword handling)
+- **Protobuf v30.0** (latest, 2024) dropped C++14 support, now requires C++17 minimum
+- **Abseil LTS 20230125+** is a hard requirement starting with v22.0
+- System-installed protobuf 3.21.12 predates C++20 support (released before v22.0)
+
+### Build Errors Encountered with C++20
+```
+error: 'Arena' is not a member of 'google::protobuf'
+error: 'MessageLite' in namespace 'google::protobuf' does not name a type
+error: no type named 'is_arena_constructable' in 'class aasdk::google::protobuf::Arena::InternalHelper'
+```
+
+These errors indicate namespace wrapping issues (`aasdk::google::protobuf::internal` instead of `google::protobuf::internal`), likely due to protobuf 3.21.12's code generation not being compatible with C++20's stricter namespace rules.
+
+### Official C++20 Migration Path (Per Protobuf Documentation)
+
+#### Option 1: Upgrade to Protobuf v27.0+ with CMake FetchContent (RECOMMENDED)
+
+Add to `protobuf/CMakeLists.txt`:
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+  protobuf
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG v27.0  # or latest v30.x for cutting edge
+  SOURCE_SUBDIR cmake
+)
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "")
+set(protobuf_ABSL_PROVIDER package CACHE STRING "")
+FetchContent_MakeAvailable(protobuf)
+```
+
+**Benefits:**
+- Guaranteed C++20 compatibility
+- Automatic Abseil dependency handling
+- Version pinned for reproducible builds
+
+#### Option 2: System Protobuf Upgrade (Ubuntu/Debian)
+
+```bash
+# Check if Ubuntu offers newer protobuf (usually lags behind)
+apt-cache policy libprotobuf-dev
+
+# May need to build from source:
+git clone --depth=1 --branch=v27.0 https://github.com/protocolbuffers/protobuf.git
+cd protobuf
+cmake -S cmake -B build -DCMAKE_CXX_STANDARD=20 -Dprotobuf_BUILD_TESTS=OFF
+cmake --build build -j2
+sudo cmake --install build
+```
+
+#### Option 3: Fix Current Namespace Issue (EXPERIMENTAL)
+
+If upgrading is blocked, investigate `protobuf/CMakeLists.txt`:
+- Look for `PROTOBUF_NAMESPACE` or similar custom namespace settings
+- Remove namespace wrapping that creates `aasdk::google::protobuf` prefix
+- Regenerate all `.proto` files
+- **Risk**: May break existing API contracts
+
+### Known C++20 Changes (from Protobuf v22.0+ Migration Guide)
+
+1. **C++20 Keywords Reserved**: Fields named `concept`, `requires`, `co_await`, etc. → `concept_()` getters
+2. **Abseil Integration**: Many APIs now use `absl::string_view` instead of `const std::string&`
+3. **Map API**: `MapPair` replaced with `std::pair`
+4. **Container Hardening**: Static assertions on `Map`, `RepeatedField`, `RepeatedPtrField`
+
+### Current Build Configuration
+- C++ Standard: **C++17** (reverted from C++20)
+- Protobuf Version: **3.21.12** (system-installed, predates C++20 support)
+- Build Script: `build-wsl.sh` for WSL environment with memory-safe parallel builds
+- All Code Modernizations: **C++17 compatible** and ready for C++20
+
+---
+
+## Changes Made (Code Modernization - C++17 Compatible)
 
 ### 1. C++ Standard Update
 - **File**: [CMakeLists.txt](CMakeLists.txt), [protobuf/CMakeLists.txt](protobuf/CMakeLists.txt)
-- **Change**: Updated `CMAKE_CXX_STANDARD` from 17 to 20
-- **Benefit**: Enables use of modern C++20 features throughout the codebase
+- **Change**: Currently set to C++17 (was temporarily C++20)
+- **Note**: All code modernizations below are C++17 compatible and ready for C++20 when protobuf issues are resolved
 
 ### 2. typedef to using Declarations (C++11+, best practice in C++20)
 Converted all old-style typedef declarations to modern using statements for improved readability:
