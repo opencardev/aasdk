@@ -75,18 +75,22 @@ file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
 # Create the library first (empty, will be populated by protobuf_generate)
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     message(NOTICE "Configuring STATIC Library for MacOS")
-    add_library(aap_protobuf STATIC)
+    add_library(aap_protobuf STATIC ${PROTO_FILES})
 else()
     message(NOTICE "Configuring SHARED Library")
-    add_library(aap_protobuf SHARED)
+    add_library(aap_protobuf SHARED ${PROTO_FILES})
 endif()
+
+# Set the output directory for generated files
+set_target_properties(aap_protobuf PROPERTIES
+    PROTOBUF_GENERATE_CPP_APPEND_PATH OFF
+)
 
 # Use the modern protobuf_generate function from FetchContent protobuf
 protobuf_generate(
     TARGET aap_protobuf
-    PROTOS ${PROTO_FILES}
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
-    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
+    PROTOC_OUT_DIR ${CMAKE_CURRENT_BINARY_DIR}
 )
 
 # Link against the fetched protobuf library
