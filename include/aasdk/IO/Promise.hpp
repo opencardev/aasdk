@@ -245,7 +245,8 @@ namespace aasdk::io {
       RejectHandler rejectHandler_;
       IOContextWrapper ioContextWrapper_;
       std::mutex mutex_;
-    };{
+    };
+
     public:
       Promise(const Promise &) = delete;
       Promise &operator=(const Promise &) = delete;
