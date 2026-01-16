@@ -19,6 +19,7 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 #include <boost/asio.hpp>
 #include <libusb.h>
 #include <aasdk/IO/Promise.hpp>

@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <utility>
 #include <boost/asio.hpp>
 #include <list>
 #include <aasdk/Messenger/IMessenger.hpp>

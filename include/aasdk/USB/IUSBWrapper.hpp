@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <list>
+#include <utility>
 #include <boost/asio.hpp>
 #include <libusb.h>
 

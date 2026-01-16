@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <utility>
 #include <boost/asio/ip/tcp.hpp>
 #include <aasdk/TCP/ITCPEndpoint.hpp>
 #include <aasdk/TCP/ITCPWrapper.hpp>

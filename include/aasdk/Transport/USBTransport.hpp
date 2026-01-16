@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include <utility>
 #include <boost/asio.hpp>
 #include <aasdk/Transport/Transport.hpp>
 #include <aasdk/USB/IAOAPDevice.hpp>

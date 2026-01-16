@@ -20,6 +20,7 @@
 
 #include <list>
 #include <queue>
+#include <utility>
 #include <boost/asio.hpp>
 #include <aasdk/Transport/ITransport.hpp>
 #include <aasdk/Transport/DataSink.hpp>

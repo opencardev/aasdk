@@ -19,6 +19,7 @@
 #pragma once
 
 #include <functional>
+#include <utility>
 #include <boost/asio/ip/tcp.hpp>
 #include <aasdk/Common/Data.hpp>
 
