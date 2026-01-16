@@ -25,8 +25,7 @@
 #include <aasdk/Messenger/Promise.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class IMessenger {
     public:
@@ -43,5 +42,4 @@ namespace aasdk {
       virtual void stop() = 0;
     };
 
-  }
 }

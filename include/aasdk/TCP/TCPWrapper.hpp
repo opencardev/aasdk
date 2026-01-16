@@ -21,8 +21,7 @@
 #include <aasdk/TCP/ITCPWrapper.hpp>
 
 
-namespace aasdk {
-  namespace tcp {
+namespace aasdk::tcp {
 
     class TCPWrapper : public ITCPWrapper {
     public:
@@ -39,5 +38,4 @@ namespace aasdk {
       connect(boost::asio::ip::tcp::socket &socket, const std::string &hostname, uint16_t port) override;
     };
 
-  }
 }

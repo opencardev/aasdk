@@ -24,7 +24,7 @@
 #include <aasdk/Common/ModernLogger.hpp>
 #include <sstream>
 
-namespace aasdk { namespace common { namespace log_detail {
+namespace aasdk::common::log_detail {
     // Helper class for stream-based logging compatible with existing code
     class LogStream {
     public:
@@ -62,7 +62,7 @@ namespace aasdk { namespace common { namespace log_detail {
         std::ostringstream stream_;
         aasdk::common::LogLevel level_;
     };
-}}}
+}
 
 // Modern logging macros with backward compatibility for stream-based usage
 #define AASDK_LOG(severity) \

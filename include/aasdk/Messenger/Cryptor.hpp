@@ -23,8 +23,7 @@
 #include <aasdk/Messenger/ICryptor.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class Cryptor : public ICryptor {
     public:
@@ -65,5 +64,4 @@ namespace aasdk {
       mutable std::mutex mutex_;
     };
 
-  }
 }

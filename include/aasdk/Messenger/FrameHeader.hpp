@@ -25,8 +25,7 @@
 #include <aasdk/Messenger/MessageType.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class FrameHeader {
     public:
@@ -53,5 +52,4 @@ namespace aasdk {
       MessageType messageType_;
     };
 
-  }
 }

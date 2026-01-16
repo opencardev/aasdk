@@ -19,13 +19,11 @@
 #pragma once
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     enum class FrameSizeType {
       SHORT,
       EXTENDED
     };
 
-  }
 }

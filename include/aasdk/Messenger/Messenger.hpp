@@ -27,8 +27,7 @@
 #include <aasdk/Messenger/ChannelReceivePromiseQueue.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class Messenger : public IMessenger, public std::enable_shared_from_this<Messenger> {
     public:
@@ -70,5 +69,4 @@ namespace aasdk {
 
     };
 
-  }
 }

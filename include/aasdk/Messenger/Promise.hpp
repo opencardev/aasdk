@@ -22,11 +22,9 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     typedef io::Promise <Message::Pointer> ReceivePromise;
     typedef io::Promise<void> SendPromise;
 
-  }
 }

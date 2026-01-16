@@ -22,8 +22,7 @@
 #include <aasdk/Messenger/FrameSizeType.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class FrameSize {
     public:
@@ -47,5 +46,4 @@ namespace aasdk {
       size_t totalSize_;
     };
 
-  }
 }

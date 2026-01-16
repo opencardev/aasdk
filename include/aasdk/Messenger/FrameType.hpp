@@ -22,8 +22,7 @@
 #include <string>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     enum class FrameType {
       MIDDLE = 0,
@@ -34,5 +33,4 @@ namespace aasdk {
 
     std::string frameTypeToString(FrameType frameType);
 
-  }
 }

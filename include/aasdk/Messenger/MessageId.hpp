@@ -21,8 +21,7 @@
 #include <aasdk/Common/Data.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class MessageId {
     public:
@@ -54,5 +53,4 @@ namespace aasdk {
 
     std::ostream &operator<<(std::ostream &stream, const aasdk::messenger::MessageId &messageId);
 
-  }
 }

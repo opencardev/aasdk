@@ -23,8 +23,7 @@
 #include <aasdk/Messenger/IMessenger.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class ChannelReceivePromiseQueue {
     public:
@@ -46,5 +45,4 @@ namespace aasdk {
       std::unordered_map<ChannelId, std::queue<ReceivePromise::Pointer>> queue_;
     };
 
-  }
 }

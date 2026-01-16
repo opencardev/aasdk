@@ -23,8 +23,7 @@
 #include <aasdk/Messenger/Promise.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class IMessageOutStream {
     public:
@@ -37,5 +36,4 @@ namespace aasdk {
       virtual void stream(Message::Pointer message, SendPromise::Pointer promise) = 0;
     };
 
-  }
 }

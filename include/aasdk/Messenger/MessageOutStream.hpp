@@ -26,8 +26,7 @@
 #include <aasdk/Messenger/FrameSize.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class MessageOutStream
         : public IMessageOutStream, public std::enable_shared_from_this<MessageOutStream> {
@@ -67,5 +66,4 @@ namespace aasdk {
       static constexpr size_t cMaxFramePayloadSize = 0x4000;
     };
 
-  }
 }

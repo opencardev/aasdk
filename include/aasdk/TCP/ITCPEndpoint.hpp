@@ -23,8 +23,7 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace tcp {
+namespace aasdk::tcp {
 
     class ITCPEndpoint {
     public:
@@ -41,5 +40,4 @@ namespace aasdk {
       virtual void stop() = 0;
     };
 
-  }
 }

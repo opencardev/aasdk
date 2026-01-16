@@ -23,8 +23,7 @@
 #include <aasdk/TCP/ITCPWrapper.hpp>
 
 
-namespace aasdk {
-  namespace tcp {
+namespace aasdk::tcp {
 
     class TCPEndpoint : public ITCPEndpoint, public std::enable_shared_from_this<TCPEndpoint> {
     public:
@@ -46,5 +45,4 @@ namespace aasdk {
       SocketPointer socket_;
     };
 
-  }
 }

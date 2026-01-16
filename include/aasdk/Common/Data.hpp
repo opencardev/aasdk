@@ -24,8 +24,7 @@
 #include <stdint.h>
 
 
-namespace aasdk {
-  namespace common {
+namespace aasdk::common {
 
     using Data = std::vector<uint8_t>;
 
@@ -87,5 +86,4 @@ namespace aasdk {
 
     std::string dump(const DataConstBuffer &buffer);
 
-  }
 }

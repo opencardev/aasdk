@@ -24,8 +24,7 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace io {
+namespace aasdk::io {
 
     template<typename SourceResolveArgumentType = void, typename DestinationResolveArgumentType = void>
     class PromiseLink
@@ -114,5 +113,4 @@ namespace aasdk {
       typename Promise<void>::Pointer promise_;
     };
 
-  }
 }

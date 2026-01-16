@@ -20,8 +20,7 @@
 
 #include <string>
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
     enum class ServiceId {
       CONTROL,
       SENSOR,
@@ -41,5 +40,4 @@ namespace aasdk {
     };
 
     std::string serviceIdToString(ServiceId serviceId);
-  }
 }

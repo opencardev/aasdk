@@ -23,8 +23,7 @@
 #include <aasdk/Error/ErrorCode.hpp>
 
 
-namespace aasdk {
-  namespace error {
+namespace aasdk::error {
 
     class Error : public std::exception {
     public:
@@ -52,5 +51,4 @@ namespace aasdk {
       std::string message_;
       std::string information_;
     };
-  }
 }

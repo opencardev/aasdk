@@ -23,8 +23,7 @@
 #include <aasdk/Messenger/Message.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class ChannelReceiveMessageQueue {
     public:
@@ -41,5 +40,4 @@ namespace aasdk {
       std::unordered_map<ChannelId, MessageQueue> queue_;
     };
 
-  }
 }

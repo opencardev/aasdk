@@ -21,8 +21,7 @@
 #include <stdint.h>
 
 
-namespace aasdk {
-  namespace error {
+namespace aasdk::error {
 
     enum class ErrorCode {
       NONE = 0,
@@ -61,5 +60,4 @@ namespace aasdk {
       TCP_TRANSFER = 33
     };
 
-  }
 }

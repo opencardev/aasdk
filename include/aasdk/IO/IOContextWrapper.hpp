@@ -22,8 +22,7 @@
 #include <mutex>
 
 
-namespace aasdk {
-  namespace io {
+namespace aasdk::io {
 
     class IOContextWrapper {
     public:
@@ -60,5 +59,4 @@ namespace aasdk {
       boost::asio::io_service::strand *strand_;
     };
 
-  }
 }

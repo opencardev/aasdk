@@ -25,8 +25,7 @@
 #include <aasdk/IO/IOContextWrapper.hpp>
 
 
-namespace aasdk {
-  namespace io {
+namespace aasdk::io {
 
     template<typename ResolveArgumentType, typename ErrorArgumentType = error::Error>
     class Promise {
@@ -323,5 +322,4 @@ namespace aasdk {
     };
 
 
-  }
 }

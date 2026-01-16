@@ -21,8 +21,7 @@
 #include <aasdk/Common/Data.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class Timestamp {
     public:
@@ -40,5 +39,4 @@ namespace aasdk {
       ValueType stamp_;
     };
 
-  }
 }

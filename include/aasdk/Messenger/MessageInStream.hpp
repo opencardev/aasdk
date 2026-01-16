@@ -27,8 +27,7 @@
 #include <aasdk/Messenger/FrameType.hpp>
 
 
-namespace aasdk {
-  namespace messenger {
+namespace aasdk::messenger {
 
     class MessageInStream
         : public IMessageInStream, public std::enable_shared_from_this<MessageInStream> {
@@ -66,5 +65,4 @@ namespace aasdk {
       bool isValidFrame_;
     };
 
-  }
 }
