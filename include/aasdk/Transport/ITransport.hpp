@@ -23,8 +23,7 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
     class ITransport {
     public:
@@ -43,5 +42,4 @@ namespace aasdk {
       virtual void stop() = 0;
     };
 
-  }
 }

@@ -21,8 +21,7 @@
 #include <aasdk/USB/IAccessoryModeQueryFactory.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
 
     class AccessoryModeQueryFactory : public IAccessoryModeQueryFactory {
@@ -37,5 +36,4 @@ namespace aasdk {
       boost::asio::io_service &ioService_;
     };
 
-  }
 }

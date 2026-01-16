@@ -21,8 +21,7 @@
 #include <aasdk/USB/IAccessoryModeQueryChain.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAccessoryModeQueryChainFactory {
     public:
@@ -31,5 +30,4 @@ namespace aasdk {
       virtual IAccessoryModeQueryChain::Pointer create() = 0;
     };
 
-  }
 }

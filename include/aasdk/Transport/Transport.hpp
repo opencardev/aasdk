@@ -25,8 +25,7 @@
 #include <aasdk/Transport/DataSink.hpp>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
     class Transport : public ITransport, public std::enable_shared_from_this<Transport> {
     public:
@@ -65,5 +64,4 @@ namespace aasdk {
       SendQueue sendQueue_;
     };
 
-  }
 }

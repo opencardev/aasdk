@@ -23,8 +23,7 @@
 #include <aasdk/USB/IAOAPDevice.hpp>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
     class USBTransport : public Transport {
     public:
@@ -47,5 +46,4 @@ namespace aasdk {
       static constexpr uint32_t cReceiveTimeoutMs = 0;
     };
 
-  }
 }

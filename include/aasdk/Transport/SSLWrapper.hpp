@@ -21,8 +21,7 @@
 #include <aasdk/Transport/ISSLWrapper.hpp>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
     class SSLWrapper : public ISSLWrapper {
     public:
@@ -79,5 +78,4 @@ namespace aasdk {
       int sslWrite(SSL *ssl, const void *buf, int num) override;
     };
 
-  }
 }

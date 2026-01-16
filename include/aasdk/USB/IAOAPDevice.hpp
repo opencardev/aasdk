@@ -21,8 +21,7 @@
 #include <aasdk/USB/IUSBEndpoint.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAOAPDevice {
     public:
@@ -37,5 +36,4 @@ namespace aasdk {
       virtual IUSBEndpoint &getOutEndpoint() = 0;
     };
 
-  }
 }

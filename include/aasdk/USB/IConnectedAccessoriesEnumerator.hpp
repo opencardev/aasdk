@@ -22,8 +22,7 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IConnectedAccessoriesEnumerator {
     public:
@@ -37,5 +36,4 @@ namespace aasdk {
       virtual void cancel() = 0;
     };
 
-  }
 }

@@ -24,8 +24,7 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAccessoryModeQueryChain {
     public:
@@ -41,5 +40,4 @@ namespace aasdk {
       virtual void cancel() = 0;
     };
 
-  }
 }

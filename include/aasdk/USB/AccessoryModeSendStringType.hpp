@@ -22,8 +22,7 @@
 #include <functional>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     enum class AccessoryModeSendStringType {
       MANUFACTURER,
@@ -34,5 +33,4 @@ namespace aasdk {
       SERIAL
     };
 
-  }
 }

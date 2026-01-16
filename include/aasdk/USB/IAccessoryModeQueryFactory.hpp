@@ -24,8 +24,7 @@
 #include <aasdk/USB/IUSBEndpoint.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAccessoryModeQueryFactory {
     public:
@@ -37,5 +36,4 @@ namespace aasdk {
       createQuery(AccessoryModeQueryType queryType, IUSBEndpoint::Pointer usbEndpoint) = 0;
     };
 
-  }
 }

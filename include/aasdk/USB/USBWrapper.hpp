@@ -21,8 +21,7 @@
 #include <aasdk/USB/IUSBWrapper.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class USBWrapper : public IUSBWrapper {
     public:
@@ -83,5 +82,4 @@ namespace aasdk {
       libusb_context *usbContext_;
     };
 
-  }
 }

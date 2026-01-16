@@ -24,8 +24,7 @@
 #include <libusb.h>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     using DeviceHandle = std::shared_ptr<libusb_device_handle>;
     using DeviceList = std::list<libusb_device *>;
@@ -89,5 +88,4 @@ namespace aasdk {
       virtual libusb_transfer *allocTransfer(int iso_packets) = 0;
     };
 
-  }
 }

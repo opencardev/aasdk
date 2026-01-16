@@ -25,8 +25,7 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IUSBHub {
     public:
@@ -42,5 +41,4 @@ namespace aasdk {
       virtual void cancel() = 0;
     };
 
-  }
 }

@@ -22,8 +22,7 @@
 #include <aasdk/USB/IAccessoryModeQueryFactory.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class AccessoryModeQueryChainFactory : public IAccessoryModeQueryChainFactory {
     public:
@@ -39,5 +38,4 @@ namespace aasdk {
       IAccessoryModeQueryFactory &queryFactory_;
     };
 
-  }
 }

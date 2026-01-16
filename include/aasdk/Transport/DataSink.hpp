@@ -23,8 +23,7 @@
 #include <aasdk/Common/Data.hpp>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
     class DataSink {
     public:
@@ -43,5 +42,4 @@ namespace aasdk {
       static constexpr common::Data::size_type cChunkSize = 16384;
     };
 
-  }
 }

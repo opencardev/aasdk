@@ -22,8 +22,7 @@
 #include <aasdk/Transport/Transport.hpp>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
     class TCPTransport : public Transport {
     public:
@@ -41,5 +40,4 @@ namespace aasdk {
       tcp::ITCPEndpoint::Pointer tcpEndpoint_;
     };
 
-  }
 }

@@ -25,8 +25,7 @@
 #include <aasdk/USB/IUSBEndpoint.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class USBEndpoint : public IUSBEndpoint,
                         public std::enable_shared_from_this<USBEndpoint> {
@@ -67,5 +66,4 @@ namespace aasdk {
       std::shared_ptr<USBEndpoint> self_;
     };
 
-  }
 }

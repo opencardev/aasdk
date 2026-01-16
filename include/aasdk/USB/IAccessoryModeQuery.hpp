@@ -25,8 +25,7 @@
 #include <aasdk/USB/IUSBEndpoint.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAccessoryModeQuery {
     public:
@@ -42,5 +41,4 @@ namespace aasdk {
       virtual void cancel() = 0;
     };
 
-  }
 }

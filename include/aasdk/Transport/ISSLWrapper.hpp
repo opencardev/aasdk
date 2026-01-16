@@ -22,8 +22,7 @@
 #include <openssl/ssl.h>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
     class ISSLWrapper {
     public:
@@ -83,5 +82,4 @@ namespace aasdk {
       virtual int getError(SSL *ssl, int returnCode) = 0;
     };
 
-  }
 }

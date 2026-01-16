@@ -23,8 +23,7 @@
 #include <aasdk/USB/AccessoryModeSendStringType.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class AccessoryModeSendStringQuery
         : public AccessoryModeQuery, public std::enable_shared_from_this<AccessoryModeSendStringQuery> {
@@ -42,5 +41,4 @@ namespace aasdk {
       static constexpr uint32_t ACC_REQ_SEND_STRING = 52;
     };
 
-  }
 }

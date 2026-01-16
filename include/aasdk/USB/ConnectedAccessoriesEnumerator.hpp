@@ -24,8 +24,7 @@
 #include <aasdk/USB/IConnectedAccessoriesEnumerator.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class ConnectedAccessoriesEnumerator
         : public IConnectedAccessoriesEnumerator, public std::enable_shared_from_this<ConnectedAccessoriesEnumerator> {
@@ -55,5 +54,4 @@ namespace aasdk {
       DeviceList::iterator actualDeviceIter_;
     };
 
-  }
 }

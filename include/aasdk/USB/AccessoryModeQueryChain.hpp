@@ -23,8 +23,7 @@
 #include <aasdk/USB/IAccessoryModeQueryChain.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAccessoryModeQueryFactory;
 
@@ -74,5 +73,4 @@ namespace aasdk {
       IAccessoryModeQuery::Pointer activeQuery_;
     };
 
-  }
 }

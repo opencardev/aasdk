@@ -24,8 +24,7 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IUSBEndpoint {
     public:
@@ -49,5 +48,4 @@ namespace aasdk {
       virtual DeviceHandle getDeviceHandle() const = 0;
     };
 
-  }
 }

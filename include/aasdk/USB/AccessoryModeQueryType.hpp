@@ -22,8 +22,7 @@
 #include <functional>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     enum class AccessoryModeQueryType {
       PROTOCOL_VERSION,
@@ -36,5 +35,4 @@ namespace aasdk {
       START
     };
 
-  }
 }

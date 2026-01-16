@@ -26,8 +26,7 @@
 #include <aasdk/USB/IAccessoryModeQuery.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class AccessoryModeQuery : public IAccessoryModeQuery {
     public:
@@ -49,5 +48,4 @@ namespace aasdk {
       static constexpr uint32_t USB_TYPE_VENDOR = 0x40;
     };
 
-  }
 }

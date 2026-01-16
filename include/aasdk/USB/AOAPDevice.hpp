@@ -25,8 +25,7 @@
 #include <aasdk/USB/IAOAPDevice.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class AOAPDevice : public IAOAPDevice {
     public:
@@ -64,5 +63,4 @@ namespace aasdk {
       static constexpr uint16_t cAOAPWithAdbId = 0x2D01;
     };
 
-  }
 }

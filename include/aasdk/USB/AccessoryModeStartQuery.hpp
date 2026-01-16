@@ -21,8 +21,7 @@
 #include <aasdk/USB/AccessoryModeQuery.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class AccessoryModeStartQuery
         : public AccessoryModeQuery, public std::enable_shared_from_this<AccessoryModeStartQuery> {
@@ -38,5 +37,4 @@ namespace aasdk {
       static constexpr uint32_t ACC_REQ_START = 53;
     };
 
-  }
 }

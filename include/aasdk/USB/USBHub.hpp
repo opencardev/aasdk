@@ -24,8 +24,7 @@
 #include <aasdk/USB/IAccessoryModeQueryChainFactory.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IUSBWrapper;
 
@@ -66,5 +65,4 @@ namespace aasdk {
       static constexpr uint16_t cAOAPWithAdbId = 0x2D01;
     };
 
-  }
 }
