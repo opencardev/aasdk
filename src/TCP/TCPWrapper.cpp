@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
+#include <utility>
 #include <boost/asio.hpp>
 #include <aasdk/TCP/TCPWrapper.hpp>
 
