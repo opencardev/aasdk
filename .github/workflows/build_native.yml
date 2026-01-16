@@ -33,7 +33,7 @@ on:
       architecture:
         description: 'Architecture to build (all, amd64, arm64, armhf)'
         required: false
-        default: 'all'
+        default: 'amd64'
         type: choice
         options:
           - all
