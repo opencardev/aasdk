@@ -1,0 +1,65 @@
+# Doxygen configuration for AASDK API extraction
+
+PROJECT_NAME           = "AASDK"
+PROJECT_NUMBER         = "auto"
+PROJECT_BRIEF          = "Android Auto SDK"
+OUTPUT_DIRECTORY       = build/docs
+CREATE_SUBDIRS         = YES
+
+# Generate XML only (for downstream Markdown conversion)
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+GENERATE_HTML          = NO
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_DOCBOOK       = NO
+GENERATE_PERLMOD       = NO
+GENERATE_AUTOGEN_DEF   = NO
+GENERATE_TREEVIEW      = NO
+
+# Input settings
+INPUT                  = include src
+FILE_PATTERNS          = *.h *.hpp *.hh *.hxx *.c *.cc *.cxx *.cpp
+RECURSIVE              = YES
+
+# Exclusions (keep noise and size low)
+EXCLUDE                = build build-debug build-release packages .git .github
+EXCLUDE_PATTERNS       = */build/* */build-*/* */packages/* */_deps/* */third_party/*
+EXCLUDE_SYMLINKS       = YES
+
+# Preprocessing
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+EXPAND_ONLY_PREDEF     = NO
+
+# Extraction
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_LOCAL_METHODS  = YES
+HIDE_UNDOC_MEMBERS     = NO
+HIDE_UNDOC_CLASSES     = NO
+
+# Warnings
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+QUIET                  = YES
+
+# Language & formatting
+MARKDOWN_SUPPORT       = YES
+SOURCE_BROWSER         = NO
+INLINE_SOURCES         = NO
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
+
+# Diagrams disabled by default
+HAVE_DOT               = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+
+# Misc
+GENERATE_TAGFILE       = build/docs/aasdk.tag
