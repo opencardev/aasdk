@@ -16,6 +16,46 @@
 // You should have received a copy of the GNU General Public License
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * @file USBHub.cpp
+ * @brief USB device hotplug detection and Android Open Accessory Protocol negotiation.
+ *
+ * USBHub monitors USB bus for device connections and automatically transitions
+ * compatible Android devices into AOAP (Android Open Accessory Protocol) mode.
+ * AOAP allows head units to connect as "trusted accessories" without requiring
+ * USB host mode capabilities on Android.
+ *
+ * Architecture:
+ *   - Uses libusb hotplug callbacks to detect device arrival
+ *   - Checks if device is Android or already in AOAP mode
+ *   - If Android, sends AOAP mode strings via USB control transfers
+ *   - Device reboots into AOAP mode; re-enumerates with new VID/PID
+ *   - Second arrival triggers real device connection
+ *
+ * Scenario: User plugs Android phone into car head unit (T+0 to T+500ms)
+ *   - T+0ms: User plugs USB cable into head unit port
+ *   - T+10ms: USB hub detects device; hotplugEventsHandler called
+ *   - T+15ms: USBHub checks device: Android (vendor ID 0x18D1)
+ *   - T+20ms: QueryChain dispatched; sends manufacturer="OpenCarDev"
+ *   - T+40ms: Sends model="crankshaft-mvp"
+ *   - T+60ms: Sends URI="https://opencardev.org"
+ *   - T+80ms: Sends AOAP mode activation command
+ *   - T+100ms: Android device detects AOAP activation
+ *   - T+200ms: Android resets; re-enumerates into AOAP mode
+ *   - T+210ms: Device arrives again; new VID/PID (0x18D1:0x4EE2) indicates AOAP
+ *   - T+220ms: AOAPDevice created; messaging ready
+ *   - T+300ms: Services discovered and opened
+ *   - T+500ms: User interface responsive; ready for navigation/media
+ *
+ * Query chain executes sequentially; Android device must respond to each
+ * string query before AOAP mode activation command. If Android doesn't respond
+ * (timeout), device skipped and hub continues monitoring for other devices.
+ *
+ * Thread Safety: All operations dispatched on strand_ for serialised access.
+ * hotplugEventsHandler runs on libusb event thread; dispatches work to strand.
+ * Shared self_ pointer ensures USBHub lifetime during async operations.
+ */
+
 #include <thread>
 #include <aasdk/USB/IUSBWrapper.hpp>
 #include <aasdk/USB/USBHub.hpp>

@@ -16,6 +16,47 @@
 // You should have received a copy of the GNU General Public License
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * @file USBEndpoint.cpp
+ * @brief USB endpoint abstraction for control, interrupt, and bulk transfers.
+ *
+ * USBEndpoint encapsulates libusb asynchronous transfer operations for a single
+ * USB endpoint. Three transfer types enabled:
+ *   - Control transfers (endpoint 0): For device configuration (vendor commands)
+ *   - Interrupt transfers: Small, low-latency messages (typically 8-64 bytes)
+ *   - Bulk transfers: High-volume, high-latency messaging (max 512 bytes)
+ *
+ * AOAP uses bulk transfers exclusively (64-byte packets bidirectional for
+ * frame-based messaging). Frame structure:
+ *   Byte 0: Frame type (or command ID)
+ *   Byte 1-2: Channel ID and encryption
+ *   Byte 3-4: Message size (16-bit little-endian)
+ *   Byte 5-68: Payload (63 bytes max per frame; larger messages split)
+ *
+ * Scenario: Sending 500-byte metadata message over USB bulk (T+0 to T+50ms)
+ *   - T+0ms: Messenger calls enqueueSend(metadata_message, promise)
+ *   - T+1ms: Multiplexes into 8 frames (63+63+63+63+63+63+63+50 bytes)
+ *   - T+2ms: Transport calls USBEndpoint::bulkTransfer(frame1, 10000ms, p1)
+ *   - T+2ms: libusb schedules USB bulk transfer on endpoint 0x81 (IN from device)
+ *   - T+5ms: Frame 1 sent (1ms latency); transferHandler called
+ *   - T+5ms: p1 resolves; Transport sends next frame
+ *   - T+8ms: Frame 2 sent
+ *   - T+11ms: Frame 3 sent
+ *   - ...
+ *   - T+45ms: Frame 8 (final) sent
+ *   - T+50ms: All 500 bytes transmitted; original promise resolved
+ *   - User sees metadata updated on display
+ *
+ * Error handling:
+ *   - Timeout: Promise rejected after 10 seconds (typical timeout)
+ *   - Device disconnected: LIBUSB_ERROR_NO_DEVICE
+ *   - Stalled endpoint: LIBUSB_ERROR_PIPE (protocol error from device)
+ *
+ * Thread Safety: All transfers queued asynchronously; completion callbacks
+ * (transferHandler) run on libusb event thread. Strand usage ensures thread-safe
+ * promise resolution.
+ */
+
 #include <aasdk/USB/USBEndpoint.hpp>
 #include <aasdk/USB/IUSBWrapper.hpp>
 #include <aasdk/Error/Error.hpp>
