@@ -2,6 +2,32 @@ syntax="proto2";
 
 package aap_protobuf.shared;
 
+/**
+ * @file SessionConfiguration.proto
+ * @brief Capability flags for Android Auto session configuration.
+ *
+ * SessionConfiguration enumerates optional features and UI display modes that
+ * the head unit can request from the Android device. These flags are sent during
+ * protocol handshake to configure the session based on display hardware and
+ * desired user interface presentation.
+ *
+ * UI visibility flags: Bits 1-4 control which status indicators are shown.
+ *   - UI_CONFIG_HIDE_CLOCK: Hide system clock from status bar
+ *   - UI_CONFIG_HIDE_PHONE_SIGNAL: Hide cellular signal strength indicator
+ *   - UI_CONFIG_HIDE_BATTERY_LEVEL: Hide device battery percentage
+ *
+ * Example scenario: Automotive head unit with integrated dashboard:
+ *   - T+0ms: Head unit supports integrated clock display, cell signal, battery
+ *   - T+0ms: SessionConfiguration sent with no HIDE flags (all 0)
+ *   - T+0ms: Android device shows time, signal, battery in AA UI
+ *   - User sees unified clock in dashboard + redundant AA clock = confusing
+ *   - Better: SessionConfiguration with UI_CONFIG_HIDE_CLOCK (1)
+ *   - Android hides its clock, head unit displays integrated version
+ *
+ * Media capabilities:
+ *   - CAN_PLAY_NATIVE_MEDIA_DURING_VR: Device can play car-native audio while
+ *     VR (virtual reality) / 360-degree video content plays on Android (rare)
+ */
 enum SessionConfiguration {
   UI_CONFIG_HIDE_CLOCK = 1;
   UI_CONFIG_HIDE_PHONE_SIGNAL = 2;

@@ -16,6 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * @file Error.cpp
+ * @brief AASDK error code and exception handling.
+ *
+ * Error encapsulates all failure conditions in AASDK library: USB device
+ * errors, protocol violations, network failures, and internal failures.
+ * Each error combines an ErrorCode enum (AASDK-specific) with a nativeCode
+ * (OS/library-specific like libusb errno).
+ *
+ * Error categories:
+ *   - USB errors (USB_DEVICE_NOT_FOUND, USB_CLAIM_INTERFACE, etc.)
+ *   - Protocol errors (INVALID_CHANNEL, AUTHENTICATION_FAILURE, etc.)
+ *   - Transport errors (TCP_TRANSFER, OPERATION_ABORTED)
+ *   - Resource errors (OUT_OF_MEMORY)
+ *
+ * Usage: Promises reject with Error; callers check code or compare to
+ * specific ErrorCode values:
+ *   - promise->fail([](const Error& e) { if (e == ErrorCode::USB_DEVICE_NOT_FOUND) ... })
+ *   - if (!error) { /* Success - code is NONE */ }
+ *   - e.getNativeCode() retrieves OS error (libusb_error, errno, etc.)
+ *
+ * Scenario: Device disconnect handling
+ *   - Messenger calls transport->receive()
+ *   - USB cable unplugged; USB driver reports LIBUSB_ERROR_NO_DEVICE
+ *   - receiveHandler called with error
+ *   - Error created: code=USB_TRANSFER, nativeCode=LIBUSB_ERROR_NO_DEVICE
+ *   - receivePromise->reject(error)
+ *   - Navigation service promise rejected: "USB device disconnected"
+ *   - UI displays error message; user can reconnect device
+ *
+ * Thread Safety: Error is immutable after construction; safe to copy and pass
+ * across threads via promise chains.
+ */
+
 #include <aasdk/Error/Error.hpp>
 #include <utility>
 
