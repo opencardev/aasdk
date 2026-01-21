@@ -2,6 +2,59 @@ syntax="proto2";
 
 package aap_protobuf.service.control.message;
 
+/**
+ * @file ControlMessageType.proto
+ * @brief Protocol control flow and negotiation message types.
+ *
+ * ControlMessageType enumerates all protocol-level messages for session
+ * establishment, service negotiation, and lifecycle management. These are
+ * infrastructure messages distinct from service-specific payloads (media,
+ * navigation, etc.).
+ *
+ * Session lifecycle messages:
+ *   - MESSAGE_VERSION_REQUEST/RESPONSE: Negotiate protocol version (handshake)
+ *   - MESSAGE_ENCAPSULATED_SSL: SSL/TLS encryption setup (deprecated in modern AAP)
+ *   - MESSAGE_AUTH_COMPLETE: Device authenticated; ready for service discovery
+ *   - MESSAGE_SERVICE_DISCOVERY_REQUEST/RESPONSE: List available services
+ *   - MESSAGE_SERVICE_DISCOVERY_UPDATE: Service list changed (e.g., new app)
+ *   - MESSAGE_CHANNEL_OPEN_REQUEST/RESPONSE: Open logical channel for service
+ *   - MESSAGE_CHANNEL_CLOSE_NOTIFICATION: Service ended; channel closed
+ *   - MESSAGE_BYEBYE_REQUEST/RESPONSE: Graceful disconnection
+ *
+ * Keep-alive and focus:
+ *   - MESSAGE_PING_REQUEST/RESPONSE: Heartbeat; detect stale connections
+ *     Sent periodically; if no response within timeout, connection assumed dead
+ *   - MESSAGE_NAV_FOCUS_REQUEST/NOTIFICATION: Navigation exclusive focus
+ *     During turn guidance, suppress competing audio/notifications
+ *   - MESSAGE_AUDIO_FOCUS_REQUEST/NOTIFICATION: Compete for audio resources
+ *     Multiple services share audio (media, calls, navigation) via focus
+ *
+ * Device state updates:
+ *   - MESSAGE_BATTERY_STATUS_NOTIFICATION: Device battery level (percentage)
+ *   - MESSAGE_CALL_AVAILABILITY_STATUS: Device can accept voice calls
+ *   - MESSAGE_VOICE_SESSION_NOTIFICATION: Concurrent voice session active
+ *   - MESSAGE_CAR_CONNECTED_DEVICES_REQUEST/RESPONSE: Other devices on network
+ *   - MESSAGE_USER_SWITCH_REQUEST/RESPONSE: Multi-user switch (parental control)
+ *
+ * Error and protocol:
+ *   - MESSAGE_UNEXPECTED_MESSAGE: Received unrecognised message
+ *   - MESSAGE_FRAMING_ERROR: Protocol parse error (invalid frame)
+ *
+ * Scenario: Protocol negotiation on first connection (T+0 to T+200ms)
+ *   - T+0ms: Head unit sends MESSAGE_VERSION_REQUEST (protocol v13)
+ *   - T+20ms: Device responds MESSAGE_VERSION_RESPONSE (supports v13)
+ *   - T+30ms: Device sends MESSAGE_AUTH_COMPLETE (authenticated)
+ *   - T+50ms: Head unit sends MESSAGE_SERVICE_DISCOVERY_REQUEST
+ *   - T+100ms: Device responds MESSAGE_SERVICE_DISCOVERY_RESPONSE
+ *     (media, navigation, phone, Bluetooth available)
+ *   - T+110ms: Head unit sends MESSAGE_CHANNEL_OPEN_REQUEST (media channel)
+ *   - T+150ms: Device responds MESSAGE_CHANNEL_OPEN_RESPONSE (channel open)
+ *   - T+150ms: Service ready; media playback begins
+ *   - T+200ms: Session established and running
+ *
+ * Design: Clean separation between infrastructure (control) and service
+ * payloads enables modular service development and negotiation.
+ */
 enum ControlMessageType
 {
     MESSAGE_VERSION_REQUEST = 1;
