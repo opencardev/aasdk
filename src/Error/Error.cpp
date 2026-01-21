@@ -65,8 +65,8 @@ namespace aasdk {
     Error::Error(ErrorCode code, uint32_t nativeCode, std::string information)
         : code_(code), nativeCode_(nativeCode), information_(std::move(information)) {
       message_ = "AASDK Error: " + std::to_string(static_cast<uint32_t>(code_))
-                 + ", Native Code: " + std::to_string(nativeCode_);
-      + ", Additional Information: " + information_;
+                 + ", Native Code: " + std::to_string(nativeCode_)
+                 + ", Additional Information: " + information_;
     }
 
     ErrorCode Error::getCode() const {
