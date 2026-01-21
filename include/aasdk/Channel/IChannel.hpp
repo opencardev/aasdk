@@ -24,14 +24,61 @@
 
 namespace aasdk::channel {
 
+  /**
+   * @class IChannel
+   * @brief Abstract interface for a logical protocol channel in Android Auto.
+   *
+   * IChannel represents one of the 8 multiplexed channels in the Android Auto protocol.
+   * Each channel carries domain-specific traffic (e.g., Control, Media, Navigation).
+   * Channels are managed by the Messenger and provide a simple send() interface.
+   *
+   * Channels are identified by ChannelId (0-7):
+   * - Channel 0: Control (handshake, error recovery)
+   * - Channel 1: Bluetooth (calls, pairing)
+   * - Channel 2: Media (music playback, song info)
+   * - Channel 3: Navigation (turn-by-turn directions)
+   * - Channels 4-7: Additional services (messages, climate, etc.)
+   *
+   * Each channel carries framed messages; the Messenger multiplexes them over
+   * the physical transport (USB or TCP).
+   *
+   * Lifecycle:
+   * - Channel created and registered with Messenger
+   * - send(message, promise) called to enqueue message for transmission
+   * - Messenger routes message to physical transport
+   * - On receipt of incoming message for this channel, application is notified
+   * - Channel persists until messenger stops or connection drops
+   *
+   * Thread Safety: send() is async and callback-based. Implementation must be
+   * thread-safe for concurrent sends on different channels.
+   */
   class IChannel {
   public:
     IChannel() = default;
 
     virtual ~IChannel() = default;
 
+    /**
+     * @brief Get the unique channel identifier (0-7).
+     *
+     * @return ChannelId for this channel (fixed at registration)
+     */
     virtual messenger::ChannelId getId() const = 0;
 
+    /**
+     * @brief Asynchronously send a message on this channel.
+     *
+     * Enqueues a message for transmission on this channel. Returns immediately;
+     * promise resolves when sent or error occurs. The Messenger maintains the
+     * per-channel send queue and schedules FIFO transmission.
+     *
+     * @param message Complete protocol message with payload (channel ID must match)
+     * @param promise Promise to resolve when send completes
+     *
+     * Promise lifecycle:
+     * - resolve(): Message successfully queued and scheduled for transmission
+     * - reject(error::Error): Send failed (queue overflow, transport error)
+     */
     virtual void send(messenger::Message::Pointer message, SendPromise::Pointer promise) = 0;
 
   };
