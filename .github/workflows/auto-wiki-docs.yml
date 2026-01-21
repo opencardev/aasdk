@@ -2,10 +2,12 @@ name: Auto-update Wiki from Code Comments
 
 on:
   push:
-    branches: [ development, main ]
+    branches: [ main, development ]
     paths:
-      - 'include/**'
       - 'src/**'
+      - 'aasdk_proto/**'
+      - 'protobuf/**'
+      - 'include/**'
       - 'Doxyfile'
       - '.github/workflows/auto-wiki-docs.yml'
   workflow_dispatch:
