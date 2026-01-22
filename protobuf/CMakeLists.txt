@@ -83,6 +83,11 @@ FetchContent_MakeAvailable(protobuf)
 # Restore original compiler flags for AASDK code
 set(CMAKE_CXX_FLAGS "${SAVED_CMAKE_CXX_FLAGS}")
 message(STATUS "Restored original compiler flags (with -pedantic) for AASDK code")
+
+# Set protobuf_BIN_DIR to use the built protoc from FetchContent, NOT system protoc
+set(PROTOBUF_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
+message(STATUS "Using protoc from FetchContent: ${PROTOBUF_PROTOC_EXECUTABLE}")
+
 # Include it if not already available
 if(NOT COMMAND protobuf_generate)
     include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
