@@ -34,7 +34,7 @@
  * Usage: Promises reject with Error; callers check code or compare to
  * specific ErrorCode values:
  *   - promise->fail([](const Error& e) { if (e == ErrorCode::USB_DEVICE_NOT_FOUND) ... })
- *   - if (!error) { /* Success - code is NONE */ }
+ *   - if (!error) { // Success - code is NONE }
  *   - e.getNativeCode() retrieves OS error (libusb_error, errno, etc.)
  *
  * Scenario: Device disconnect handling
