@@ -16,24 +16,6 @@ import "aap_protobuf/service/phonestatus/PhoneStatusService.proto";
 import "aap_protobuf/service/mediaplayback/MediaPlaybackStatusService.proto";
 import "aap_protobuf/service/radio/RadioService.proto";
 
-syntax="proto2";
-
-option optimize_for=SPEED;
-
-import "aap_protobuf/service/sensorsource/SensorSourceService.proto";
-import "aap_protobuf/service/media/sink/MediaSinkService.proto";
-import "aap_protobuf/service/inputsource/InputSourceService.proto";
-import "aap_protobuf/service/media/source/MediaSourceService.proto";
-import "aap_protobuf/service/bluetooth/BluetoothService.proto";
-import "aap_protobuf/service/navigationstatus/NavigationStatusService.proto";
-import "aap_protobuf/service/vendorextension/VendorExtensionService.proto";
-import "aap_protobuf/service/wifiprojection/WifiProjectionService.proto";
-import "aap_protobuf/service/mediabrowser/MediaBrowserService.proto";
-import "aap_protobuf/service/genericnotification/GenericNotificationService.proto";
-import "aap_protobuf/service/phonestatus/PhoneStatusService.proto";
-import "aap_protobuf/service/mediaplayback/MediaPlaybackStatusService.proto";
-import "aap_protobuf/service/radio/RadioService.proto";
-
 package aap_protobuf.service;
 
 /**
