@@ -50,6 +50,15 @@ FetchContent_Declare(
   GIT_TAG 20240722.0  # LTS 2024-07-22, compatible with Protobuf v30.0
   GIT_SHALLOW TRUE
 )
+
+# Save current compiler flags to restore later
+set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+# Remove -pedantic from flags for external dependencies (Abseil, Protobuf)
+# These external libraries may have valid code that triggers pedantic warnings
+string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+message(STATUS "Temporarily disabled -pedantic flag for external dependency compilation")
+
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
 set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 message(STATUS "Fetching Abseil LTS 2024-07-22...")
@@ -71,7 +80,9 @@ message(STATUS "Fetching Protobuf v30.0...")
 # Make protobuf available - this will configure and build it
 FetchContent_MakeAvailable(protobuf)
 
-# The protobuf_generate function should now be available from the protobuf package
+# Restore original compiler flags for AASDK code
+set(CMAKE_CXX_FLAGS "${SAVED_CMAKE_CXX_FLAGS}")
+message(STATUS "Restored original compiler flags (with -pedantic) for AASDK code")
 # Include it if not already available
 if(NOT COMMAND protobuf_generate)
     include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
