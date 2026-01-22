@@ -4,23 +4,53 @@ This document describes the modern logging system implemented for AASDK, which p
 
 ## Features
 
-- **Structured Logging**: Categorized logging with specific log categories for different AASDK components
-- **Multiple Output Formats**: Console, file, JSON, and remote logging support
-- **Asynchronous Logging**: Optional async processing for high-performance scenarios
-- **Log Rotation**: Automatic file rotation with configurable size and count limits
-- **Context Logging**: Ability to add key-value context to log entries
-- **Thread-Safe**: All operations are thread-safe
-- **Backward Compatible**: Existing `AASDK_LOG` macros continue to work
+
+
+## Verbose USB / AOAP debugging
+
+For diagnosing Android Auto (AOAP) negotiation and low-level USB control transfers, the logger provides a toggleable verbose USB mode. This emits additional diagnostic messages for USB control setup, transfer submission and completion, and AOAP-specific queries (SEND_STRING, GET_PROTOCOL, START).
+
+There are two ways to enable it:
+
+- Environment variable (recommended for quick tests):
+
+```bash
+# Enable verbose USB logging for the current shell session
+export AASDK_VERBOSE_USB=1
+
+# Then run your application (example)
+./build/core/crankshaft-core 2>&1 | tee ~/core_verbose_usb.log
+```
+
+Values accepted: `1`, `true`, `yes` (case-insensitive) enable verbose USB logging. Any other value or absence of the variable leaves verbose USB logging disabled.
+
+- Runtime API (programmatic control):
+
+You can toggle verbose USB logging from code at runtime by calling:
+
+```cpp
+// Enable
+aasdk::common::ModernLogger::getInstance().setVerboseUsb(true);
+
+// Disable
+aasdk::common::ModernLogger::getInstance().setVerboseUsb(false);
+```
+
+This is useful when you want to enable verbose logging only for a short period (for example, from a developer menu or a debug CLI), avoiding long-running voluminous logs.
+
+Notes and guidance
+- The verbose USB logs are guarded and only produced when the verbose flag is set, avoiding performance and log-volume impacts during normal operation.
+- The logs include hex dumps of control-setup parameters and the first few control buffer bytes, plus submit/complete statuses; in many cases these logs remove the need for kernel-level captures such as `usbmon`/`tshark` for initial diagnosis.
+- For the deepest inspection (if verbose logs still don't reveal the issue), capture `usbmon` or `tshark` traces on the target and attach them alongside the application logs and `dmesg` output.
+
+Please include the following items when reporting an AOAP/USB issue:
+- `core` application log with `AASDK_VERBOSE_USB=1` (or equivalent programmatic enable)
+- `dmesg` output taken while reproducing the problem
+- `lsusb -v` before and after attempting AOAP negotiation
 
 ## Log Levels
 
 The logger supports the following log levels:
-- `TRACE`: Detailed trace information
-- `DEBUG`: Debug information useful during development
-- `INFO`: General information about program execution
-- `WARN`: Warning messages for potentially harmful situations
-- `ERROR`: Error messages for error conditions
-- `FATAL`: Fatal error messages for critical failures
 
 ## Log Categories
 

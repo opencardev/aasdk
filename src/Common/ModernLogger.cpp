@@ -43,6 +43,15 @@ ModernLogger::ModernLogger()
     // Set up default console formatter and sink
     formatter_ = std::make_shared<AasdkConsoleFormatter>();
     addSink(std::make_shared<ConsoleSink>());
+    // Initialize verbose USB flag from environment variable AASDK_VERBOSE_USB
+    const char* ev = std::getenv("AASDK_VERBOSE_USB");
+    if (ev != nullptr) {
+        std::string evs(ev);
+        for (auto &c : evs) c = static_cast<char>(::tolower(c));
+        verboseUsbEnabled_.store(evs == "1" || evs == "true" || evs == "yes");
+    } else {
+        verboseUsbEnabled_.store(false);
+    }
 }
 
 ModernLogger::~ModernLogger() {
@@ -232,6 +241,14 @@ size_t ModernLogger::getQueueSize() const {
 
 size_t ModernLogger::getDroppedMessages() const {
     return droppedMessages_.load();
+}
+
+void ModernLogger::setVerboseUsb(bool enabled) {
+    verboseUsbEnabled_.store(enabled);
+}
+
+bool ModernLogger::isVerboseUsb() const {
+    return verboseUsbEnabled_.load();
 }
 
 void ModernLogger::processLogs() {

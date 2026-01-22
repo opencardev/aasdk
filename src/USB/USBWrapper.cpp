@@ -17,6 +17,9 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <aasdk/USB/USBWrapper.hpp>
+#include <aasdk/Common/Log.hpp>
+#include <sstream>
+#include <iomanip>
 
 
 namespace aasdk {
@@ -74,10 +77,28 @@ namespace aasdk {
         libusb_transfer *transfer, const DeviceHandle &dev_handle,
         unsigned char *buffer, libusb_transfer_cb_fn callback, void *user_data,
         unsigned int timeout) {
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        // Log a small portion of the control buffer for debugging AOAP
+        uint8_t *b = buffer;
+        std::ostringstream ss;
+        ss << "fillControlTransfer buffer[0..7]=";
+        for (int i = 0; i < 8; ++i) {
+          ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(b[i]) << " ";
+        }
+        AASDK_LOG_USB(info, ss.str());
+      }
       libusb_fill_control_transfer(transfer, dev_handle.get(), buffer, callback, user_data, timeout);
     }
 
     int USBWrapper::submitTransfer(libusb_transfer *transfer) {
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        std::ostringstream ss;
+        ss << "submitTransfer transfer=" << transfer;
+        // libusb_transfer members are C fields; log some common ones if present
+        ss << " endpoint=" << static_cast<int>(transfer->endpoint) << " type=" << static_cast<int>(transfer->type)
+           << " timeout=" << transfer->timeout;
+        AASDK_LOG_USB(info, ss.str());
+      }
       return libusb_submit_transfer(transfer);
     }
 
@@ -122,6 +143,15 @@ namespace aasdk {
                                       uint8_t bmRequestType, uint8_t bRequest, uint16_t wValue, uint16_t wIndex,
                                       uint16_t wLength) {
       libusb_fill_control_setup(buffer, bmRequestType, bRequest, wValue, wIndex, wLength);
+      if (aasdk::common::ModernLogger::getInstance().isVerboseUsb()) {
+        std::ostringstream ss;
+        ss << "fillControlSetup bmRequestType=0x" << std::hex << static_cast<int>(bmRequestType)
+           << " bRequest=0x" << std::hex << static_cast<int>(bRequest)
+           << " wValue=0x" << std::hex << wValue
+           << " wIndex=0x" << std::hex << wIndex
+           << " wLength=" << std::dec << wLength;
+        AASDK_LOG_USB(info, ss.str());
+      }
     }
 
     int USBWrapper::getDeviceDescriptor(libusb_device *dev, libusb_device_descriptor &desc) {
