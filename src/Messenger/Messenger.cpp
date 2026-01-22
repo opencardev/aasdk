@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,7 +14,34 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with aasdk. If not, see <http://www.gnu.org/licenses/>.#include <boost/endian/conversion.hpp>
+// along with aasdk. If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * @file Messenger.cpp
+ * @brief Implementation of Android Auto protocol message multiplexing and routing.
+ *
+ * This implementation provides the core message routing logic for AASDK:
+ * - Demultiplexes incoming frames by channel ID to per-channel queues
+ * - Multiplexes outgoing messages from all channels into send queue
+ * - Manages async promise resolution and error propagation
+ * - Handles strand-based serialisation for thread safety
+ *
+ * Key design patterns:
+ * - Per-channel message queues prevent head-of-line blocking
+ * - Strand serialisation ensures no concurrent access to queues
+ * - Promise-based async interface allows caller-driven flow control
+ * - Defer pattern creates new promises that run on strands
+ *
+ * Typical message flow:
+ *   1. enqueueReceive(channelId, promise) called by service
+ *   2. Queued on receiveStrand_ for thread-safe handling
+ *   3. Check per-channel message queue - if messages exist, resolve immediately
+ *   4. Otherwise, queue the promise and subscribe to InStream
+ *   5. InStream delivers message -> inStreamMessageHandler dispatches to channel
+ *   6. Promise is popped and resolved with message data
+ */
+
+#include <boost/endian/conversion.hpp>
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Messenger/Messenger.hpp>
 #include <aasdk/Common/Log.hpp>
@@ -28,6 +56,29 @@ namespace aasdk::messenger {
 
   }
 
+  /**
+   * @brief Queue an async message receive operation on a specific channel.
+   *
+   * This method enqueues a receive promise that will be resolved when a message
+   * arrives on the specified channel. The operation runs asynchronously on the
+   * receiveStrand_ to ensure thread-safe message queue access.
+   *
+   * Scenario: Navigation service (Channel 0) calls enqueueReceive while waiting
+   * for turn-by-turn navigation data from Android device:
+   *   - T+0ms: Navigation service calls enqueueReceive(CHANNEL_NAV, promise)
+   *   - T+0ms: Promise queued on receiveStrand_
+   *   - T+0ms: If messages already in queue, resolve immediately
+   *   - T+15ms: Inbound USB frame arrives with turn instruction
+   *   - T+15ms: inStreamMessageHandler routes to channel 0
+   *   - T+15ms: Promise resolved with turn instruction message
+   *   - Navigation service receives data, updates turn display
+   *
+   * Thread Safety: Safe to call from any thread. All queue operations are
+   * dispatched to receiveStrand_ which ensures serialised access.
+   *
+   * @param channelId Logical channel (0-7) to receive on
+   * @param promise Promise that resolves when message arrives or error occurs
+   */
   void Messenger::enqueueReceive(ChannelId channelId, ReceivePromise::Pointer promise) {
     AASDK_LOG(debug) << "[Messenger::enqueueReceive] Called on channel " << channelIdToString(channelId);
 
@@ -53,10 +104,34 @@ namespace aasdk::messenger {
     });
   }
 
+  /**
+   * @brief Queue an async message send operation from a specific channel.
+   *
+   * This method enqueues an outgoing message that will be multiplexed into the
+   * send queue and transmitted via the OutStream. Operations are serialised on
+   * sendStrand_ to ensure only one message is being transmitted at a time,
+   * preventing concurrent access to the transport layer.
+   *
+   * Scenario: Media service (Channel 1) sends metadata update and play status:
+   *   - T+0ms: Media service calls enqueueSend(CHANNEL_MEDIA, title_message, p1)
+   *   - T+0ms: Message queued on sendStrand_; startSend begins immediately
+   *   - T+2ms: Media service calls enqueueSend(CHANNEL_MEDIA, play_status, p2)
+   *   - T+2ms: Play status queued behind title; p2 waits
+   *   - T+25ms: Title message USB transmission completes
+   *   - T+25ms: p1 resolves; next send (play_status) starts
+   *   - T+45ms: Play status transmission completes
+   *   - T+45ms: p2 resolves; queue empty
+   *
+   * Thread Safety: Safe to call from any thread. Serialisation on sendStrand_
+   * ensures messages are transmitted in queue order without interleaving.
+   *
+   * @param message Protocol message to send (includes channel ID)
+   * @param promise Promise that resolves when transmission completes
+   */
   void Messenger::enqueueSend(Message::Pointer message, SendPromise::Pointer promise) {
     sendStrand_.dispatch(
         [this, self = this->shared_from_this(), message = std::move(message), promise = std::move(promise)]() mutable {
-          channelSendPromiseQueue_.emplace_back(std::make_pair(std::move(message), std::move(promise)));
+          channelSendPromiseQueue_.emplace_back(std::move(message), std::move(promise));
 
           if (channelSendPromiseQueue_.size() == 1) {
             this->doSend();

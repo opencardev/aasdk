@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
 
 project(aasdk)
 message(STATUS "AASDK Library")
@@ -112,7 +112,7 @@ set(include_ut_directory ${base_directory}/unit_test)
 
 # Configure CMAKE
 message(STATUS "Configuring CMAKE")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT} -fPIC -Wall -pedantic")
@@ -187,20 +187,19 @@ if(AASDK_TEST)
     FetchContent_MakeAvailable(googletest)
 endif(AASDK_TEST)
 
-# Build aap_protobuf as part of this project
+# Build aap_protobuf as part of this project (includes building Protobuf v30.0)
 message(STATUS "Building aap_protobuf as subdirectory")
 add_subdirectory(protobuf)
 
 # Building on a Mac requires Abseil
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     message(STATUS "MacOS System Detected")
-    find_package(protobuf REQUIRED CONFIG)
     find_package(absl REQUIRED)
 else ()
-    find_package(Protobuf REQUIRED)
+    # Use the protobuf targets from the FetchContent build in the protobuf subdirectory
+    # Do NOT call find_package(Protobuf) here as it will find the system version
+    message(STATUS "Using Protobuf v30.0 from FetchContent")
 endif ()
-
-include(FindProtobuf)
 
 find_package(Boost REQUIRED COMPONENTS system log_setup log OPTIONAL_COMPONENTS unit_test_framework)
 
@@ -250,16 +249,17 @@ else()
 endif()
 target_include_directories(aasdk PUBLIC 
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>
+    $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
         $<INSTALL_INTERFACE:include/aap_protobuf>
 )
 
 target_link_libraries(aasdk PUBLIC
-        ${LIBUSB_1_LIBRARIES}
-        ${Boost_LIBRARIES}
-        ${PROTOBUF_LIBRARIES}
-        aap_protobuf
-        ${OPENSSL_LIBRARIES}
-        ${WINSOCK2_LIBRARIES})
+    ${LIBUSB_1_LIBRARIES}
+    ${Boost_LIBRARIES}
+    aap_protobuf
+    ${OPENSSL_LIBRARIES}
+    ${WINSOCK2_LIBRARIES}
+    $<IF:$<TARGET_EXISTS:protobuf::libprotobuf>,protobuf::libprotobuf,${PROTOBUF_LIBRARIES}>)
 
 # Link nlohmann/json if available and JSON logging is enabled
 if(ENABLE_JSON_LOGGING AND nlohmann_json_FOUND)

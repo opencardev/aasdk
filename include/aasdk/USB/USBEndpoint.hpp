@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,20 +20,23 @@
 
 #include <unordered_map>
 #include <memory>
+#include <utility>
 #include <boost/asio.hpp>
 #include <aasdk/USB/IUSBWrapper.hpp>
 #include <aasdk/USB/IUSBEndpoint.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class USBEndpoint : public IUSBEndpoint,
-                        public std::enable_shared_from_this<USBEndpoint>,
-                        boost::noncopyable {
+                        public std::enable_shared_from_this<USBEndpoint> {
     public:
       USBEndpoint(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
                   uint8_t endpointAddress = 0x00);
+
+      // Deleted copy operations
+      USBEndpoint(const USBEndpoint &) = delete;
+      USBEndpoint &operator=(const USBEndpoint &) = delete;
 
       void controlTransfer(common::DataBuffer buffer, uint32_t timeout, Promise::Pointer promise) override;
 
@@ -47,7 +51,7 @@ namespace aasdk {
       DeviceHandle getDeviceHandle() const override;
 
     private:
-      typedef std::unordered_map<libusb_transfer *, Promise::Pointer> Transfers;
+      using Transfers = std::unordered_map<libusb_transfer *, Promise::Pointer>;
 
       using std::enable_shared_from_this<USBEndpoint>::shared_from_this;
 
@@ -63,5 +67,4 @@ namespace aasdk {
       std::shared_ptr<USBEndpoint> self_;
     };
 
-  }
 }

@@ -2,6 +2,7 @@
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
 // Copyright (C) 2024 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -120,7 +121,7 @@ namespace aasdk {
     std::pair<BIO *, BIO *> SSLWrapper::createBIOs() {
       auto readBIO = BIO_new(BIO_s_mem());
       auto writeBIO = BIO_new(BIO_s_mem());
-      return std::make_pair(readBIO, writeBIO);
+      return {readBIO, writeBIO};
     }
 
     void SSLWrapper::setBIOs(SSL *ssl, const BIOs &bIOs, size_t maxBufferSize) {

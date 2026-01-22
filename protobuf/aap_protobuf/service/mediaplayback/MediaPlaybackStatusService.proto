@@ -4,6 +4,39 @@ option optimize_for=SPEED;
 
 package aap_protobuf.service.mediaplayback;
 
+/**
+ * @file MediaPlaybackStatusService.proto
+ * @brief Media playback status and controls service definition.
+ *
+ * MediaPlaybackStatusService defines capabilities for the media playback
+ * channel. This service delivers real-time updates on currently playing track,
+ * playback position, album art, and supports remote controls (play, pause,
+ * skip track, seek position).
+ *
+ * Service purpose:
+ *   - Head unit displays currently playing song, artist, album
+ *   - Shows playback progress bar and current time / duration
+ *   - Allows user to control playback: play/pause, next/prev, seek
+ *   - Delivers metadata for display: album art, genre, bitrate
+ *
+ * Typical session (Spotify playback):
+ *   - T+0ms: Channel opened; Android ready for playback commands
+ *   - T+50ms: Android sends PLAYBACK_STATUS_RESPONSE (currently playing song)
+ *   - T+50ms: Head unit displays "Now Playing: Song Title by Artist"
+ *   - T+1000ms: Android sends PLAYBACK_STATUS_RESPONSE (position updated 1s)
+ *   - T+1000ms: Head unit updates progress bar
+ *   - T+5000ms: User presses "Next" button
+ *   - T+5005ms: Head unit sends PLAYBACK_CONTROLS (request skip track)
+ *   - T+5050ms: Android responds with new PLAYBACK_STATUS_RESPONSE (next song)
+ *   - T+5050ms: Display updates with new track info
+ *
+ * Message types (see MediaPlaybackStatusMessageId):
+ *   - PLAYBACK_STATUS_RESPONSE: Current track, position, duration, metadata
+ *   - PLAYBACK_CONTROLS: Remote commands (play, pause, skip, seek)
+ *
+ * Design: Streaming updates; head unit doesn't maintain playback state.
+ * Supports multiple music sources: Spotify, YouTube Music, local files, radio.
+ */
 message MediaPlaybackStatusService
 {
 

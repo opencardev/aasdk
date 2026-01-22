@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,6 +18,7 @@
 
 #pragma once
 
+#include <utility>
 #include <boost/asio.hpp>
 #include <libusb.h>
 #include <list>
@@ -25,12 +27,15 @@
 #include <aasdk/USB/IAccessoryModeQuery.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
-    class AccessoryModeQuery : public IAccessoryModeQuery, boost::noncopyable {
+    class AccessoryModeQuery : public IAccessoryModeQuery {
     public:
       AccessoryModeQuery(boost::asio::io_service &ioService, IUSBEndpoint::Pointer usbEndpoint);
+
+      // Deleted copy operations
+      AccessoryModeQuery(const AccessoryModeQuery &) = delete;
+      AccessoryModeQuery &operator=(const AccessoryModeQuery &) = delete;
 
       void cancel() override;
 
@@ -44,5 +49,4 @@ namespace aasdk {
       static constexpr uint32_t USB_TYPE_VENDOR = 0x40;
     };
 
-  }
 }

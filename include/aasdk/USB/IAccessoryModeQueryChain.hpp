@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,13 +24,12 @@
 #include <aasdk/IO/Promise.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAccessoryModeQueryChain {
     public:
-      typedef std::shared_ptr<IAccessoryModeQueryChain> Pointer;
-      typedef io::Promise<DeviceHandle> Promise;
+      using Pointer = std::shared_ptr<IAccessoryModeQueryChain>;
+      using Promise = io::Promise<DeviceHandle>;
 
       IAccessoryModeQueryChain() = default;
 
@@ -40,5 +40,4 @@ namespace aasdk {
       virtual void cancel() = 0;
     };
 
-  }
 }

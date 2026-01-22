@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,6 +16,49 @@
 // You should have received a copy of the GNU General Public License
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * @file TCPWrapper.cpp
+ * @brief TCP socket operations wrapper for Boost ASIO compatibility layer.
+ *
+ * TCPWrapper provides a clean abstraction over Boost ASIO TCP operations,
+ * enabling mock/stub implementations for testing and supporting both
+ * synchronous (blocking) and asynchronous connection/communication.
+ *
+ * Operations:
+ *   - asyncWrite: Non-blocking send; completes when data written to kernel buffer
+ *   - asyncRead: Non-blocking receive; completes when data available
+ *   - connect: Synchronous (blocking) TCP connection to remote host
+ *   - asyncConnect: Non-blocking connection; typically used during init
+ *   - close: Graceful socket shutdown (both directions) and cleanup
+ *
+ * Scenario: Wireless Android Auto connection over WiFi
+ *   - T+0ms: App calls connect("192.168.1.45", 5037) - blocking call
+ *   - T+5ms: TCP three-way handshake (SYN, SYN-ACK, ACK) completes
+ *   - T+10ms: connect() returns; socket ready for communication
+ *   - T+15ms: TCPTransport created; calls asyncRead(4) for frame header
+ *   - T+20ms: asyncRead queued; waiting for data from Android device
+ *   - T+50ms: User launches Android Auto app on phone
+ *   - T+100ms: App connects; sends greeting frame (4 bytes header)
+ *   - T+100ms: asyncRead completes; calls handler with header data
+ *   - T+105ms: TCPTransport parses header; requests payload with asyncRead(256)
+ *   - T+200ms: Payload arrives; asyncRead completes
+ *   - T+300ms: Messaging established; services begin negotiation
+ *
+ * Optimisations:
+ *   - TCP_NODELAY enabled: Disables Nagle algorithm for low-latency messaging
+ *     (important for interactive navigation turns and media control)
+ *   - async_write: Guarantees all N bytes written (loops internally if needed)
+ *   - async_receive: Returns immediately when any data available (max buffer size)
+ *
+ * Error handling:
+ *   - connection_refused: Remote device not listening
+ *   - timed_out: Network unreachable or device offline
+ *   - shutdown errors ignored (best-effort close)
+ *
+ * Thread Safety: Wrapper delegates to ASIO; caller responsible for strand usage.
+ */
+
+#include <utility>
 #include <boost/asio.hpp>
 #include <aasdk/TCP/TCPWrapper.hpp>
 

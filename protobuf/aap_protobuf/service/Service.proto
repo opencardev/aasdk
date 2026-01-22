@@ -18,6 +18,42 @@ import "aap_protobuf/service/radio/RadioService.proto";
 
 package aap_protobuf.service;
 
+/**
+ * @file Service.proto
+ * @brief Android Auto service capability advertisement and configuration.
+ *
+ * ServiceConfiguration message enumerates all available services on the Android
+ * device (media player, navigation, phone, etc.) with their protocol options.
+ * Head unit receives this during handshake and uses it to determine which
+ * services are available and how to interact with them.
+ *
+ * Services and their purposes:
+ *   - SensorSourceService: Head unit accelerometer/gyro data -> Android (for
+ *     screen rotation, gesture detection in VR apps)
+ *   - MediaSinkService: Android media playback -> head unit display/speakers
+ *   - InputSourceService: Head unit keyboard/microphone -> Android input events
+ *   - MediaSourceService: Head unit local media files -> Android playback
+ *   - BluetoothService: Device Bluetooth control (pairing, audio routing)
+ *   - NavigationStatusService: Android Google Maps location updates -> cluster
+ *   - RadioService: Device native radio tuner control
+ *   - PhoneStatusService: Call state, cellular signal, SMS notifications
+ *   - MediaBrowserService: Browse device music library (Spotify, local, etc.)
+ *   - MediaPlaybackStatusService: Current playback position and metadata
+ *   - WifiProjectionService: Screen mirror over wireless link
+ *   - VendorExtensionService: Custom OEM extensions (Tesla climate, etc.)
+ *   - GenericNotificationService: Generic event delivery
+ *
+ * Scenario: Multi-service session startup (T+0ms to T+200ms)
+ *   - T+0ms: Android sends ServiceConfiguration with all service configs
+ *   - T+5ms: Head unit requests MediaPlaybackStatusService
+ *   - T+50ms: Head unit requests NavigationStatusService
+ *   - T+100ms: Head unit requests BluetoothService
+ *   - T+150ms: Services opened; head unit and device exchange capabilities
+ *   - T+200ms: Ready for user commands (play music, navigate, make calls)
+ *
+ * Each service field is optional; absent services are unavailable (e.g., if
+ * no radio_service, native radio tuner not accessible via Android Auto).
+ */
 message ServiceConfiguration
 {
     required int32 id = 1;

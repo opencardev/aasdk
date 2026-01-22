@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,25 +20,29 @@
 
 #include <list>
 #include <queue>
+#include <utility>
 #include <boost/asio.hpp>
 #include <aasdk/Transport/ITransport.hpp>
 #include <aasdk/Transport/DataSink.hpp>
 
 
-namespace aasdk {
-  namespace transport {
+namespace aasdk::transport {
 
-    class Transport : public ITransport, public std::enable_shared_from_this<Transport>, boost::noncopyable {
+    class Transport : public ITransport, public std::enable_shared_from_this<Transport> {
     public:
       Transport(boost::asio::io_service &ioService);
+
+      // Deleted copy operations
+      Transport(const Transport &) = delete;
+      Transport &operator=(const Transport &) = delete;
 
       void receive(size_t size, ReceivePromise::Pointer promise) override;
 
       void send(common::Data data, SendPromise::Pointer promise) override;
 
     protected:
-      typedef std::list<std::pair<size_t, ReceivePromise::Pointer>> ReceiveQueue;
-      typedef std::list<std::pair<common::Data, SendPromise::Pointer>> SendQueue;
+      using ReceiveQueue = std::list<std::pair<size_t, ReceivePromise::Pointer>>;
+      using SendQueue = std::list<std::pair<common::Data, SendPromise::Pointer>>;
 
       using std::enable_shared_from_this<Transport>::shared_from_this;
 
@@ -60,5 +65,4 @@ namespace aasdk {
       SendQueue sendQueue_;
     };
 
-  }
 }

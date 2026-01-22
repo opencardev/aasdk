@@ -34,8 +34,7 @@
 #include <map>
 #include <functional>
 
-namespace aasdk {
-namespace common {
+namespace aasdk::common {
 
 /**
  * @brief Modern logging levels with detailed categorization
@@ -312,7 +311,6 @@ private:
 };
 
 } // namespace common
-} // namespace aasdk
 
 // Convenience macros for AASDK logging
 #define AASDK_LOG_TRACE(category, message) \
