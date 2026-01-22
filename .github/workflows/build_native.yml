@@ -89,10 +89,11 @@ jobs:
             ARCHES="$ARCH_INPUT"
           fi
 
-          # On develop branch, limit to amd64 for faster feedback (only for automatic pushes, not manual workflow_dispatch)
-          if [ "${{ github.ref }}" = "refs/heads/develop" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+          # Limit to amd64 for non-main/develop branches to speed up cycle time during debugging
+          # (unless manually triggered via workflow_dispatch)
+          if [ "${{ github.ref }}" != "refs/heads/main" ] && [ "${{ github.ref }}" != "refs/heads/develop" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
             ARCHES="amd64"
-            echo "Building only amd64 for develop branch (automatic push)"
+            echo "Building only amd64 for feature/bugfix branch (automatic push)"
           fi
 
           # Expand distributions list
