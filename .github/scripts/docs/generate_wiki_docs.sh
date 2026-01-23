@@ -27,7 +27,7 @@ ROOT_DIR="$(pwd)"
 XML_DIR="${ROOT_DIR}/build/docs/xml"
 MD_OUT_DIR="${ROOT_DIR}/build/docs/wiki-md"
 DOXYBOOK2_VERSION="1.5.0"
-DOXYBOOK2_BIN="${ROOT_DIR}/build/tools/doxybook2/doxybook2"
+DOXYBOOK2_BIN="${ROOT_DIR}/build/tools/doxybook2/bin/doxybook2"
 DOXYBOOK2_URL="https://github.com/matusnovak/doxybook2/releases/download/v${DOXYBOOK2_VERSION}/doxybook2-linux-amd64-v${DOXYBOOK2_VERSION}.zip"
 DOXYBOOK2_SHA256="3fb90354b7ab3e8139a5606221865ff6aa0c53f2805e56088dcbd8185ebb5b41"
 
