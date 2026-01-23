@@ -363,6 +363,16 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aasdkConfigVersion.cmake"
         DESTINATION lib/cmake/aasdk
         COMPONENT development)
 
+# Configure and install pkg-config file
+include(GNUInstallDirs)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/aasdk.pc.in
+        "${CMAKE_CURRENT_BINARY_DIR}/aasdk.pc"
+        @ONLY)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aasdk.pc"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+        COMPONENT development)
+
 if(AASDK_TEST)
     add_executable(aasdk_ut
             ${tests_source_files}
