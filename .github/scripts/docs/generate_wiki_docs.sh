@@ -50,7 +50,20 @@ fi
 if [ ! -x "${DOXYBOOK2_BIN}" ]; then
   log "Fetching Doxybook2 v${DOXYBOOK2_VERSION}..."
   TMP_ZIP="${ROOT_DIR}/build/tools/doxybook2/doxybook2.zip"
-  curl -fsSL -o "${TMP_ZIP}" "${DOXYBOOK2_URL}"
+  
+  log "Downloading from: ${DOXYBOOK2_URL}"
+  if ! curl -fsSL -o "${TMP_ZIP}" "${DOXYBOOK2_URL}"; then
+    err "Failed to download doxybook2"
+    exit 1
+  fi
+  
+  if [ ! -f "${TMP_ZIP}" ]; then
+    err "Downloaded file not found: ${TMP_ZIP}"
+    exit 1
+  fi
+  
+  TMP_ZIP_SIZE=$(wc -c < "${TMP_ZIP}")
+  log "Downloaded file size: ${TMP_ZIP_SIZE} bytes"
   
   # Verify SHA256 checksum to prevent supply-chain attacks
   log "Verifying SHA256 checksum..."
@@ -64,12 +77,35 @@ if [ ! -x "${DOXYBOOK2_BIN}" ]; then
   fi
   log "Checksum verified successfully"
   
-  unzip -o "${TMP_ZIP}" -d "${ROOT_DIR}/build/tools/doxybook2" >/dev/null
-  chmod +x "${DOXYBOOK2_BIN}" || true
+  log "Extracting doxybook2..."
+  if ! unzip -o "${TMP_ZIP}" -d "${ROOT_DIR}/build/tools/doxybook2"; then
+    err "Failed to extract doxybook2"
+    rm -f "${TMP_ZIP}"
+    exit 1
+  fi
+  
+  # List extracted files for debugging
+  log "Extracted files:"
+  find "${ROOT_DIR}/build/tools/doxybook2" -type f -exec ls -la {} \;
+  
+  # Make binary executable
+  if [ -f "${DOXYBOOK2_BIN}" ]; then
+    chmod +x "${DOXYBOOK2_BIN}"
+    log "Binary is now executable"
+  else
+    err "Binary not found after extraction at ${DOXYBOOK2_BIN}"
+    log "Directory contents:"
+    find "${ROOT_DIR}/build/tools/doxybook2" -type f
+    exit 1
+  fi
+  
+  rm -f "${TMP_ZIP}"
 fi
 
 if [ ! -x "${DOXYBOOK2_BIN}" ]; then
   err "Doxybook2 binary not available at ${DOXYBOOK2_BIN}. Aborting."
+  log "Directory contents:"
+  find "${ROOT_DIR}/build/tools/doxybook2" -type f 2>/dev/null || true
   exit 1
 fi
 
