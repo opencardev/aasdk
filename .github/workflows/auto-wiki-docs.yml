@@ -25,11 +25,23 @@ jobs:
       - name: Install dependencies (doxygen, unzip)
         run: |
           sudo apt-get update
-          sudo apt-get install -y doxygen graphviz unzip curl
+          sudo apt-get install -y doxygen graphviz unzip curl ca-certificates
+
+      - name: Verify dependencies
+        run: |
+          echo "=== Checking required tools ==="
+          which doxygen && doxygen --version || echo "doxygen not found"
+          which unzip && unzip -version | head -5 || echo "unzip not found"
+          which curl && curl --version | head -1 || echo "curl not found"
+          echo "=== System information ==="
+          uname -a
+          ldd --version | head -1
 
       - name: Generate Markdown from code comments
         run: |
           bash .github/scripts/docs/generate_wiki_docs.sh
+        env:
+          VERBOSE: 1
 
       - name: Prepare Wiki workspace
         env:
