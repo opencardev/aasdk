@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.16)
 
 #Android Auto Projection Protocol Library
 project(aap_protobuf)
@@ -27,7 +27,7 @@ else()
 endif()
 set(AAP_PROTO_VERSION 1.6)          # Underlying AAP (Android Auto Projection Library Protocol)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -39,42 +39,85 @@ if(NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Building on a Mac requires Abseil
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
-    # macOS specific command
-    message(STATUS "MacOS System Detected")
-    find_package(protobuf REQUIRED CONFIG)
-    find_package(absl)
-else()
-    # Linux specific command
-    find_package(Protobuf REQUIRED)
+# Use FetchContent to build Protobuf v30.0 with C++20 support
+message(STATUS "Using FetchContent to download and build Protobuf v30.0")
+include(FetchContent)
+
+# Fetch Abseil (required by Protobuf v22.0+)
+FetchContent_Declare(
+  abseil
+  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+  GIT_TAG 20240722.0  # LTS 2024-07-22, compatible with Protobuf v30.0
+  GIT_SHALLOW TRUE
+)
+
+# Save current compiler flags to restore later
+set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+# Remove -pedantic from flags for external dependencies (Abseil, Protobuf)
+# These external libraries may have valid code that triggers pedantic warnings
+string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+message(STATUS "Temporarily disabled -pedantic flag for external dependency compilation")
+
+set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
+set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+message(STATUS "Fetching Abseil LTS 2024-07-22...")
+FetchContent_MakeAvailable(abseil)
+
+# Fetch Protobuf v30.0
+FetchContent_Declare(
+  protobuf
+  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+  GIT_TAG v30.0
+  GIT_SHALLOW TRUE
+)
+set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
+set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
+message(STATUS "Fetching Protobuf v30.0...")
+
+# Make protobuf available - this will configure and build it
+FetchContent_MakeAvailable(protobuf)
+
+# Restore original compiler flags for AASDK code
+set(CMAKE_CXX_FLAGS "${SAVED_CMAKE_CXX_FLAGS}")
+message(STATUS "Restored original compiler flags (with -pedantic) for AASDK code")
+
+# Set protobuf_BIN_DIR to use the built protoc from FetchContent, NOT system protoc
+set(PROTOBUF_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
+message(STATUS "Using protoc from FetchContent: ${PROTOBUF_PROTOC_EXECUTABLE}")
+
+# Include it if not already available
+if(NOT COMMAND protobuf_generate)
+    include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
 endif()
-
-include(FindProtobuf)
-
-# Turn off Path Appending
-set(PROTOBUF_GENERATE_CPP_APPEND_PATH OFF)
 
 # Locate all proto files
-file(GLOB_RECURSE source_proto_files ${CMAKE_CURRENT_SOURCE_DIR}/*.proto)
+file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
 
-# Compile ProtoBuf files
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${source_proto_files})
-
-# Generate Library
+# Create the library first with proto files as sources
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     message(NOTICE "Configuring STATIC Library for MacOS")
-    add_library(aap_protobuf STATIC ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(aap_protobuf STATIC ${PROTO_FILES})
 else()
     message(NOTICE "Configuring SHARED Library")
-    add_library(aap_protobuf SHARED ${PROTO_SRCS} ${PROTO_HDRS})
+    add_library(aap_protobuf SHARED ${PROTO_FILES})
 endif()
 
-target_link_libraries(aap_protobuf PUBLIC ${PROTOBUF_LIBRARIES})
-include_directories(
-        ${CMAKE_CURRENT_BINARY_DIR}
-        ${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf
-        ${PROTOBUF_INCLUDE_DIR}
+# Use the modern protobuf_generate function
+protobuf_generate(
+    TARGET aap_protobuf
+    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
+)
+
+# Link against the fetched protobuf library (PRIVATE to avoid export issues)
+target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
+target_include_directories(aap_protobuf PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
+    $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
+    $<INSTALL_INTERFACE:include/aap_protobuf>
 )
 
 set(LIBRARY_BUILD_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")

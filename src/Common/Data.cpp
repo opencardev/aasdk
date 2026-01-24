@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,6 +15,38 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * @file Data.cpp
+ * @brief Buffer management and binary data handling for protocol messages.
+ *
+ * Data types provide lightweight wrappers over raw byte buffers for transport
+ * and message encoding/decoding. Supports zero-copy buffer views via DataBuffer
+ * (mutable) and DataConstBuffer (read-only) with optional offset.
+ *
+ * Usage patterns:
+ *   - Data: Owned vector of bytes (allocated/deallocated by Data)
+ *   - DataBuffer: Non-owning mutable view (raw ptr + size + offset)
+ *   - DataConstBuffer: Non-owning const view (for read-only operations)
+ *
+ * Scenario: Frame reception and parsing
+ *   - T+0ms: Transport receives 1024 bytes into Data buffer (owns memory)
+ *   - T+5ms: Messenger extracts 4-byte frame header:
+ *     DataBuffer header(data, 1024, 0) - view of first 4 bytes
+ *   - T+10ms: Parse header; determine payload size=500
+ *   - T+10ms: Extract payload 500 bytes:
+ *     DataBuffer payload(data, 1024, 4) - view of bytes 4-503
+ *   - T+15ms: Create DataConstBuffer for protobuf parsing (read-only)
+ *   - T+20ms: Protocol deserializes from const view; message constructed
+ *   - Data buffer stays valid; multiple views created without copies
+ *
+ * Offset safety:
+ *   - If offset > size: returns null buffer (size=0, data=nullptr)
+ *   - Prevents out-of-bounds access; all buffer views validated at construction
+ *
+ * Thread Safety: Data is movable but not copyable; owns bytes. DataBuffer and
+ * DataConstBuffer are lightweight views; caller responsible for buffer lifetime.
+ */
 
 #include <boost/algorithm/hex.hpp>
 #include <aasdk/Common/Data.hpp>

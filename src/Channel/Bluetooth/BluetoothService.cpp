@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,9 +24,9 @@
 
 namespace aasdk::channel::bluetooth {
 
-  BluetoothService::BluetoothService(boost::asio::io_service::strand &strand,
-                                     messenger::IMessenger::Pointer messenger)
-      : Channel(strand, std::move(messenger), messenger::ChannelId::BLUETOOTH) {
+BluetoothService::BluetoothService(boost::asio::io_service::strand &strand,
+                                   messenger::IMessenger::Pointer messenger)
+    : Channel(strand, std::move(messenger), messenger::ChannelId::BLUETOOTH) {
 
   }
 
@@ -148,5 +149,6 @@ namespace aasdk::channel::bluetooth {
   }
 
 }
+
 
 

@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,28 +18,32 @@
 
 #pragma once
 
+#include <utility>
 #include <boost/asio.hpp>
 #include <list>
 #include <aasdk/USB/IUSBHub.hpp>
 #include <aasdk/USB/IAccessoryModeQueryChainFactory.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IUSBWrapper;
 
-    class USBHub : public IUSBHub, public std::enable_shared_from_this<USBHub>, boost::noncopyable {
+    class USBHub : public IUSBHub, public std::enable_shared_from_this<USBHub> {
     public:
       USBHub(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService,
              IAccessoryModeQueryChainFactory &queryChainFactory);
+
+      // Deleted copy operations
+      USBHub(const USBHub &) = delete;
+      USBHub &operator=(const USBHub &) = delete;
 
       void start(Promise::Pointer promise) override;
 
       void cancel() override;
 
     private:
-      typedef std::list<IAccessoryModeQueryChain::Pointer> QueryChainQueue;
+      using QueryChainQueue = std::list<IAccessoryModeQueryChain::Pointer>;
       using std::enable_shared_from_this<USBHub>::shared_from_this;
 
       void handleDevice(libusb_device *device);
@@ -61,5 +66,4 @@ namespace aasdk {
       static constexpr uint16_t cAOAPWithAdbId = 0x2D01;
     };
 
-  }
 }

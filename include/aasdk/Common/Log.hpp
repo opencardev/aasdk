@@ -2,6 +2,7 @@
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
 // Copyright (C) 2025 OpenCarDev Team
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -23,7 +24,7 @@
 #include <aasdk/Common/ModernLogger.hpp>
 #include <sstream>
 
-namespace aasdk { namespace common { namespace log_detail {
+namespace aasdk::common::log_detail {
     // Helper class for stream-based logging compatible with existing code
     class LogStream {
     public:
@@ -61,7 +62,7 @@ namespace aasdk { namespace common { namespace log_detail {
         std::ostringstream stream_;
         aasdk::common::LogLevel level_;
     };
-}}}
+}
 
 // Modern logging macros with backward compatibility for stream-based usage
 #define AASDK_LOG(severity) \

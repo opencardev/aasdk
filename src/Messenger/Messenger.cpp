@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -13,7 +14,34 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with aasdk. If not, see <http://www.gnu.org/licenses/>.#include <boost/endian/conversion.hpp>
+// along with aasdk. If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * @file Messenger.cpp
+ * @brief Implementation of Android Auto protocol message multiplexing and routing.
+ *
+ * This implementation provides the core message routing logic for AASDK:
+ * - Demultiplexes incoming frames by channel ID to per-channel queues
+ * - Multiplexes outgoing messages from all channels into send queue
+ * - Manages async promise resolution and error propagation
+ * - Handles strand-based serialisation for thread safety
+ *
+ * Key design patterns:
+ * - Per-channel message queues prevent head-of-line blocking
+ * - Strand serialisation ensures no concurrent access to queues
+ * - Promise-based async interface allows caller-driven flow control
+ * - Defer pattern creates new promises that run on strands
+ *
+ * Typical message flow:
+ *   1. enqueueReceive(channelId, promise) called by service
+ *   2. Queued on receiveStrand_ for thread-safe handling
+ *   3. Check per-channel message queue - if messages exist, resolve immediately
+ *   4. Otherwise, queue the promise and subscribe to InStream
+ *   5. InStream delivers message -> inStreamMessageHandler dispatches to channel
+ *   6. Promise is popped and resolved with message data
+ */
+
+#include <boost/endian/conversion.hpp>
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Messenger/Messenger.hpp>
 #include <aasdk/Common/Log.hpp>
@@ -56,7 +84,7 @@ namespace aasdk::messenger {
   void Messenger::enqueueSend(Message::Pointer message, SendPromise::Pointer promise) {
     sendStrand_.dispatch(
         [this, self = this->shared_from_this(), message = std::move(message), promise = std::move(promise)]() mutable {
-          channelSendPromiseQueue_.emplace_back(std::make_pair(std::move(message), std::move(promise)));
+          channelSendPromiseQueue_.emplace_back(std::move(message), std::move(promise));
 
           if (channelSendPromiseQueue_.size() == 1) {
             this->doSend();

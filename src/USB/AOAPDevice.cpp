@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -14,6 +15,41 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * @file AOAPDevice.cpp
+ * @brief Android Open Accessory Protocol device interface implementation.
+ *
+ * AOAPDevice wraps a USB device in AOAP mode, providing send/receive endpoints
+ * for bidirectional communication. AOAP allows Android devices to recognise
+ * the head unit as a trusted accessory without USB host mode (which requires
+ * special drivers on Android). Device enters AOAP mode after manufacturer/model
+ * strings are sent via control transfers (see AccessoryModeStartQuery).
+ *
+ * Design:
+ *   - Discovers device configuration and interface descriptors
+ *   - Claims interface number from USB configuration
+ *   - Extracts IN endpoint (device->head unit) and OUT endpoint (head unit->device)
+ *   - Manages endpoint lifecycle (cancellation on destruction)
+ *
+ * Scenario: Device connection and AOAP mode transition
+ *   - T+0ms: Android device plugged into head unit USB port
+ *   - T+0ms: USB hub enumerates device, checks for AOAP support
+ *   - T+50ms: Device found; AccessoryModeStartQuery sends strings (manufacturer,
+ *     model, description, version, URI, serial)
+ *   - T+100ms: Android device reboots into AOAP mode
+ *   - T+200ms: Device re-enumerates; now in AOAP mode with new VID/PID
+ *   - T+200ms: AOAPDevice created, claims AOAP interface
+ *   - T+205ms: getInEndpoint() / getOutEndpoint() ready for messaging
+ *
+ * Endpoint assignment:
+ *   - First endpoint checked: if IN (bEndpointAddress & 0x80), assign to inEndpoint_
+ *   - Second endpoint (always OUT): assigned to outEndpoint_
+ *   - Or reversed if first is OUT: inEndpoint_ gets second (IN), outEndpoint_ gets first
+ *
+ * Thread Safety: Non-thread-safe. Must be created/destroyed on single strand.
+ * Endpoints (inEndpoint_, outEndpoint_) handle concurrent async operations.
+ */
 
 #include <stdexcept>
 #include <aasdk/USB/USBEndpoint.hpp>

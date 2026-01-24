@@ -1,0 +1,14 @@
+{
+  "baseUrl": "/",
+  "indexInFolders": true,
+  "linkSuffix": ".md",
+  "mainPageName": "AASDK API Reference",
+  "mainPageInRoot": true,
+  "templates": "default",
+  "generateSummary": true,
+  "summary": {
+    "enabled": true,
+    "file": "SUMMARY.md",
+    "include": ["**/*.md"]
+  }
+}

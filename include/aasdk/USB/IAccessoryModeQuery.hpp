@@ -1,6 +1,7 @@
 // This file is part of aasdk library project.
 // Copyright (C) 2018 f1x.studio (Michal Szwaj)
 // Copyright (C) 2024 CubeOne (Simon Dean - simon.dean@cubeone.co.uk)
+// Copyright (C) 2026 OpenCarDev (Matthew Hilton - matthilton2005@gmail.com)
 //
 // aasdk is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -18,19 +19,19 @@
 #pragma once
 
 #include <memory>
+#include <utility>
 #include <boost/asio.hpp>
 #include <libusb.h>
 #include <aasdk/IO/Promise.hpp>
 #include <aasdk/USB/IUSBEndpoint.hpp>
 
 
-namespace aasdk {
-  namespace usb {
+namespace aasdk::usb {
 
     class IAccessoryModeQuery {
     public:
-      typedef std::shared_ptr<IAccessoryModeQuery> Pointer;
-      typedef io::Promise<IUSBEndpoint::Pointer> Promise;
+      using Pointer = std::shared_ptr<IAccessoryModeQuery>;
+      using Promise = io::Promise<IUSBEndpoint::Pointer>;
 
       IAccessoryModeQuery() = default;
 
@@ -41,5 +42,4 @@ namespace aasdk {
       virtual void cancel() = 0;
     };
 
-  }
 }

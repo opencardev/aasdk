@@ -2,6 +2,47 @@ syntax="proto2";
 
 package aap_protobuf.shared;
 
+/**
+ * @file MessageStatus.proto
+ * @brief Android Auto protocol status and error codes.
+ *
+ * MessageStatus enumerates all possible outcomes for Android Auto protocol
+ * operations. Used in response messages to indicate success or specific failure
+ * reason. Status codes are negative for errors, positive for success variants.
+ *
+ * Success statuses:
+ *   - STATUS_SUCCESS: Operation completed successfully
+ *   - STATUS_UNSOLICITED_MESSAGE: Message arrived without request (e.g., unsolicited nav update)
+ *
+ * Authentication failures (certificate validation, SSL negotiation):
+ *   - STATUS_CERTIFICATE_ERROR: Certificate validation failed
+ *   - STATUS_AUTHENTICATION_FAILURE: SSL/TLS handshake failed
+ *   - STATUS_AUTHENTICATION_FAILURE_CERT_NOT_YET_VALID: Certificate validity period not started
+ *   - STATUS_AUTHENTICATION_FAILURE_CERT_EXPIRED: Certificate has expired
+ *
+ * Channel/Service errors (invalid routing):
+ *   - STATUS_INVALID_SERVICE: Requested service not available on device
+ *   - STATUS_INVALID_CHANNEL: Channel ID (0-7) out of range
+ *   - STATUS_INVALID_PRIORITY: Message priority level not supported
+ *
+ * Bluetooth errors (pairing, HFP handsfree profile):
+ *   - STATUS_BLUETOOTH_UNAVAILABLE: Bluetooth radio disabled or not available
+ *   - STATUS_BLUETOOTH_PAIRING_DELAYED: Device pairing in progress
+ *   - STATUS_BLUETOOTH_HFP_ANOTHER_CONNECTION: HFP already connected to different device
+ *   - STATUS_BLUETOOTH_HFP_CONNECTION_FAILURE: HFP connection attempt failed
+ *   - STATUS_BLUETOOTH_INVALID_ADDRESS: Bluetooth MAC address malformed
+ *
+ * Resource errors (buffer overflows, timeouts):
+ *   - STATUS_OUT_OF_MEMORY: Device memory exhausted
+ *   - STATUS_BUSY: Device busy with other operations
+ *   - STATUS_PING_TIMEOUT: Keep-alive ping response not received (connection stale)
+ *
+ * Scenario: Navigation connection failure handling:
+ *   - Head unit sends OPEN_CHANNEL request for Navigation service
+ *   - Device responds with MessageStatus CHANNEL_OPENED, status=INVALID_SERVICE
+ *   - Head unit logs error, prompts user: "Navigation not available"
+ *   - User cancels navigation, displays media instead
+ */
 enum MessageStatus {
   STATUS_UNSOLICITED_MESSAGE = 1;
   STATUS_SUCCESS = 0;
