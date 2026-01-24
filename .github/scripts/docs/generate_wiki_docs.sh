@@ -33,6 +33,8 @@ DOXYBOOK2_SHA256="3fb90354b7ab3e8139a5606221865ff6aa0c53f2805e56088dcbd8185ebb5b
 
 mkdir -p "${ROOT_DIR}/build/tools/doxybook2"
 mkdir -p "${MD_OUT_DIR}"
+# Ensure common output categories exist to avoid renderer write failures
+mkdir -p "${MD_OUT_DIR}/Namespaces" "${MD_OUT_DIR}/Classes" "${MD_OUT_DIR}/Files" "${MD_OUT_DIR}/Modules" "${MD_OUT_DIR}/Pages"
 
 log "Running Doxygen to generate XML..."
 if [ ! -f "${ROOT_DIR}/Doxyfile" ]; then
