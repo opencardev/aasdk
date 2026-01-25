@@ -49,10 +49,14 @@ if [ ! -d "${XML_DIR}" ]; then
   exit 1
 fi
 
-# Mirror XML directory structure under Namespaces to avoid nested path creation errors
-while IFS= read -r subdir; do
-  mkdir -p "${MD_OUT_DIR}/Namespaces/${subdir}"
-done < <(cd "${XML_DIR}" && find . -type d -printf '%P\n' | sed '/^$/d')
+# Mirror XML directory structure under all Doxybook categories to avoid nested path creation errors
+log "Mirroring XML directory layout into markdown output folders..."
+mapfile -t xml_subdirs < <(cd "${XML_DIR}" && find . -type d -printf '%P\n' | sed '/^$/d')
+for category in Namespaces Classes Files Modules Pages; do
+  for subdir in "${xml_subdirs[@]}"; do
+    mkdir -p "${MD_OUT_DIR}/${category}/${subdir}"
+  done
+done
 
 if [ ! -x "${DOXYBOOK2_BIN}" ]; then
   log "Fetching Doxybook2 v${DOXYBOOK2_VERSION}..."
