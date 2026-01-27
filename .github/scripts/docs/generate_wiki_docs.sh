@@ -33,6 +33,8 @@ DOXYBOOK2_SHA256="3fb90354b7ab3e8139a5606221865ff6aa0c53f2805e56088dcbd8185ebb5b
 
 mkdir -p "${ROOT_DIR}/build/tools/doxybook2"
 mkdir -p "${MD_OUT_DIR}"
+# Ensure common output categories exist to avoid renderer write failures
+mkdir -p "${MD_OUT_DIR}/Namespaces" "${MD_OUT_DIR}/Classes" "${MD_OUT_DIR}/Files" "${MD_OUT_DIR}/Modules" "${MD_OUT_DIR}/Pages"
 
 log "Running Doxygen to generate XML..."
 if [ ! -f "${ROOT_DIR}/Doxyfile" ]; then
@@ -46,6 +48,15 @@ if [ ! -d "${XML_DIR}" ]; then
   err "Doxygen XML output not found at ${XML_DIR}. Aborting."
   exit 1
 fi
+
+# Mirror XML directory structure under all Doxybook categories to avoid nested path creation errors
+log "Mirroring XML directory layout into markdown output folders..."
+mapfile -t xml_subdirs < <(cd "${XML_DIR}" && find . -type d -printf '%P\n' | sed '/^$/d')
+for category in Namespaces Classes Files Modules Pages; do
+  for subdir in "${xml_subdirs[@]}"; do
+    mkdir -p "${MD_OUT_DIR}/${category}/${subdir}"
+  done
+done
 
 if [ ! -x "${DOXYBOOK2_BIN}" ]; then
   log "Fetching Doxybook2 v${DOXYBOOK2_VERSION}..."

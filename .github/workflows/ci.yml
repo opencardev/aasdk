@@ -1,0 +1,345 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/*'
+      - 'bugfix/*'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - '.github/**'
+
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
+      - '.github/**'
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Build version (leave empty for auto-generated)'
+        required: false
+        default: ''
+        type: string
+      architecture:
+        description: 'Architecture to build (all, amd64, arm64, armhf)'
+        required: false
+        default: 'amd64'
+        type: choice
+        options:
+          - all
+          - amd64
+          - arm64
+          - armhf
+      distribution:
+        description: 'Debian distribution to build (trixie, bookworm, all)'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - trixie
+          - bookworm
+      trigger_release:
+        description: 'Trigger release workflow after build'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/aasdk
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      distribution: ${{ steps.matrix.outputs.distribution }}
+    steps:
+      - name: Generate build matrix
+        id: matrix
+        run: |
+          # Determine distributions
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            DISTRO_INPUT="${{ github.event.inputs.distribution }}"
+          else
+            DISTRO_INPUT="all"
+          fi
+
+          # Determine architectures
+          ARCH_INPUT="${{ github.event.inputs.architecture }}"
+          if [ -z "$ARCH_INPUT" ] || [ "$ARCH_INPUT" = "all" ]; then
+            ARCHES="amd64 arm64 armhf"
+          else
+            ARCHES="$ARCH_INPUT"
+          fi
+
+          # Limit to amd64 for non-main/develop branches to speed up cycle time during debugging
+          if [ "${{ github.ref }}" != "refs/heads/main" ] && [ "${{ github.ref }}" != "refs/heads/develop" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
+            ARCHES="amd64"
+            echo "Building only amd64 for feature/bugfix branch (automatic push)"
+          fi
+
+          # Expand distributions list
+          if [ "$DISTRO_INPUT" = "all" ]; then
+            DISTROS="bookworm trixie"
+            echo "distribution=all" >> $GITHUB_OUTPUT
+          else
+            DISTROS="$DISTRO_INPUT"
+            echo "distribution=$DISTRO_INPUT" >> $GITHUB_OUTPUT
+          fi
+
+          # Helper to map arch to platform
+          platform_for_arch() {
+            case "$1" in
+              amd64) echo "linux/amd64";;
+              arm64) echo "linux/arm64";;
+              armhf) echo "linux/arm/v7";;
+              *) echo "linux/amd64";;
+            esac
+          }
+
+          # Build matrix JSON (ensure valid JSON without over-escaping)
+          MATRIX='{"include":['
+          first=true
+          for d in $DISTROS; do
+            for a in $ARCHES; do
+              plat=$(platform_for_arch "$a")
+              entry=$(printf '{"arch":"%s","platform":"%s","distro":"%s"}' "$a" "$plat" "$d")
+              if [ "$first" = true ]; then
+                MATRIX+="$entry"
+                first=false
+              else
+                MATRIX+=",$entry"
+              fi
+            done
+          done
+          MATRIX+=']}'
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+
+  build:
+    name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
+    needs: prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU for cross-platform builds
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Generate build info
+        id: build_info
+        run: |
+          # Use manual version if provided, otherwise generate using same scheme as CMake
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            BUILD_YEAR=$(date -u +"%Y")
+            BUILD_MONTH=$(date -u +"%m")
+            BUILD_DAY=$(date -u +"%d")
+            VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
+            COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            if [ "$COMMIT_SHA" != "unknown" ]; then
+              VERSION="${VERSION}+git.${COMMIT_SHA}"
+              if [ "${{ github.event_name }}" = "workflow_dispatch" ] && ! git diff --quiet 2>/dev/null; then
+                VERSION="${VERSION}.dirty"
+              fi
+            fi
+          fi
+          COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
+          RELEASE_VERSION="${VERSION}"
+          if [ "${{ github.event.inputs.create_release }}" = "true" ] || [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            if [ -z "${{ github.event.inputs.version }}" ]; then
+              RELEASE_VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
+              if [ "$COMMIT_SHA" != "unknown" ]; then
+                RELEASE_VERSION="${RELEASE_VERSION}+git.${COMMIT_SHA}"
+              fi
+            fi
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+          echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+          echo "package_name=aasdk-${{ matrix.arch }}-${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
+        run: |
+          echo "Building AASDK for ${{ matrix.arch }} architecture"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            BUILD_TYPE="release"
+            echo "Building release packages for main branch"
+          else
+            BUILD_TYPE="debug"
+            echo "Building debug packages for ${{ github.ref_name }} branch"
+          fi
+          mkdir -p ./build-output
+          docker buildx build \
+            --platform ${{ matrix.platform }} \
+            --build-arg TARGET_ARCH=${{ matrix.arch }} \
+            --build-arg DEBIAN_VERSION=${{ matrix.distro }} \
+            --build-arg BUILD_TYPE=${BUILD_TYPE} \
+            --tag aasdk-build:${{ matrix.arch }} \
+            --load \
+            .
+          container_id=$(docker create aasdk-build:${{ matrix.arch }})
+          docker cp ${container_id}:/output/. ./build-output/
+          docker rm ${container_id}
+          echo "Build completed for ${{ matrix.arch }}"
+          ls -la ./build-output/
+
+      - name: Validate packages
+        run: |
+          echo "Validating packages for ${{ matrix.arch }}..."
+          if [ ! "$(ls -A ./build-output/*.deb 2>/dev/null)" ]; then
+            echo "Error: No .deb packages found for ${{ matrix.arch }}"
+            exit 1
+          fi
+          for package in ./build-output/*.deb; do
+            if [ -f "$package" ]; then
+              echo "Package: $(basename $package)"
+              dpkg-deb --info "$package" | head -20
+              echo "---"
+            fi
+          done
+
+      - name: Generate version report
+        run: |
+          out="deb-versions-${{ matrix.distro }}-${{ matrix.arch }}.md"
+          echo "# AASDK DEB Versions for ${{ matrix.distro }} / ${{ matrix.arch }}" > "$out"
+          echo "" >> "$out"
+          for package in ./build-output/*.deb; do
+            [ -f "$package" ] || continue
+            pkg=$(dpkg-deb --field "$package" Package)
+            ver=$(dpkg-deb --field "$package" Version)
+            arch=$(dpkg-deb --field "$package" Architecture)
+            echo "- $(basename "$package"): $pkg $ver ($arch)" >> "$out"
+          done
+          echo "Wrote $out"
+
+      - name: Upload version report
+        uses: actions/upload-artifact@v4
+        with:
+          name: "aasdk-deb-versions-${{ matrix.distro }}-${{ matrix.arch }}"
+          path: "deb-versions-${{ matrix.distro }}-${{ matrix.arch }}.md"
+          retention-days: 60
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: "aasdk-packages-${{ matrix.distro }}-${{ matrix.arch }}"
+          path: |
+            ./build-output/*.deb
+            ./build-output/*.tar.*
+          retention-days: 30
+
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: aasdk-packages-*
+          merge-multiple: true
+          path: ./test-packages
+
+      - name: Test package installation
+        run: |
+          echo "Testing package installation..."
+          for package in ./test-packages/*amd64*.deb; do
+            if [ -f "$package" ]; then
+              echo "Testing installation of $(basename $package)"
+              dpkg-deb --contents "$package" | head -20
+              dpkg-deb --field "$package" Depends
+              echo "Package $(basename $package) structure looks good"
+            fi
+          done
+
+      - name: Generate test report
+        run: |
+          echo "# AASDK Build Test Report" > test-report.md
+          echo "" >> test-report.md
+          echo "## Build Summary" >> test-report.md
+          echo "- Build Date: $(date -u)" >> test-report.md
+          echo "- Commit: ${{ github.sha }}" >> test-report.md
+          echo "- Branch: ${{ github.ref_name }}" >> test-report.md
+          echo "" >> test-report.md
+          echo "## Package Information" >> test-report.md
+          for package in ./test-packages/*.deb; do
+            if [ -f "$package" ]; then
+              echo "### $(basename $package)" >> test-report.md
+              echo '```' >> test-report.md
+              dpkg-deb --field "$package" Package Architecture Version Depends >> test-report.md
+              echo '```' >> test-report.md
+              echo "" >> test-report.md
+            fi
+          done
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: aasdk-test-report-${{ github.run_number }}
+          path: test-report.md
+          retention-days: 90
+
+  release:
+    needs: [prepare, build, test]
+    runs-on: ubuntu-latest
+    if: github.event.inputs.trigger_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    steps:
+      - name: Download built packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: aasdk-packages-*
+          merge-multiple: true
+          path: ./release-packages
+
+      - name: Upload DEBs to GitHub Release
+        if: github.event.inputs.trigger_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/')
+        run: |
+          set -euo pipefail
+          RELEASE_TAG="v${{ needs.prepare.outputs.release_version }}"
+          echo "Preparing release $RELEASE_TAG"
+          ls -la ./release-packages || true
+          gh release create "$RELEASE_TAG" ./release-packages/*.deb --title "AASDK $RELEASE_TAG" --notes "Automated release with deb packages" || gh release upload "$RELEASE_TAG" ./release-packages/*.deb --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Summary
+        run: |
+          echo "## Build Complete! 🎉"
+          echo "Build Run ID: `${{ github.run_id }}`"
+          echo ""
+          echo "### Next Steps:"
+          echo "You can now manually trigger workflows using this build:"
+          echo ""
+          echo "- Trigger release: release.yml with build_run_id=${{ github.run_id }}"
