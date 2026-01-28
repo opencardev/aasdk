@@ -40,228 +40,205 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Generate release info
-      id: release_info
-      run: |
-        # Use manual version if provided, otherwise generate using same scheme as CMake
-        if [ -n "${{ inputs.version }}" ]; then
-          VERSION="${{ inputs.version }}"
-        else
-          # Match CMakeLists.txt date-based versioning: YYYY.MM.DD
-          BUILD_YEAR=$(date -u +"%Y")
-          BUILD_MONTH=$(date -u +"%m")
-          BUILD_DAY=$(date -u +"%d")
-          VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
-          
-          # Add git commit info if available (match CMake logic)
-          COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          if [ "$COMMIT_SHA" != "unknown" ]; then
-            VERSION="${VERSION}+git.${COMMIT_SHA}"
-          fi
-        fi
-        
-        COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
-        
-        # Generate changelog since last tag or last 10 commits
-        echo "Generating changelog..."
-        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-        
-        # Create the full release notes file
-        cat > RELEASE_NOTES.md << EOF
-        ## AASDK Release ${VERSION}
-        
-        **Build Information:**
-        - Version: \`${VERSION}\`
-        - Commit: \`${COMMIT_SHA}\`
-        - Build Date: \`${BUILD_DATE}\`
-        - Build Run: \`${{ inputs.build_run_id }}\`
-        - Architectures: \`amd64\`, \`arm64\`, \`armhf\`
-        
-        EOF
-        
-        # Add changelog
-        if [ -n "$LAST_TAG" ] && [ "$LAST_TAG" != "" ]; then
-          echo "## What's Changed Since ${LAST_TAG}" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-          # Verify the tag exists and is reachable before using it in git log
-          if git rev-parse --verify "${LAST_TAG}" >/dev/null 2>&1; then
-            if git log --pretty=format:"- %s (%h)" "${LAST_TAG}..HEAD" 2>/dev/null | head -20 >> RELEASE_NOTES.md && [ -s RELEASE_NOTES.md ]; then
-              echo "" >> RELEASE_NOTES.md
-            else
-              echo "- No changes since ${LAST_TAG}" >> RELEASE_NOTES.md
-              echo "" >> RELEASE_NOTES.md
-            fi
+      - name: Generate release info
+        id: release_info
+        run: |
+          # Use manual version if provided, otherwise generate using same scheme as CMake
+          if [ -n "${{ inputs.version }}" ]; then
+            VERSION="${{ inputs.version }}"
           else
-            echo "- Previous tag ${LAST_TAG} not found, showing recent commits" >> RELEASE_NOTES.md
-            echo "" >> RELEASE_NOTES.md
-            git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md
-            echo "" >> RELEASE_NOTES.md
+            # Match CMakeLists.txt date-based versioning: YYYY.MM.DD
+            BUILD_YEAR=$(date -u +"%Y")
+            BUILD_MONTH=$(date -u +"%m")
+            BUILD_DAY=$(date -u +"%d")
+            VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
+
+            # Add git commit info if available (match CMake logic)
+            COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            if [ "$COMMIT_SHA" != "unknown" ]; then
+              VERSION="${VERSION}+git.${COMMIT_SHA}"
+            fi
           fi
-        else
-          echo "## What's Changed" >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-          git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md
-          echo "" >> RELEASE_NOTES.md
-        fi
-        
-        # Add package and installation info
-        cat >> RELEASE_NOTES.md << EOF
-        
-        **Package Contents:**
-        This release includes packages for all supported architectures:
-        - **AMD64**: Intel/AMD 64-bit systems
-        - **ARM64**: ARM 64-bit systems (e.g., Raspberry Pi 4, Apple Silicon)
-        - **ARMHF**: ARM 32-bit hard-float systems (e.g., Raspberry Pi 3)
-        
-        **Installation:**
-        \`\`\`bash
-        # Download the appropriate package for your architecture
-        # For example, on ARM64:
-        sudo dpkg -i libaasdk_*_arm64.deb
-        sudo dpkg -i libaasdk-dev_*_arm64.deb
-        
-        # Fix any dependency issues
-        sudo apt-get install -f
-        \`\`\`
-        
-        **Package Verification:**
-        SHA256 checksums are provided for all packages. Download \`SHA256SUMS\` and verify packages:
-        \`\`\`bash
-        # Verify all packages
-        sha256sum -c SHA256SUMS
-        
-        # Or verify individual packages
-        sha256sum -c libaasdk_*_arm64.deb.sha256
-        \`\`\`
-        
-        **Dependencies:**
-        - libboost-all-dev
-        - libprotobuf-dev
-        - libusb-1.0-0-dev
-        - libssl-dev
-        EOF
-        
-        echo "version=${VERSION}" >> $GITHUB_OUTPUT
-        echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
-        echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
-        
-        echo "Release version: ${VERSION}"
-        echo "Generated release notes:"
-        cat RELEASE_NOTES.md
 
-    - name: Download artifacts from build run
-      run: |
-        echo "Downloading artifacts from run ID: ${{ inputs.build_run_id }}"
-        
-        # Create directory for release packages
-        mkdir -p ./release-packages
-        
-        # Download all artifacts from the specified run
-        gh run download ${{ inputs.build_run_id }} --dir ./downloaded-artifacts
-        
-        # Move build artifacts to release packages directory
-        if [ -d "./downloaded-artifacts" ]; then
-          find ./downloaded-artifacts -name "*.deb" -exec cp {} ./release-packages/ \;
-          find ./downloaded-artifacts -name "*.tar.*" -exec cp {} ./release-packages/ \;
-          find ./downloaded-artifacts -name "test-report.md" -exec cp {} ./release-packages/ \;
-        fi
-        
-        echo "Downloaded artifacts:"
-        ls -la ./release-packages/
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
 
-    - name: Generate SHA256 hashes
-      run: |
-        echo "Generating SHA256 hash files..."
-        cd ./release-packages
-        
-        # Generate individual hash files for each package
-        for pattern in "*.deb" "*.tar.*"; do
-          for file in $pattern; do
-            if [ -f "$file" ]; then
-              echo "Generating hash for $file"
-              sha256sum "$file" > "$file.sha256"
+          # Generate changelog since last tag or last 10 commits
+          echo "Generating changelog..."
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+            # Create the full release notes file using echo to avoid heredoc indentation issues
+            printf "%s\n" "## AASDK Release ${VERSION}" > RELEASE_NOTES.md
+            printf "%s\n" "" >> RELEASE_NOTES.md
+            printf "%s\n" "**Build Information:**" >> RELEASE_NOTES.md
+            printf "%s\n" "- Version: \`${VERSION}\`" >> RELEASE_NOTES.md
+            printf "%s\n" "- Commit: \`${COMMIT_SHA}\`" >> RELEASE_NOTES.md
+            printf "%s\n" "- Build Date: \`${BUILD_DATE}\`" >> RELEASE_NOTES.md
+            printf "%s\n" "- Build Run: \`${{ inputs.build_run_id }}\`" >> RELEASE_NOTES.md
+            printf "%s\n" "- Architectures: \`amd64\`, \`arm64\`, \`armhf\`" >> RELEASE_NOTES.md
+
+            # Add changelog
+            if [ -n "$LAST_TAG" ] && [ "$LAST_TAG" != "" ]; then
+              printf "%s\n" "## What's Changed Since ${LAST_TAG}" >> RELEASE_NOTES.md
+              printf "%s\n" "" >> RELEASE_NOTES.md
+              if git rev-parse --verify "${LAST_TAG}" >/dev/null 2>&1; then
+                git log --pretty=format:"- %s (%h)" "${LAST_TAG}..HEAD" 2>/dev/null | head -20 >> RELEASE_NOTES.md || true
+              else
+                printf "%s\n" "- Previous tag ${LAST_TAG} not found, showing recent commits" >> RELEASE_NOTES.md
+                git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md || true
+              fi
+            else
+              printf "%s\n" "## What's Changed" >> RELEASE_NOTES.md
+              printf "%s\n" "" >> RELEASE_NOTES.md
+              git log --pretty=format:"- %s (%h)" -10 >> RELEASE_NOTES.md || true
             fi
-          done 2>/dev/null || true
-        done
-        
-        # Generate a combined hash file
-        echo "# AASDK Release ${{ steps.release_info.outputs.version }} - SHA256 Checksums" > SHA256SUMS
-        echo "# Generated on $(date -u)" >> SHA256SUMS
-        echo "# Build Run: ${{ inputs.build_run_id }}" >> SHA256SUMS
-        echo "" >> SHA256SUMS
-        
-        # Add checksums for .deb files
-        if ls *.deb >/dev/null 2>&1; then
-          sha256sum *.deb >> SHA256SUMS
-        fi
-        
-        # Add checksums for .tar.* files
-        if ls *.tar.* >/dev/null 2>&1; then
-          sha256sum *.tar.* >> SHA256SUMS
-        fi
-        
-        echo "Hash files generated:"
-        ls -la *.sha256 SHA256SUMS 2>/dev/null || echo "No hash files found"
 
-    - name: Add SHA256 hashes to release notes
-      run: |
-        cd ./release-packages
+            # Add package and installation info
+            printf "%s\n" "" >> RELEASE_NOTES.md
+            printf "%s\n" "**Package Contents:**" >> RELEASE_NOTES.md
+            printf "%s\n" "This release includes packages for all supported architectures:" >> RELEASE_NOTES.md
+            printf "%s\n" "- **AMD64**: Intel/AMD 64-bit systems" >> RELEASE_NOTES.md
+            printf "%s\n" "- **ARM64**: ARM 64-bit systems (e.g., Raspberry Pi 4, Apple Silicon)" >> RELEASE_NOTES.md
+            printf "%s\n" "- **ARMHF**: ARM 32-bit hard-float systems (e.g., Raspberry Pi 3)" >> RELEASE_NOTES.md
+            printf "%s\n" "" >> RELEASE_NOTES.md
+            printf "%s\n" "**Installation:**" >> RELEASE_NOTES.md
+            printf "%s\n" "\`\`\`bash" >> RELEASE_NOTES.md
+            printf "%s\n" "# Download the appropriate package for your architecture" >> RELEASE_NOTES.md
+            printf "%s\n" "# For example, on ARM64:" >> RELEASE_NOTES.md
+            printf "%s\n" "sudo dpkg -i libaasdk_*_arm64.deb" >> RELEASE_NOTES.md
+            printf "%s\n" "sudo dpkg -i libaasdk-dev_*_arm64.deb" >> RELEASE_NOTES.md
+            printf "%s\n" "" >> RELEASE_NOTES.md
+            printf "%s\n" "# Fix any dependency issues" >> RELEASE_NOTES.md
+            printf "%s\n" "sudo apt-get install -f" >> RELEASE_NOTES.md
+            printf "%s\n" "\`\`\`" >> RELEASE_NOTES.md
+            printf "%s\n" "" >> RELEASE_NOTES.md
+            printf "%s\n" "**Package Verification:**" >> RELEASE_NOTES.md
+            printf "%s\n" "SHA256 checksums are provided for all packages. Download \`SHA256SUMS\` and verify packages:" >> RELEASE_NOTES.md
+            printf "%s\n" "\`\`\`bash" >> RELEASE_NOTES.md
+            printf "%s\n" "# Verify all packages" >> RELEASE_NOTES.md
+            printf "%s\n" "sha256sum -c SHA256SUMS" >> RELEASE_NOTES.md
+            printf "%s\n" "" >> RELEASE_NOTES.md
+            printf "%s\n" "# Or verify individual packages" >> RELEASE_NOTES.md
+              printf "%s\n" "sha256sum -c libaasdk_*_arm64.deb.sha256" >> RELEASE_NOTES.md
+              printf "%s\n" "\`\`\`" >> RELEASE_NOTES.md
+              printf "%s\n" "" >> RELEASE_NOTES.md
+              printf "%s\n" "**Dependencies:**" >> RELEASE_NOTES.md
+              printf "%s\n" "- libboost-all-dev" >> RELEASE_NOTES.md
+              printf "%s\n" "- libprotobuf-dev" >> RELEASE_NOTES.md
+              printf "%s\n" "- libusb-1.0-0-dev" >> RELEASE_NOTES.md
+              printf "%s\n" "- libssl-dev" >> RELEASE_NOTES.md
         
-        # Add SHA256 section to release notes
-        echo "" >> ../RELEASE_NOTES.md
-        echo "**SHA256 Checksums:**" >> ../RELEASE_NOTES.md
-        echo "\`\`\`" >> ../RELEASE_NOTES.md
-        
-        # Add checksums for each architecture organized
-        if [ -f SHA256SUMS ]; then
-          # Sort by architecture for better presentation
-          for arch in amd64 arm64 armhf; do
-            if grep -q "$arch" SHA256SUMS 2>/dev/null; then
-              echo "# $arch packages:" >> ../RELEASE_NOTES.md
-              grep "$arch" SHA256SUMS >> ../RELEASE_NOTES.md || true
-            fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+          echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
+
+          echo "Release version: ${VERSION}"
+          echo "Generated release notes:"
+          cat RELEASE_NOTES.md
+
+      - name: Download artifacts from build run
+        run: |
+          echo "Downloading artifacts from run ID: ${{ inputs.build_run_id }}"
+          # Create directory for release packages
+          mkdir -p ./release-packages
+
+          # Download all artifacts from the specified run
+          gh run download ${{ inputs.build_run_id }} --dir ./downloaded-artifacts
+
+          # Move build artifacts to release packages directory
+          if [ -d "./downloaded-artifacts" ]; then
+            find ./downloaded-artifacts -name "*.deb" -exec cp {} ./release-packages/ \;
+            find ./downloaded-artifacts -name "*.tar.*" -exec cp {} ./release-packages/ \;
+            find ./downloaded-artifacts -name "test-report.md" -exec cp {} ./release-packages/ \;
+          fi
+
+          echo "Downloaded artifacts:"
+          ls -la ./release-packages/
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate SHA256 hashes
+        run: |
+          echo "Generating SHA256 hash files..."
+          cd ./release-packages
+
+          # Generate individual hash files for each package
+          for pattern in "*.deb" "*.tar.*"; do
+            for file in $pattern; do
+              if [ -f "$file" ]; then
+                echo "Generating hash for $file"
+                sha256sum "$file" > "$file.sha256"
+              fi
+            done 2>/dev/null || true
           done
-          
-          # Add any other files (source packages, etc.)
-          if grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >/dev/null 2>&1; then
-            echo "# Other files:" >> ../RELEASE_NOTES.md
-            grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >> ../RELEASE_NOTES.md || true
-          fi
-        fi
-        
-        echo "\`\`\`" >> ../RELEASE_NOTES.md
-        
-        echo "Updated release notes with SHA256 checksums:"
-        echo "--- FINAL RELEASE NOTES ---"
-        cat ../RELEASE_NOTES.md
 
-    - name: Create GitHub Release
-      id: create_release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.release_info.outputs.version }}
-        name: AASDK Release ${{ steps.release_info.outputs.version }}
-        body_path: RELEASE_NOTES.md
-        files: |
-          ./release-packages/*.deb
-          ./release-packages/*.tar.*
-          ./release-packages/*.sha256
-          ./release-packages/SHA256SUMS
-          ./release-packages/test-report.md
-        fail_on_unmatched_files: false
-        generate_release_notes: false
-        draft: ${{ inputs.create_draft || false }}
-        prerelease: ${{ contains(steps.release_info.outputs.version, 'git') }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Generate a combined hash file
+          echo "# AASDK Release ${{ steps.release_info.outputs.version }} - SHA256 Checksums" > SHA256SUMS
+          echo "# Generated on $(date -u)" >> SHA256SUMS
+          echo "# Build Run: ${{ inputs.build_run_id }}" >> SHA256SUMS
+          echo "" >> SHA256SUMS
+
+          # Add checksums for .deb files
+          if ls *.deb >/dev/null 2>&1; then
+            sha256sum *.deb >> SHA256SUMS
+          fi
+
+          # Add checksums for .tar.* files
+          if ls *.tar.* >/dev/null 2>&1; then
+            sha256sum *.tar.* >> SHA256SUMS
+          fi
+
+          echo "Hash files generated:"
+          ls -la *.sha256 SHA256SUMS 2>/dev/null || echo "No hash files found"
+
+      - name: Add SHA256 hashes to release notes
+        run: |
+          cd ./release-packages
+
+          # Add SHA256 section to release notes
+          echo "" >> ../RELEASE_NOTES.md
+          echo "**SHA256 Checksums:**" >> ../RELEASE_NOTES.md
+          echo "\`\`\`" >> ../RELEASE_NOTES.md
+
+          # Add checksums for each architecture organized
+          if [ -f SHA256SUMS ]; then
+            # Sort by architecture for better presentation
+            for arch in amd64 arm64 armhf; do
+              if grep -q "$arch" SHA256SUMS 2>/dev/null; then
+                echo "# $arch packages:" >> ../RELEASE_NOTES.md
+                grep "$arch" SHA256SUMS >> ../RELEASE_NOTES.md || true
+              fi
+            done
+
+            # Add any other files (source packages, etc.)
+            if grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >/dev/null 2>&1; then
+              echo "# Other files:" >> ../RELEASE_NOTES.md
+              grep -v -E "(amd64|arm64|armhf)" SHA256SUMS >> ../RELEASE_NOTES.md || true
+            fi
+          fi
+
+          echo "\`\`\`" >> ../RELEASE_NOTES.md
+
+          echo "Updated release notes with SHA256 checksums:"
+          echo "--- FINAL RELEASE NOTES ---"
+          cat ../RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.release_info.outputs.version }}
+          name: "AASDK Release ${{ steps.release_info.outputs.version }}"
+          body_path: RELEASE_NOTES.md
+          draft: ${{ inputs.create_draft || false }}
+          prerelease: ${{ contains(steps.release_info.outputs.version, 'git') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     outputs:
       version: ${{ steps.release_info.outputs.version }}
