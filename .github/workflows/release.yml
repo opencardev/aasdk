@@ -228,12 +228,17 @@ jobs:
           echo "--- FINAL RELEASE NOTES ---"
           cat ../RELEASE_NOTES.md
 
+      - name: Ensure git metadata
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Create GitHub Release
         id: create_release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ steps.release_info.outputs.version }}
-          name: "AASDK Release ${{ steps.release_info.outputs.version }}"
+          tag_name: ${{ steps.release_info.outputs.version || github.run_number }}
+          name: "AASDK Release ${{ steps.release_info.outputs.version || github.run_number }}"
           body_path: RELEASE_NOTES.md
           draft: ${{ inputs.create_draft || false }}
           prerelease: ${{ contains(steps.release_info.outputs.version, 'git') }}
