@@ -49,11 +49,6 @@ on:
           - all
           - trixie
           - bookworm
-      trigger_release:
-        description: 'Trigger release workflow after build'
-        required: false
-        default: false
-        type: boolean
 
 env:
   REGISTRY: ghcr.io
@@ -309,37 +304,3 @@ jobs:
           name: aasdk-test-report-${{ github.run_number }}
           path: test-report.md
           retention-days: 90
-
-  release:
-    needs: [prepare, build, test]
-    runs-on: ubuntu-latest
-    if: github.event.inputs.trigger_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-
-    steps:
-      - name: Download built packages
-        uses: actions/download-artifact@v4
-        with:
-          pattern: aasdk-packages-*
-          merge-multiple: true
-          path: ./release-packages
-
-      - name: Upload DEBs to GitHub Release
-        if: github.event.inputs.trigger_release == 'true' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/')
-        run: |
-          set -euo pipefail
-          RELEASE_TAG="v${{ needs.prepare.outputs.release_version }}"
-          echo "Preparing release $RELEASE_TAG"
-          ls -la ./release-packages || true
-          gh release create "$RELEASE_TAG" ./release-packages/*.deb --title "AASDK $RELEASE_TAG" --notes "Automated release with deb packages" || gh release upload "$RELEASE_TAG" ./release-packages/*.deb --clobber
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build Summary
-        run: |
-          echo "## Build Complete! 🎉"
-          echo "Build Run ID: `${{ github.run_id }}`"
-          echo ""
-          echo "### Next Steps:"
-          echo "You can now manually trigger workflows using this build:"
-          echo ""
-          echo "- Trigger release: release.yml with build_run_id=${{ github.run_id }}"
