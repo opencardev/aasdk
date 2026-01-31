@@ -167,9 +167,18 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         "${abseil_BINARY_DIR}/**/libutf8_*.so*"
     )
     if(ABSEIL_SHARED_LIBS)
+        # Determine Debian multi-arch library directory when possible so
+        # dpkg-shlibdeps will locate shared libraries referenced by RPATHs.
+        set(ABSEIL_LIB_INSTALL_DIR lib)
+        if(DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE AND CPACK_DEBIAN_PACKAGE_ARCHITECTURE STREQUAL "amd64")
+            set(ABSEIL_LIB_INSTALL_DIR lib/x86_64-linux-gnu)
+        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+            set(ABSEIL_LIB_INSTALL_DIR lib/x86_64-linux-gnu)
+        endif()
+
         foreach(lib ${ABSEIL_SHARED_LIBS})
             install(FILES "${abseil_BINARY_DIR}/${lib}"
-                DESTINATION lib
+                DESTINATION ${ABSEIL_LIB_INSTALL_DIR}
                 COMPONENT runtime
             )
         endforeach()
