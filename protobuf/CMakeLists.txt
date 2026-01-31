@@ -105,18 +105,65 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         ARCHIVE DESTINATION lib COMPONENT development
     )
     
-    # Install Abseil libraries that protobuf depends on
-    # Get all Abseil targets that were built
-    get_property(ABSL_TARGETS DIRECTORY ${abseil_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
-    foreach(target ${ABSL_TARGETS})
-        if(TARGET ${target})
-            get_target_property(target_type ${target} TYPE)
-            if(target_type STREQUAL "SHARED_LIBRARY")
-                install(TARGETS ${target}
-                    LIBRARY DESTINATION lib COMPONENT runtime
-                    ARCHIVE DESTINATION lib COMPONENT development
-                )
-            endif()
+    # Install Abseil shared libraries that protobuf depends on
+    # List all required Abseil libraries explicitly
+    set(ABSL_LIBS_TO_INSTALL
+        absl_log_initialize
+        absl_log_internal_check_op
+        absl_log_internal_conditions
+        absl_log_internal_message
+        absl_log_internal_nullguard
+        absl_log_internal_log_sink_set
+        absl_die_if_null
+        absl_statusor
+        absl_status
+        absl_raw_hash_set
+        absl_hashtablez_sampler
+        absl_hash
+        absl_city
+        absl_low_level_hash
+        absl_cord
+        absl_cordz_info
+        absl_cord_internal
+        absl_cordz_functions
+        absl_exponential_biased
+        absl_cordz_handle
+        absl_crc_cord_state
+        absl_crc32c
+        absl_crc_internal
+        absl_crc_cpu_detect
+        absl_synchronization
+        absl_graphcycles_internal
+        absl_kernel_timeout_internal
+        absl_time
+        absl_time_zone
+        absl_civil_time
+        absl_str_format_internal
+        absl_strings
+        absl_strings_internal
+        absl_string_view
+        absl_int128
+        absl_spinlock_wait
+        absl_throw_delegate
+        absl_stacktrace
+        absl_symbolize
+        absl_debugging_internal
+        absl_demangle_internal
+        absl_malloc_internal
+        absl_base
+        absl_raw_logging_internal
+        absl_log_severity
+        utf8_validity
+        utf8_range
+    )
+    
+    foreach(absl_lib ${ABSL_LIBS_TO_INSTALL})
+        if(TARGET ${absl_lib})
+            install(TARGETS ${absl_lib}
+                LIBRARY DESTINATION lib COMPONENT runtime
+                ARCHIVE DESTINATION lib COMPONENT development
+                OPTIONAL
+            )
         endif()
     endforeach()
     
