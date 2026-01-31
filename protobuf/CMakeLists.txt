@@ -407,6 +407,13 @@ set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "aap-protobuf-dev")
 set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "aap-protobuf (= ${CPACK_PACKAGE_VERSION})")
 
+# Disable automatic dpkg-shlibdeps dependency generation. We ship Abseil
+# shared libraries inside this package (private libs) and dpkg-shlibdeps
+# fails to resolve them in this packaging context. We provide conservative
+# manual runtime dependencies instead.
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "libc6 (>= 2.34)")
+
 include(CPack)
 
 

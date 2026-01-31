@@ -26,3 +26,4 @@ aasdkConfig*.cmake
 CPackConfig.cmake
 CPackSourceConfig.cmake
 include/aasdk/Version.hpp
+_bmad/
