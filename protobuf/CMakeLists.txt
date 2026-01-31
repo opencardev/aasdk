@@ -157,15 +157,25 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         utf8_range
     )
     
-    foreach(absl_lib ${ABSL_LIBS_TO_INSTALL})
-        if(TARGET ${absl_lib})
-            install(TARGETS ${absl_lib}
-                LIBRARY DESTINATION lib COMPONENT runtime
-                ARCHIVE DESTINATION lib COMPONENT development
-                OPTIONAL
+    # Install Abseil shared libraries by copying built .so files from the
+    # Abseil build tree. This avoids relying on exported target names which
+    # may not be available in this directory scope and ensures dpkg-shlibdeps
+    # can find the libraries when packaging.
+    file(GLOB_RECURSE ABSEIL_SHARED_LIBS
+        RELATIVE "${abseil_BINARY_DIR}"
+        "${abseil_BINARY_DIR}/**/libabsl_*.so*"
+        "${abseil_BINARY_DIR}/**/libutf8_*.so*"
+    )
+    if(ABSEIL_SHARED_LIBS)
+        foreach(lib ${ABSEIL_SHARED_LIBS})
+            install(FILES "${abseil_BINARY_DIR}/${lib}"
+                DESTINATION lib
+                COMPONENT runtime
             )
-        endif()
-    endforeach()
+        endforeach()
+    else()
+        message(WARNING "No Abseil shared libraries found under ${abseil_BINARY_DIR}; packaging may fail")
+    endif()
     
     # Install protobuf headers
     install(DIRECTORY ${protobuf_SOURCE_DIR}/src/google
