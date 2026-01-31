@@ -2,10 +2,6 @@ name: Build Protobuf Packages
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - 'protobuf/**'
-      - '.github/workflows/protobuf-build.yml'
 
 jobs:
   build-protobuf-deb:
