@@ -1,0 +1,11 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: protobuf
+Description: Protocol Buffers - Google's data interchange format
+Version: @PROTOBUF_PC_VERSION@
+Requires: absl_base absl_strings absl_synchronization
+Libs: -L${libdir} -lprotobuf
+Cflags: -I${includedir}

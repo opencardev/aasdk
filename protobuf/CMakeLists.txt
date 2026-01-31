@@ -60,6 +60,8 @@ set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 # Remove -pedantic from flags for external dependencies (Abseil, Protobuf)
 string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+# Build Abseil as shared libraries to avoid linking issues
+set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
 set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
@@ -93,28 +95,77 @@ message(STATUS "Protobuf targets available, protoc: ${Protobuf_PROTOC_EXECUTABLE
 # When called as a standalone project (e.g., from workflow), only package protobuf
 # When called as a submodule, also build AAP protocol definitions
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    # Standalone build - only package protobuf v30.0
-    message(STATUS "Building in standalone mode - packaging Google Protobuf v30.0 only")
+    # Standalone build - only package protobuf v30.0 with Abseil dependencies
+    message(STATUS "Building in standalone mode - packaging Google Protobuf v30.0 with Abseil")
     
-        # Install protobuf runtime and development files
-        install(TARGETS libprotobuf libprotobuf-lite libprotoc protoc
-            RUNTIME DESTINATION bin COMPONENT runtime
-            LIBRARY DESTINATION lib COMPONENT runtime
-            ARCHIVE DESTINATION lib COMPONENT development
-        )
+    # Install protobuf runtime and development files
+    install(TARGETS libprotobuf libprotobuf-lite libprotoc protoc
+        RUNTIME DESTINATION bin COMPONENT runtime
+        LIBRARY DESTINATION lib COMPONENT runtime
+        ARCHIVE DESTINATION lib COMPONENT development
+    )
+    
+    # Install Abseil libraries that protobuf depends on
+    # Get all Abseil targets that were built
+    get_property(ABSL_TARGETS DIRECTORY ${abseil_SOURCE_DIR} PROPERTY BUILDSYSTEM_TARGETS)
+    foreach(target ${ABSL_TARGETS})
+        if(TARGET ${target})
+            get_target_property(target_type ${target} TYPE)
+            if(target_type STREQUAL "SHARED_LIBRARY")
+                install(TARGETS ${target}
+                    LIBRARY DESTINATION lib COMPONENT runtime
+                    ARCHIVE DESTINATION lib COMPONENT development
+                )
+            endif()
+        endif()
+    endforeach()
     
     # Install protobuf headers
     install(DIRECTORY ${protobuf_SOURCE_DIR}/src/google
             DESTINATION include
             COMPONENT development
             FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+            PATTERN "*test*" EXCLUDE
+            PATTERN "*benchmark*" EXCLUDE
     )
     
-    # Install protobuf cmake config
-    install(DIRECTORY ${protobuf_BINARY_DIR}/cmake
+    # Install Abseil headers
+    install(DIRECTORY ${abseil_SOURCE_DIR}/absl
+            DESTINATION include
+            COMPONENT development
+            FILES_MATCHING PATTERN "*.h" PATTERN "*.inc"
+            PATTERN "*test*" EXCLUDE
+            PATTERN "*benchmark*" EXCLUDE
+    )
+    
+    # Install protobuf cmake config files
+    install(DIRECTORY ${protobuf_BINARY_DIR}/
             DESTINATION lib/cmake/protobuf
             COMPONENT development
-            FILES_MATCHING PATTERN "*.cmake"
+            FILES_MATCHING PATTERN "protobuf*.cmake"
+            PATTERN "CMakeFiles" EXCLUDE
+            PATTERN "*.dir" EXCLUDE
+    )
+    
+    # Install Abseil cmake config files
+    install(DIRECTORY ${abseil_BINARY_DIR}/
+            DESTINATION lib/cmake/absl
+            COMPONENT development
+            FILES_MATCHING PATTERN "absl*.cmake"
+            PATTERN "CMakeFiles" EXCLUDE
+            PATTERN "*.dir" EXCLUDE
+    )
+    
+    # Generate and install pkg-config file for protobuf
+    set(PROTOBUF_PC_VERSION "${LIBRARY_BUILD_VERSION_STRING}")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/protobuf.pc.in
+        ${CMAKE_CURRENT_BINARY_DIR}/protobuf.pc
+        @ONLY
+    )
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/protobuf.pc
+            DESTINATION lib/pkgconfig
+            COMPONENT development
     )
 else()
     # Submodule mode - also build AAP protocol definitions
