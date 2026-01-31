@@ -1,0 +1,55 @@
+name: Build Protobuf Packages
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'protobuf/**'
+      - '.github/workflows/protobuf-build.yml'
+
+jobs:
+  build-protobuf-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            git \
+            pkg-config \
+            dpkg-dev \
+            fakeroot
+
+      - name: Configure protobuf build
+        run: |
+          cmake -S protobuf -B build-protobuf \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr
+
+      - name: Build protobuf
+        run: |
+          cmake --build build-protobuf -j$(nproc)
+
+      - name: Package protobuf (DEB)
+        run: |
+          cd build-protobuf
+          cpack -G DEB -C Release
+
+      - name: List package outputs
+        run: |
+          ls -lah build-protobuf
+          ls -lah build-protobuf/*.deb
+
+      - name: Upload protobuf packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: aap-protobuf-deb
+          path: build-protobuf/*.deb
+          retention-days: 30
