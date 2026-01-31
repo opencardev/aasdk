@@ -86,6 +86,10 @@ message(STATUS "Restored original compiler flags")
 set(PROTOBUF_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
 message(STATUS "Using protoc from build: ${PROTOBUF_PROTOC_EXECUTABLE}")
 
+# Include protobuf module to get protobuf_generate function
+list(APPEND CMAKE_MODULE_PATH ${protobuf_SOURCE_DIR}/cmake)
+find_package(Protobuf REQUIRED CONFIG)
+
 # Locate all proto files
 file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
 
