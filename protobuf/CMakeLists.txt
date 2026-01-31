@@ -40,7 +40,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Use FetchContent to build Protobuf v30.0 with C++20 support
-message(STATUS "Using FetchContent to download and build Protobuf v30.0")
+message(STATUS "AASDK will build and package Google Protobuf v30.0")
 include(FetchContent)
 
 # Fetch Abseil (required by Protobuf v22.0+)
@@ -55,9 +55,7 @@ FetchContent_Declare(
 set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 # Remove -pedantic from flags for external dependencies (Abseil, Protobuf)
-# These external libraries may have valid code that triggers pedantic warnings
 string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-message(STATUS "Temporarily disabled -pedantic flag for external dependency compilation")
 
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
 set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
@@ -73,8 +71,8 @@ FetchContent_Declare(
 )
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
-set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
+set(protobuf_BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+set(protobuf_INSTALL ON CACHE BOOL "" FORCE)
 message(STATUS "Fetching Protobuf v30.0...")
 
 # Make protobuf available - this will configure and build it
@@ -82,16 +80,11 @@ FetchContent_MakeAvailable(protobuf)
 
 # Restore original compiler flags for AASDK code
 set(CMAKE_CXX_FLAGS "${SAVED_CMAKE_CXX_FLAGS}")
-message(STATUS "Restored original compiler flags (with -pedantic) for AASDK code")
+message(STATUS "Restored original compiler flags")
 
-# Set protobuf_BIN_DIR to use the built protoc from FetchContent, NOT system protoc
+# Set protobuf_BIN_DIR to use the built protoc from FetchContent
 set(PROTOBUF_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
-message(STATUS "Using protoc from FetchContent: ${PROTOBUF_PROTOC_EXECUTABLE}")
-
-# Include it if not already available
-if(NOT COMMAND protobuf_generate)
-    include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
-endif()
+message(STATUS "Using protoc from build: ${PROTOBUF_PROTOC_EXECUTABLE}")
 
 # Locate all proto files
 file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
@@ -183,6 +176,29 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfigVersion.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfig.cmake"
         DESTINATION lib/cmake/aap_protobuf
         COMPONENT development)
+
+# Install Protobuf v30.0 libraries and tools built by FetchContent
+message(STATUS "Installing Protobuf v30.0 runtime and development files")
+install(TARGETS protobuf protoc
+        RUNTIME DESTINATION bin COMPONENT runtime
+        LIBRARY DESTINATION lib COMPONENT runtime
+        ARCHIVE DESTINATION lib COMPONENT development
+)
+
+# Install protobuf headers
+install(DIRECTORY ${protobuf_SOURCE_DIR}/src/google
+        DESTINATION include
+        COMPONENT development
+        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+        PATTERN "*/test" EXCLUDE
+)
+
+# Install protobuf cmake config files
+install(DIRECTORY ${protobuf_BINARY_DIR}/cmake
+        DESTINATION lib/cmake/protobuf
+        COMPONENT development
+        FILES_MATCHING PATTERN "*.cmake"
+)
 
 # CPack packaging (DEB)
 set(CPACK_GENERATOR "DEB")
