@@ -181,9 +181,47 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
                 DESTINATION ${ABSEIL_LIB_INSTALL_DIR}
                 COMPONENT runtime
             )
+            # Collect installed libs for shlibs generation
+            list(APPEND _INSTALLED_ABSEIL_LIBS "${abseil_BINARY_DIR}/${lib}")
         endforeach()
     else()
         message(WARNING "No Abseil shared libraries found under ${abseil_BINARY_DIR}; packaging may fail")
+    endif()
+
+    # Generate a minimal shlibs.local file from the installed Abseil shared libs.
+    # This helps dpkg-shlibdeps resolve private libraries when packaging.
+    if(_INSTALLED_ABSEIL_LIBS)
+        set(SHLIBS_FILE "${CMAKE_CURRENT_BINARY_DIR}/shlibs.local")
+        file(WRITE "${SHLIBS_FILE}" "# Local shlibs for aap-protobuf\n")
+        foreach(libpath IN LISTS _INSTALLED_ABSEIL_LIBS)
+            if(EXISTS "${libpath}")
+                execute_process(
+                    COMMAND objdump -p "${libpath}"
+                    OUTPUT_VARIABLE _objdump_out
+                    ERROR_QUIET
+                )
+                string(REGEX MATCH "SONAME[ \\t]*([^ \\n\\r]+)" _match "${_objdump_out}")
+                if(_match)
+                    string(REGEX REPLACE "SONAME[ \\t]*" "" _soname_line "${_match}")
+                    string(STRIP "${_soname_line}" _soname)
+                    # Extract major soname version if present (e.g., libfoo.so.1)
+                    string(REGEX MATCH "(.*\\.so\\.[0-9]+)" _so_and_ver "${_soname}")
+                    if(_so_and_ver)
+                        set(_soname_key "${_so_and_ver}")
+                    else()
+                        set(_soname_key "${_soname}")
+                    endif()
+                    # Write a conservative mapping to the local shlibs file
+                    file(APPEND "${SHLIBS_FILE}" "${_soname_key} aap-protobuf (>= ${LIBRARY_BUILD_VERSION_STRING})\n")
+                endif()
+            endif()
+        endforeach()
+
+        # Install the shlibs.local into the package so dpkg-shlibdeps can consult it
+        install(FILES "${SHLIBS_FILE}"
+            DESTINATION lib/pkgconfig
+            COMPONENT development
+        )
     endif()
     
     # Install protobuf headers
