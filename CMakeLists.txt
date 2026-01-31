@@ -187,18 +187,26 @@ if(AASDK_TEST)
     FetchContent_MakeAvailable(googletest)
 endif(AASDK_TEST)
 
-# Build aap_protobuf as part of this project (includes building Protobuf v30.0)
-message(STATUS "Building aap_protobuf as subdirectory")
-add_subdirectory(protobuf)
+# Check if Protobuf is installed, otherwise build it
+find_package(Protobuf QUIET)
+if(NOT Protobuf_FOUND)
+    message(STATUS "Protobuf not found, building aap_protobuf as subdirectory (includes building Protobuf v30.0)")
+    add_subdirectory(protobuf)
+else()
+    message(STATUS "Using installed Protobuf: ${Protobuf_VERSION}")
+endif()
 
 # Building on a Mac requires Abseil
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     message(STATUS "MacOS System Detected")
     find_package(absl REQUIRED)
 else ()
-    # Use the protobuf targets from the FetchContent build in the protobuf subdirectory
-    # Do NOT call find_package(Protobuf) here as it will find the system version
-    message(STATUS "Using Protobuf v30.0 from FetchContent")
+    if(NOT Protobuf_FOUND)
+        # Use the protobuf targets from the FetchContent build in the protobuf subdirectory
+        message(STATUS "Using Protobuf v30.0 from FetchContent")
+    else()
+        message(STATUS "Using installed Protobuf")
+    endif()
 endif ()
 
 find_package(Boost REQUIRED COMPONENTS system log_setup log OPTIONAL_COMPONENTS unit_test_framework)
