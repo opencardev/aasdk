@@ -1,0 +1,49 @@
+syntax="proto2";
+
+option optimize_for=SPEED;
+
+package aap_protobuf.service.phonestatus;
+
+/**
+ * @file PhoneStatusService.proto
+ * @brief Real-time phone status and notifications service.
+ *
+ * PhoneStatusService delivers live updates on device state to the head unit:
+ * incoming calls, SMS messages, signal strength, battery level, and network
+ * connectivity. Enables the head unit to display call notifications and
+ * dismiss them appropriately.
+ *
+ * Updates provided by service:
+ *   - Incoming call notifications: Caller name, number, contact photo
+ *   - Call state: Alerting, connected, disconnected
+ *   - SMS/text message notifications: Sender, preview text
+ *   - Signal strength: Bars (0-4), used for status bar display
+ *   - Battery level: Percentage, low battery warning
+ *   - Roaming status: Indicator if on roaming network
+ *   - Network operator name: "Verizon", "AT&T", etc.
+ *
+ * Scenario: User receives call while using navigation
+ *   - T+0ms: Phone rings; user driving
+ *   - T+10ms: PhoneStatusService sends INCOMING_CALL_NOTIFICATION
+ *     - Caller: Mom, +1-555-0123
+ *     - Contact photo from contacts
+ *   - T+10ms: Head unit displays large "Mom calling" banner
+ *   - T+15ms: User presses "Accept" on steering wheel button
+ *   - T+20ms: Head unit sends CALL_ACCEPT command via phone channel
+ *   - T+100ms: Audio routed to car speakers/microphone
+ *   - T+105ms: PhoneStatusService sends CALL_CONNECTED notification
+ *   - Navigation continues; call audio mixed with turn directions
+ *   - User: "Hi Mom, I'm driving"
+ *   - Audio intelligently ducks (quietens) navigation voice during speech
+ *
+ * Design: Non-intrusive notifications complement in-vehicle experience.
+ * Hands-free profile (HFP) handles call audio routing separately.
+ * PhoneStatusService focuses on display and acknowledgement.
+ *
+ * Regulatory: Complies with NHTSA distraction guidelines; notifications
+ * provide essential caller ID without forcing driver to handle phone.
+ */
+message PhoneStatusService
+{
+
+}

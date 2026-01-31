@@ -1,0 +1,45 @@
+syntax="proto2";
+
+package aap_protobuf.service.control.message;
+
+/**
+ * @file InstrumentClusterInput.proto
+ * @brief Steering wheel and instrument cluster control inputs.
+ *
+ * InstrumentClusterInput carries soft-button presses from the head unit's
+ * physical control interface (steering wheel controls, center stack buttons)
+ * to the Android device for processing. These commands navigate Android Auto
+ * UI and trigger callbacks to navigation/media services.
+ *
+ * Action types represent button positions on steering wheel or controls:
+ *   - UP / DOWN / LEFT / RIGHT: Navigation direction (menu traversal)
+ *   - ENTER: Select / confirm current menu item
+ *   - BACK: Return to previous menu level
+ *   - CALL: Answer incoming call or dial phone
+ *   - UNKNOWN: Unrecognised button or invalid action
+ *
+ * Scenario: User navigates media library using steering wheel controls
+ *   - T+0ms: User presses right arrow on steering wheel control
+ *   - T+0ms: Head unit detects button, sends InstrumentClusterInput(RIGHT)
+ *   - T+5ms: Android AA service receives DOWN; advances to next album
+ *   - T+5ms: Media list display scrolls right; current selection highlights
+ *   - User continues: right (next), enter (select), left (back to albums)
+ *   - Each button press flows: Physical input -> InstrumentClusterInput message
+ *     -> Android service handler -> UI navigation -> display refresh
+ *
+ * Thread Safety: Messages are delivered via channel control; each message
+ * creates separate promise/callback. No concurrent delivery on same channel.
+ */
+message InstrumentClusterInput {
+    required InstrumentClusterAction action = 1;
+    enum InstrumentClusterAction {
+        UNKNOWN = 0;
+        UP = 1;
+        DOWN = 2;
+        LEFT = 3;
+        RIGHT = 4;
+        ENTER = 5;
+        BACK = 6;
+        CALL = 7;
+    }
+}

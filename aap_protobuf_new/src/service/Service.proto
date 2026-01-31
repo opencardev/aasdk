@@ -1,0 +1,73 @@
+syntax="proto2";
+
+option optimize_for=SPEED;
+
+import "aap_protobuf/service/sensorsource/SensorSourceService.proto";
+import "aap_protobuf/service/media/sink/MediaSinkService.proto";
+import "aap_protobuf/service/inputsource/InputSourceService.proto";
+import "aap_protobuf/service/media/source/MediaSourceService.proto";
+import "aap_protobuf/service/bluetooth/BluetoothService.proto";
+import "aap_protobuf/service/navigationstatus/NavigationStatusService.proto";
+import "aap_protobuf/service/vendorextension/VendorExtensionService.proto";
+import "aap_protobuf/service/wifiprojection/WifiProjectionService.proto";
+import "aap_protobuf/service/mediabrowser/MediaBrowserService.proto";
+import "aap_protobuf/service/genericnotification/GenericNotificationService.proto";
+import "aap_protobuf/service/phonestatus/PhoneStatusService.proto";
+import "aap_protobuf/service/mediaplayback/MediaPlaybackStatusService.proto";
+import "aap_protobuf/service/radio/RadioService.proto";
+
+package aap_protobuf.service;
+
+/**
+ * @file Service.proto
+ * @brief Android Auto service capability advertisement and configuration.
+ *
+ * ServiceConfiguration message enumerates all available services on the Android
+ * device (media player, navigation, phone, etc.) with their protocol options.
+ * Head unit receives this during handshake and uses it to determine which
+ * services are available and how to interact with them.
+ *
+ * Services and their purposes:
+ *   - SensorSourceService: Head unit accelerometer/gyro data -> Android (for
+ *     screen rotation, gesture detection in VR apps)
+ *   - MediaSinkService: Android media playback -> head unit display/speakers
+ *   - InputSourceService: Head unit keyboard/microphone -> Android input events
+ *   - MediaSourceService: Head unit local media files -> Android playback
+ *   - BluetoothService: Device Bluetooth control (pairing, audio routing)
+ *   - NavigationStatusService: Android Google Maps location updates -> cluster
+ *   - RadioService: Device native radio tuner control
+ *   - PhoneStatusService: Call state, cellular signal, SMS notifications
+ *   - MediaBrowserService: Browse device music library (Spotify, local, etc.)
+ *   - MediaPlaybackStatusService: Current playback position and metadata
+ *   - WifiProjectionService: Screen mirror over wireless link
+ *   - VendorExtensionService: Custom OEM extensions (Tesla climate, etc.)
+ *   - GenericNotificationService: Generic event delivery
+ *
+ * Scenario: Multi-service session startup (T+0ms to T+200ms)
+ *   - T+0ms: Android sends ServiceConfiguration with all service configs
+ *   - T+5ms: Head unit requests MediaPlaybackStatusService
+ *   - T+50ms: Head unit requests NavigationStatusService
+ *   - T+100ms: Head unit requests BluetoothService
+ *   - T+150ms: Services opened; head unit and device exchange capabilities
+ *   - T+200ms: Ready for user commands (play music, navigate, make calls)
+ *
+ * Each service field is optional; absent services are unavailable (e.g., if
+ * no radio_service, native radio tuner not accessible via Android Auto).
+ */
+message ServiceConfiguration
+{
+    required int32 id = 1;
+    optional sensorsource.SensorSourceService sensor_source_service = 2;
+    optional media.sink.MediaSinkService media_sink_service = 3;
+    optional inputsource.InputSourceService input_source_service = 4;
+    optional media.source.MediaSourceService media_source_service = 5;
+    optional bluetooth.BluetoothService bluetooth_service = 6;
+    optional radio.RadioService radio_service = 7;
+    optional navigationstatus.NavigationStatusService navigation_status_service = 8;
+    optional mediaplayback.MediaPlaybackStatusService media_playback_service = 9;
+    optional phonestatus.PhoneStatusService phone_status_service = 10;
+    optional mediabrowser.MediaBrowserService media_browser_service = 11;
+    optional vendorextension.VendorExtensionService vendor_extension_service = 12;
+    optional genericnotification.GenericNotificationService generic_notification_service = 13;
+    optional wifiprojection.WifiProjectionService wifi_projection_service = 14;
+}

@@ -1,0 +1,8 @@
+syntax="proto2";
+
+package aap_protobuf.service.control.message;
+
+enum GoogleDiagnosticsVendorExtensionMessageId {
+  DIAGNOSTICS_BUG_REPORT_REQUEST = 1;
+  DIAGNOSTICS_BUG_REPORT_RESPONSE = 2;
+}
