@@ -93,12 +93,12 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     # Standalone build - only package protobuf v30.0
     message(STATUS "Building in standalone mode - packaging Google Protobuf v30.0 only")
     
-    # Install protobuf runtime and development files
-    install(TARGETS protobuf protoc
+        # Install protobuf runtime and development files
+        install(TARGETS libprotobuf libprotobuf-lite libprotoc protoc
             RUNTIME DESTINATION bin COMPONENT runtime
             LIBRARY DESTINATION lib COMPONENT runtime
             ARCHIVE DESTINATION lib COMPONENT development
-    )
+        )
     
     # Install protobuf headers
     install(DIRECTORY ${protobuf_SOURCE_DIR}/src/google
