@@ -51,6 +51,9 @@ FetchContent_Declare(
   GIT_SHALLOW TRUE
 )
 
+# Ensure external static libs are built with -fPIC for shared protobuf
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # Save current compiler flags to restore later
 set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
