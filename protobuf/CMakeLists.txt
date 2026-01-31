@@ -60,8 +60,8 @@ set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 # Remove -pedantic from flags for external dependencies (Abseil, Protobuf)
 string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-# Build Abseil as shared libraries to avoid linking issues
-set(BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+# Build Abseil as static libraries to avoid linking issues
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
 set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
@@ -77,7 +77,7 @@ FetchContent_Declare(
 )
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
-set(protobuf_BUILD_SHARED_LIBS ON CACHE BOOL "" FORCE)
+set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(protobuf_INSTALL ON CACHE BOOL "" FORCE)
 message(STATUS "Fetching Protobuf v30.0...")
 
