@@ -59,6 +59,7 @@ string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
 set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(ABSL_ENABLE_INSTALL ON CACHE BOOL "" FORCE)
 message(STATUS "Fetching Abseil LTS 2024-07-22...")
 FetchContent_MakeAvailable(abseil)
 
