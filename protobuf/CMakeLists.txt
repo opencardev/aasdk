@@ -82,59 +82,89 @@ FetchContent_MakeAvailable(protobuf)
 set(CMAKE_CXX_FLAGS "${SAVED_CMAKE_CXX_FLAGS}")
 message(STATUS "Restored original compiler flags")
 
-# Set protobuf_BIN_DIR to use the built protoc from FetchContent
-set(PROTOBUF_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
-message(STATUS "Using protoc from build: ${PROTOBUF_PROTOC_EXECUTABLE}")
+# Protobuf target is now available - configure CMake to find it
+set(Protobuf_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
+message(STATUS "Protobuf targets available, protoc: ${Protobuf_PROTOC_EXECUTABLE}")
 
-# Include protobuf module to get protobuf_generate function
-list(APPEND CMAKE_MODULE_PATH ${protobuf_SOURCE_DIR}/cmake)
-find_package(Protobuf REQUIRED CONFIG)
-
-# Locate all proto files
-file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
-
-# Create the library first with proto files as sources
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
-    message(NOTICE "Configuring STATIC Library for MacOS")
-    add_library(aap_protobuf STATIC ${PROTO_FILES})
+# When called as a standalone project (e.g., from workflow), only package protobuf
+# When called as a submodule, also build AAP protocol definitions
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    # Standalone build - only package protobuf v30.0
+    message(STATUS "Building in standalone mode - packaging Google Protobuf v30.0 only")
+    
+    # Install protobuf runtime and development files
+    install(TARGETS protobuf protoc
+            RUNTIME DESTINATION bin COMPONENT runtime
+            LIBRARY DESTINATION lib COMPONENT runtime
+            ARCHIVE DESTINATION lib COMPONENT development
+    )
+    
+    # Install protobuf headers
+    install(DIRECTORY ${protobuf_SOURCE_DIR}/src/google
+            DESTINATION include
+            COMPONENT development
+            FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
+    )
+    
+    # Install protobuf cmake config
+    install(DIRECTORY ${protobuf_BINARY_DIR}/cmake
+            DESTINATION lib/cmake/protobuf
+            COMPONENT development
+            FILES_MATCHING PATTERN "*.cmake"
+    )
 else()
-    message(NOTICE "Configuring SHARED Library")
-    add_library(aap_protobuf SHARED ${PROTO_FILES})
-endif()
+    # Submodule mode - also build AAP protocol definitions
+    message(STATUS "Building as submodule - also compiling AAP protocol definitions")
 
-# Use the modern protobuf_generate function
-protobuf_generate(
-    TARGET aap_protobuf
-    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
-)
+    # Include protobuf module to get protobuf_generate function
+    list(APPEND CMAKE_MODULE_PATH ${protobuf_SOURCE_DIR}/cmake)
+    find_package(Protobuf REQUIRED CONFIG)
+    
+    # Locate all proto files
+    file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
 
-# Link against the fetched protobuf library (PRIVATE to avoid export issues)
-target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
-target_include_directories(aap_protobuf PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
-    $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:include/aap_protobuf>
-)
+    # Create the library first with proto files as sources
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
+        message(NOTICE "Configuring STATIC Library for MacOS")
+        add_library(aap_protobuf STATIC ${PROTO_FILES})
+    else()
+        message(NOTICE "Configuring SHARED Library")
+        add_library(aap_protobuf SHARED ${PROTO_FILES})
+    endif()
 
-set(LIBRARY_BUILD_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")
-message(STATUS "aap_protobuf Project Version: ${LIBRARY_BUILD_VERSION_STRING}")
+    # Use the modern protobuf_generate function
+    protobuf_generate(
+        TARGET aap_protobuf
+        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
+    )
 
-# Set version properties
-if(DEFINED LIBRARY_BUILD_MAJOR_RELEASE)
-    set_target_properties(aap_protobuf
-            PROPERTIES
-            VERSION ${LIBRARY_BUILD_VERSION_STRING}
-            SOVERSION ${LIBRARY_BUILD_MAJOR_RELEASE})
-else()
-    set_target_properties(aap_protobuf
-            PROPERTIES
-            VERSION ${LIBRARY_BUILD_VERSION_STRING}
-            SOVERSION 4)
-endif()
+    # Link against the fetched protobuf library (PRIVATE to avoid export issues)
+    target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
+    target_include_directories(aap_protobuf PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
+        $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include/aap_protobuf>
+    )
 
-# Install rules with component assignment for packaging
-install(TARGETS aap_protobuf
+    set(LIBRARY_BUILD_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")
+    message(STATUS "aap_protobuf Project Version: ${LIBRARY_BUILD_VERSION_STRING}")
+
+    # Set version properties
+    if(DEFINED LIBRARY_BUILD_MAJOR_RELEASE)
+        set_target_properties(aap_protobuf
+                PROPERTIES
+                VERSION ${LIBRARY_BUILD_VERSION_STRING}
+                SOVERSION ${LIBRARY_BUILD_MAJOR_RELEASE})
+    else()
+        set_target_properties(aap_protobuf
+                PROPERTIES
+                VERSION ${LIBRARY_BUILD_VERSION_STRING}
+                SOVERSION 4)
+    endif()
+
+    # Install rules with component assignment for packaging
+    install(TARGETS aap_protobuf
         EXPORT aap_protobufTargets
         LIBRARY DESTINATION lib COMPONENT runtime
         ARCHIVE DESTINATION lib COMPONENT runtime
@@ -180,36 +210,17 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfigVersion.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfig.cmake"
         DESTINATION lib/cmake/aap_protobuf
         COMPONENT development)
+        
+    # End of submodule mode section
+    # CPack will package both aap_protobuf library and protobuf dependency
+endif()
 
-# Install Protobuf v30.0 libraries and tools built by FetchContent
-message(STATUS "Installing Protobuf v30.0 runtime and development files")
-install(TARGETS protobuf protoc
-        RUNTIME DESTINATION bin COMPONENT runtime
-        LIBRARY DESTINATION lib COMPONENT runtime
-        ARCHIVE DESTINATION lib COMPONENT development
-)
-
-# Install protobuf headers
-install(DIRECTORY ${protobuf_SOURCE_DIR}/src/google
-        DESTINATION include
-        COMPONENT development
-        FILES_MATCHING PATTERN "*.h" PATTERN "*.hpp"
-        PATTERN "*/test" EXCLUDE
-)
-
-# Install protobuf cmake config files
-install(DIRECTORY ${protobuf_BINARY_DIR}/cmake
-        DESTINATION lib/cmake/protobuf
-        COMPONENT development
-        FILES_MATCHING PATTERN "*.cmake"
-)
-
-# CPack packaging (DEB)
+# CPack packaging (DEB) - applies to both standalone and submodule modes
 set(CPACK_GENERATOR "DEB")
 set(CPACK_PACKAGE_NAME "aap-protobuf")
 set(CPACK_PACKAGE_VENDOR "OpenCarDev Team")
 set(CPACK_PACKAGE_CONTACT "OpenCarDev Team")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AASDK Protobuf library")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AASDK Protobuf library and Google Protobuf v30.0")
 set(CPACK_PACKAGE_VERSION "${LIBRARY_BUILD_VERSION_STRING}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
