@@ -2,6 +2,16 @@ name: Build Protobuf Packages
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/*'
+      - 'bugfix/*'
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.gitignore'
 
 jobs:
   build-protobuf-deb:
