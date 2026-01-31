@@ -116,9 +116,9 @@ else()
     # Submodule mode - also build AAP protocol definitions
     message(STATUS "Building as submodule - also compiling AAP protocol definitions")
 
-    # Include protobuf module to get protobuf_generate function
-    list(APPEND CMAKE_MODULE_PATH ${protobuf_SOURCE_DIR}/cmake)
-    find_package(Protobuf REQUIRED CONFIG)
+    # Use protobuf_generate from the CMake module (it's available after FetchContent_MakeAvailable)
+    # The function is defined in cmake/protobuf-generate.cmake which gets included automatically
+    include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
     
     # Locate all proto files
     file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf/*.proto)
