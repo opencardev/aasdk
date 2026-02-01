@@ -381,47 +381,50 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfigVersion.cmake"
     # CPack will package both aap_protobuf library and protobuf dependency
 endif()
 
-# CPack packaging (DEB) - applies to both standalone and submodule modes
-set(CPACK_GENERATOR "DEB")
-set(CPACK_PACKAGE_NAME "aap-protobuf")
-set(CPACK_PACKAGE_VENDOR "OpenCarDev Team")
-set(CPACK_PACKAGE_CONTACT "OpenCarDev Team")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AASDK Protobuf library and Google Protobuf v30.0")
-set(CPACK_PACKAGE_VERSION "${LIBRARY_BUILD_VERSION_STRING}")
-set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
-set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_SHLIBDEPS ON)
-
-if(NOT DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
-    execute_process(
-        COMMAND dpkg --print-architecture
-        OUTPUT_VARIABLE _dpkg_arch
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    if(_dpkg_arch)
-        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "${_dpkg_arch}")
-    else()
-        set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+# CPack packaging (DEB) - only when building as standalone project
+# When built as a subdirectory, the parent project controls packaging
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+    set(CPACK_GENERATOR "DEB")
+    set(CPACK_PACKAGE_NAME "aap-protobuf")
+    set(CPACK_PACKAGE_VENDOR "OpenCarDev Team")
+    set(CPACK_PACKAGE_CONTACT "OpenCarDev Team")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AASDK Protobuf library and Google Protobuf v30.0")
+    set(CPACK_PACKAGE_VERSION "${LIBRARY_BUILD_VERSION_STRING}")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
+    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_DEBIAN_RUNTIME_PACKAGE_SHLIBDEPS ON)
+    
+    if(NOT DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
+        execute_process(
+            COMMAND dpkg --print-architecture
+            OUTPUT_VARIABLE _dpkg_arch
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(_dpkg_arch)
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "${_dpkg_arch}")
+        else()
+            set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+        endif()
     endif()
+    
+    set(CPACK_DEB_COMPONENT_INSTALL ON)
+    set(CPACK_COMPONENTS_ALL runtime development)
+    set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "aap-protobuf")
+    set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "aap-protobuf-dev")
+    set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)
+    set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "aap-protobuf (= ${CPACK_PACKAGE_VERSION})")
+    
+    # Disable automatic dpkg-shlibdeps dependency generation. We ship Abseil
+    # shared libraries inside this package (private libs) and dpkg-shlibdeps
+    # fails to resolve them in this packaging context. We provide conservative
+    # manual runtime dependencies instead.
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
+    set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "libc6 (>= 2.34)")
+    
+    include(CPack)
 endif()
-
-set(CPACK_DEB_COMPONENT_INSTALL ON)
-set(CPACK_COMPONENTS_ALL runtime development)
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "aap-protobuf")
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "aap-protobuf-dev")
-set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "aap-protobuf (= ${CPACK_PACKAGE_VERSION})")
-
-# Disable automatic dpkg-shlibdeps dependency generation. We ship Abseil
-# shared libraries inside this package (private libs) and dpkg-shlibdeps
-# fails to resolve them in this packaging context. We provide conservative
-# manual runtime dependencies instead.
-set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "libc6 (>= 2.34)")
-
-include(CPack)
 
 # Install Protobuf v30.0 libraries and tools built by FetchContent
 message(STATUS "Installing Protobuf v30.0 runtime and development files")
