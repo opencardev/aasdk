@@ -425,24 +425,22 @@ create_packages() {
             print_step "Creating protobuf packages..."
             cd protobuf
             # Force CPack to create packages even for subdirectory builds
-            cmake -DCPACK_GENERATOR="DEB" \
-                  -DCPACK_PACKAGE_NAME="aap-protobuf" \
-                  -DCPACK_PACKAGE_VENDOR="OpenCarDev Team" \
-                  -DCPACK_PACKAGE_CONTACT="OpenCarDev Team" \
-                  -DCPACK_PACKAGE_DESCRIPTION_SUMMARY="AASDK Protobuf library and Google Protobuf v30.0" \
-                  -DCPACK_PACKAGE_VERSION="${LIBRARY_BUILD_VERSION_STRING:-4.0.0}" \
-                  -DCPACK_DEBIAN_PACKAGE_SECTION="libs" \
-                  -DCPACK_DEBIAN_PACKAGE_PRIORITY="optional" \
-                  -DCPACK_DEBIAN_PACKAGE_SHLIBDEPS=OFF \
-                  -DCPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS="libc6 (>= 2.34)" \
-                  -DCPACK_DEB_COMPONENT_INSTALL=ON \
-                  -DCPACK_COMPONENTS_ALL="runtime development" \
-                  -DCPACK_DEBIAN_RUNTIME_PACKAGE_NAME="aap-protobuf" \
-                  -DCPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME="aap-protobuf-dev" \
-                  -DCPACK_COMPONENT_DEVELOPMENT_DEPENDS=runtime \
-                  -DCPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS="aap-protobuf (= ${LIBRARY_BUILD_VERSION_STRING:-4.0.0})" \
-                  .
-            cpack -G DEB
+            cpack -G DEB \
+                  -D CPACK_PACKAGE_NAME="aap-protobuf" \
+                  -D CPACK_PACKAGE_VENDOR="OpenCarDev Team" \
+                  -D CPACK_PACKAGE_CONTACT="OpenCarDev Team" \
+                  -D CPACK_PACKAGE_DESCRIPTION_SUMMARY="AASDK Protobuf library and Google Protobuf v30.0" \
+                  -D CPACK_PACKAGE_VERSION="${LIBRARY_BUILD_VERSION_STRING:-4.0.0}" \
+                  -D CPACK_DEBIAN_PACKAGE_SECTION="libs" \
+                  -D CPACK_DEBIAN_PACKAGE_PRIORITY="optional" \
+                  -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS=OFF \
+                  -D CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS="libc6 (>= 2.34)" \
+                  -D CPACK_DEB_COMPONENT_INSTALL=ON \
+                  -D CPACK_COMPONENTS_ALL="runtime;development" \
+                  -D CPACK_DEBIAN_RUNTIME_PACKAGE_NAME="aap-protobuf" \
+                  -D CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME="aap-protobuf-dev" \
+                  -D CPACK_COMPONENT_DEVELOPMENT_DEPENDS=runtime \
+                  -D CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS="aap-protobuf (= ${LIBRARY_BUILD_VERSION_STRING:-4.0.0})"
             cd ..
         fi
         
