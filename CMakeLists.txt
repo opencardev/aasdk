@@ -188,26 +188,9 @@ if(AASDK_TEST)
 endif(AASDK_TEST)
 
 # Check if Protobuf is installed, otherwise build it
-# In Docker environments, always build from source for consistency
-if(DEFINED ENV{CI} OR EXISTS "/.dockerenv")
-    message(STATUS "Docker/CI environment detected, building Protobuf from source")
-    set(Protobuf_FOUND FALSE)
-else()
-    # First check if protobuf headers exist to avoid broken installations
-    find_path(Protobuf_INCLUDE_DIR google/protobuf/stubs/common.h QUIET)
-    if(NOT Protobuf_INCLUDE_DIR)
-        message(STATUS "Protobuf headers not found, will build from source")
-        set(Protobuf_FOUND FALSE)
-    else()
-        # Skip find_package in Docker/CI to avoid issues with system protobuf
-        if(NOT (DEFINED ENV{CI} OR EXISTS "/.dockerenv"))
-            find_package(Protobuf QUIET)
-        endif()
-        if(NOT Protobuf_FOUND)
-            message(STATUS "Protobuf headers found but find_package failed or skipped, will build from source")
-        endif()
-    endif()
-endif()
+# AASDK always builds protobuf from source for consistency
+message(STATUS "AASDK building Protobuf from source")
+set(Protobuf_FOUND FALSE)
 
 if(NOT Protobuf_FOUND)
     message(STATUS "Building aap_protobuf as subdirectory (includes building Protobuf v30.0)")
