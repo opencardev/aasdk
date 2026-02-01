@@ -189,7 +189,7 @@ endif(AASDK_TEST)
 
 # Check if Protobuf is installed, otherwise build it
 # In Docker environments, always build from source for consistency
-if(DEFINED ENV{CI} OR EXISTS "/.dockerenv")
+if(DEFINED ENV{CI} OR EXISTS "/.dockerenv" OR EXISTS "/src")
     message(STATUS "Docker/CI environment detected, building Protobuf from source")
     set(Protobuf_FOUND FALSE)
 else()
