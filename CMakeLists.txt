@@ -188,9 +188,20 @@ if(AASDK_TEST)
 endif(AASDK_TEST)
 
 # Check if Protobuf is installed, otherwise build it
-find_package(Protobuf QUIET)
+# First check if protobuf headers exist to avoid broken installations
+find_path(Protobuf_INCLUDE_DIR google/protobuf/stubs/common.h QUIET)
+if(NOT Protobuf_INCLUDE_DIR)
+    message(STATUS "Protobuf headers not found, will build from source")
+    set(Protobuf_FOUND FALSE)
+else()
+    find_package(Protobuf QUIET)
+    if(NOT Protobuf_FOUND)
+        message(STATUS "Protobuf headers found but find_package failed, will build from source")
+    endif()
+endif()
+
 if(NOT Protobuf_FOUND)
-    message(STATUS "Protobuf not found, building aap_protobuf as subdirectory (includes building Protobuf v30.0)")
+    message(STATUS "Building aap_protobuf as subdirectory (includes building Protobuf v30.0)")
     add_subdirectory(protobuf)
 else()
     message(STATUS "Using installed Protobuf: ${Protobuf_VERSION}")

@@ -69,6 +69,14 @@ RUN apt-get update && apt-get install -y \
     dpkg-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Remove any protobuf packages to ensure clean optional building
+RUN apt-get update && apt-get remove --purge -y \
+    libprotobuf* \
+    protobuf* \
+    && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /src
 
