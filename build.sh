@@ -420,13 +420,40 @@ create_packages() {
         # Create DEB packages for main AASDK
         cpack --config CPackConfig.cmake
         
-        # Note: When protobuf is built as a subdirectory, it does not create separate packages.
-        # The protobuf libraries are installed as part of the main aasdk project's install rules.
+        # Also create protobuf packages if protobuf was built as subdirectory
+        if [ -d "protobuf" ]; then
+            print_step "Creating protobuf packages..."
+            cd protobuf
+            # Force CPack to create packages even for subdirectory builds
+            cmake -DCPACK_GENERATOR="DEB" \
+                  -DCPACK_PACKAGE_NAME="aap-protobuf" \
+                  -DCPACK_PACKAGE_VENDOR="OpenCarDev Team" \
+                  -DCPACK_PACKAGE_CONTACT="OpenCarDev Team" \
+                  -DCPACK_PACKAGE_DESCRIPTION_SUMMARY="AASDK Protobuf library and Google Protobuf v30.0" \
+                  -DCPACK_PACKAGE_VERSION="${LIBRARY_BUILD_VERSION_STRING:-4.0.0}" \
+                  -DCPACK_DEBIAN_PACKAGE_SECTION="libs" \
+                  -DCPACK_DEBIAN_PACKAGE_PRIORITY="optional" \
+                  -DCPACK_DEBIAN_PACKAGE_SHLIBDEPS=OFF \
+                  -DCPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS="libc6 (>= 2.34)" \
+                  -DCPACK_DEB_COMPONENT_INSTALL=ON \
+                  -DCPACK_COMPONENTS_ALL="runtime development" \
+                  -DCPACK_DEBIAN_RUNTIME_PACKAGE_NAME="aap-protobuf" \
+                  -DCPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME="aap-protobuf-dev" \
+                  -DCPACK_COMPONENT_DEVELOPMENT_DEPENDS=runtime \
+                  -DCPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS="aap-protobuf (= ${LIBRARY_BUILD_VERSION_STRING:-4.0.0})" \
+                  .
+            cpack -G DEB
+            cd ..
+        fi
         
         # Move all packages to top-level packages directory
         mkdir -p ../packages
         mv *.deb ../packages/ 2>/dev/null || true
         mv *.tar.* ../packages/ 2>/dev/null || true
+        if [ -d "protobuf" ]; then
+            mv protobuf/*.deb ../packages/ 2>/dev/null || true
+            mv protobuf/*.tar.* ../packages/ 2>/dev/null || true
+        fi
         
         cd ..
         
