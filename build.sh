@@ -144,9 +144,10 @@ check_dependencies() {
     fi
     
     # Check for required libraries
-    if ! pkg-config --exists protobuf; then
-        missing_deps+=("libprotobuf-dev protobuf-compiler")
-    fi
+    # Note: protobuf is now optional and will be built from source if not available
+    # if ! pkg-config --exists protobuf; then
+    #     missing_deps+=("libprotobuf-dev protobuf-compiler")
+    # fi
     
     if ! ldconfig -p | grep -q libboost_system; then
         missing_deps+=("libboost-all-dev")
