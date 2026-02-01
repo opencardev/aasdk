@@ -157,40 +157,47 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
         utf8_range
     )
     
-    # Install Abseil shared libraries by copying built .so files from the
-    # Abseil build tree. This avoids relying on exported target names which
-    # may not be available in this directory scope and ensures dpkg-shlibdeps
-    # can find the libraries when packaging.
-    file(GLOB_RECURSE ABSEIL_SHARED_LIBS
-        RELATIVE "${abseil_BINARY_DIR}"
-        "${abseil_BINARY_DIR}/**/libabsl_*.so*"
-        "${abseil_BINARY_DIR}/**/libutf8_*.so*"
-    )
-    if(ABSEIL_SHARED_LIBS)
-        # Determine Debian multi-arch library directory when possible so
-        # dpkg-shlibdeps will locate shared libraries referenced by RPATHs.
-        set(ABSEIL_LIB_INSTALL_DIR lib)
-        if(DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE AND CPACK_DEBIAN_PACKAGE_ARCHITECTURE STREQUAL "amd64")
-            set(ABSEIL_LIB_INSTALL_DIR lib/x86_64-linux-gnu)
-        elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-            set(ABSEIL_LIB_INSTALL_DIR lib/x86_64-linux-gnu)
-        endif()
+    # Install Abseil libraries - only needed for shared library builds
+    # For static builds, Abseil is linked statically into protobuf
+    if(BUILD_SHARED_LIBS)
+        # Install Abseil shared libraries by copying built .so files from the
+        # Abseil build tree. This avoids relying on exported target names which
+        # may not be available in this directory scope and ensures dpkg-shlibdeps
+        # can find the libraries when packaging.
+        file(GLOB_RECURSE ABSEIL_SHARED_LIBS
+            RELATIVE "${abseil_BINARY_DIR}"
+            "${abseil_BINARY_DIR}/**/libabsl_*.so*"
+            "${abseil_BINARY_DIR}/**/libutf8_*.so*"
+        )
+        if(ABSEIL_SHARED_LIBS)
+            # Determine Debian multi-arch library directory when possible so
+            # dpkg-shlibdeps will locate shared libraries referenced by RPATHs.
+            set(ABSEIL_LIB_INSTALL_DIR lib)
+            if(DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE AND CPACK_DEBIAN_PACKAGE_ARCHITECTURE STREQUAL "amd64")
+                set(ABSEIL_LIB_INSTALL_DIR lib/x86_64-linux-gnu)
+            elseif(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+                set(ABSEIL_LIB_INSTALL_DIR lib/x86_64-linux-gnu)
+            endif()
 
-        foreach(lib ${ABSEIL_SHARED_LIBS})
-            install(FILES "${abseil_BINARY_DIR}/${lib}"
-                DESTINATION ${ABSEIL_LIB_INSTALL_DIR}
-                COMPONENT runtime
-            )
-            # Collect installed libs for shlibs generation
-            list(APPEND _INSTALLED_ABSEIL_LIBS "${abseil_BINARY_DIR}/${lib}")
-        endforeach()
+            foreach(lib ${ABSEIL_SHARED_LIBS})
+                install(FILES "${abseil_BINARY_DIR}/${lib}"
+                    DESTINATION ${ABSEIL_LIB_INSTALL_DIR}
+                    COMPONENT runtime
+                )
+                # Collect installed libs for shlibs generation
+                list(APPEND _INSTALLED_ABSEIL_LIBS "${abseil_BINARY_DIR}/${lib}")
+            endforeach()
+        else()
+            message(WARNING "No Abseil shared libraries found under ${abseil_BINARY_DIR}; packaging may fail")
+        endif()
     else()
-        message(WARNING "No Abseil shared libraries found under ${abseil_BINARY_DIR}; packaging may fail")
+        message(STATUS "Building static libraries - Abseil will be linked statically into protobuf")
     endif()
 
     # Generate a minimal shlibs.local file from the installed Abseil shared libs.
     # This helps dpkg-shlibdeps resolve private libraries when packaging.
-    if(_INSTALLED_ABSEIL_LIBS)
+    # Only needed for shared library builds
+    if(BUILD_SHARED_LIBS AND _INSTALLED_ABSEIL_LIBS)
         set(SHLIBS_FILE "${CMAKE_CURRENT_BINARY_DIR}/shlibs.local")
         file(WRITE "${SHLIBS_FILE}" "# Local shlibs for aap-protobuf\n")
         foreach(libpath IN LISTS _INSTALLED_ABSEIL_LIBS)
@@ -222,7 +229,7 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
             DESTINATION lib/pkgconfig
             COMPONENT development
         )
-    endif()
+    endif()  # BUILD_SHARED_LIBS AND _INSTALLED_ABSEIL_LIBS
     
     # Install protobuf headers
     install(DIRECTORY ${protobuf_SOURCE_DIR}/src/google
