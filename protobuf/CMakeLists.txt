@@ -49,6 +49,8 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
   GIT_TAG 20240722.0  # LTS 2024-07-22, compatible with Protobuf v30.0
   GIT_SHALLOW TRUE
+  GIT_PROGRESS TRUE
+  QUIET
 )
 
 # Ensure external static libs are built with -fPIC for shared protobuf
@@ -74,6 +76,8 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
   GIT_TAG v30.0
   GIT_SHALLOW TRUE
+  GIT_PROGRESS TRUE
+  QUIET
 )
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
