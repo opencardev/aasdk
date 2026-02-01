@@ -417,13 +417,25 @@ create_packages() {
         
         cd "$BUILD_DIR"
         
-        # Create DEB packages
+        # Create DEB packages for main AASDK
         cpack --config CPackConfig.cmake
         
-        # Move packages to top-level packages directory
+        # Also create protobuf packages if protobuf was built as subdirectory
+        if [ -d "protobuf" ]; then
+            print_step "Creating protobuf packages..."
+            cd protobuf
+            cpack --config CPackConfig.cmake
+            cd ..
+        fi
+        
+        # Move all packages to top-level packages directory
         mkdir -p ../packages
         mv *.deb ../packages/ 2>/dev/null || true
         mv *.tar.* ../packages/ 2>/dev/null || true
+        if [ -d "protobuf" ]; then
+            mv protobuf/*.deb ../packages/ 2>/dev/null || true
+            mv protobuf/*.tar.* ../packages/ 2>/dev/null || true
+        fi
         
         cd ..
         
