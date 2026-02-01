@@ -420,8 +420,8 @@ create_packages() {
         # Create DEB packages for main AASDK
         cpack --config CPackConfig.cmake
         
-        # Note: Protobuf packages are automatically created by the main cpack call above
-        # when protobuf is built as a subdirectory, so no separate packaging step is needed
+        # Note: When protobuf is built as a subdirectory, it does not create separate packages.
+        # The protobuf libraries are installed as part of the main aasdk project's install rules.
         
         # Move all packages to top-level packages directory
         mkdir -p ../packages
