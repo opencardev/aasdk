@@ -304,8 +304,8 @@ else()
         IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
     )
 
-    # Link against the fetched protobuf library (PRIVATE to avoid export issues)
-    target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
+    # Link against the fetched protobuf library (PUBLIC so consumers get protobuf dependency)
+    target_link_libraries(aap_protobuf PUBLIC protobuf::libprotobuf)
     target_include_directories(aap_protobuf PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>

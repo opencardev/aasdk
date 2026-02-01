@@ -283,8 +283,7 @@ target_link_libraries(aasdk PUBLIC
     ${Boost_LIBRARIES}
     aap_protobuf
     ${OPENSSL_LIBRARIES}
-    ${WINSOCK2_LIBRARIES}
-    $<IF:$<TARGET_EXISTS:protobuf::libprotobuf>,protobuf::libprotobuf,${PROTOBUF_LIBRARIES}>)
+    ${WINSOCK2_LIBRARIES})
 
 # Link nlohmann/json if available and JSON logging is enabled
 if(ENABLE_JSON_LOGGING AND nlohmann_json_FOUND)
