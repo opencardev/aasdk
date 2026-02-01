@@ -1,0 +1,41 @@
+syntax="proto2";
+
+package aap_protobuf.shared;
+
+/**
+ * @file PhoneInfo.proto
+ * @brief Device identification and connectivity session tracking.
+ *
+ * PhoneInfo carries unique identifiers that persist across Android Auto
+ * connections, enabling the head unit to track device identity and
+ * connectivity sessions for logging, analytics, and feature negotiation.
+ *
+ * Fields:
+ *   - instance_id: Persistent UUID for this Android device. Remains constant
+ *     across multiple connections to head unit. Used to recognise returning
+ *     devices and restore previous preferences/pairings.
+ *   - connectivity_lifetime_id: Session ID for this specific connection. Changes
+ *     on each USB plug/WiFi reconnect. Tracks continuity of single session.
+ *     Used to correlate logs during troubleshooting (e.g., "Session XYZ failed
+ *     at transport level").
+ *
+ * Scenario: Device reconnection detection
+ *   - Session 1: Device A (instance_id=UUID-AAA) connects via USB
+ *     - connectivity_lifetime_id=SESSION-001
+ *     - Head unit stores instance mapping: UUID-AAA -> Device A
+ *   - User unplugs, plugs in again 5 seconds later (same device)
+ *     - instance_id=UUID-AAA (unchanged)
+ *     - connectivity_lifetime_id=SESSION-002 (new session)
+ *   - Head unit recognises UUID-AAA: "Welcome back, Device A"
+ *   - Restores previous Music source, Navigation session
+ *   - Device B (different phone) connects
+ *     - instance_id=UUID-BBB (different)
+ *     - connectivity_lifetime_id=SESSION-003
+ *   - Head unit: New device; use default settings
+ *
+ * Design: Enables resilient multi-device infotainment with per-device prefs.
+ */
+message PhoneInfo {
+  optional string instance_id = 1;
+  optional string connectivity_lifetime_id = 2;
+}

@@ -1,0 +1,50 @@
+syntax="proto2";
+
+import "aap_protobuf/service/bluetooth/message/BluetoothPairingMethod.proto";
+
+package aap_protobuf.service.bluetooth;
+
+/**
+ * @file BluetoothService.proto
+ * @brief Bluetooth audio and device pairing service configuration.
+ *
+ * BluetoothService defines the head unit's Bluetooth capabilities for audio
+ * streaming and device pairing with the Android phone. Enables hands-free calls,
+ * wireless audio playback, and contact/message synchronisation.
+ *
+ * Configuration:
+ *   - car_address: Head unit's Bluetooth MAC address (format: AA:BB:CC:DD:EE:FF)
+ *     Android uses this to identify the head unit in pairing requests and logs.
+ *   - supported_pairing_methods: List of authentication methods head unit supports.
+ *     Allows negotiation with Android device (e.g., PIN entry, Just Works, etc.)
+ *
+ * Pairing methods (see BluetoothPairingMethod):
+ *   - PIN_ENTRY: User enters 4-digit PIN on both devices
+ *   - JUST_WORKS: No user interaction; automatic pairing
+ *   - PASSKEY_CONFIRMATION: User confirms 6-digit passkey display
+ *   - OUT_OF_BAND: Special pairing using NFC or QR code
+ *
+ * Scenario: Hands-free calling setup
+ *   - T+0ms: Android phone discovers head unit via Bluetooth scan
+ *   - T+50ms: User selects "Pair with head unit"
+ *   - T+50ms: BluetoothService advertises: car_address="AA:BB:CC:DD:EE:FF",
+ *     supported=[PIN_ENTRY, JUST_WORKS]
+ *   - T+100ms: Head unit chooses PIN_ENTRY; user enters "1234" on both
+ *   - T+150ms: Pairing established; phone resolves MAC to "Mercedes Benz"
+ *   - T+200ms: Audio streams via HFP (hands-free profile) protocol
+ *   - User receives call; "Mom" appears on screen; press to answer
+ *
+ * Audio profiles (HFP: Hands-Free Profile):
+ *   - Supports wired microphone + speaker for car audio system
+ *   - Call audio routed through car's amplifier
+ *   - Microphone picks up voice for call transmission
+ *   - Contact list sync enables caller ID and speed dial
+ *
+ * Design: Provides safe, legal hands-free calling compliant with NHTSA
+ * (National Highway Traffic Safety Administration) driver distraction limits.
+ */
+message BluetoothService
+{
+    required string car_address = 1;
+    repeated message.BluetoothPairingMethod supported_pairing_methods = 2 [packed = true];
+}

@@ -187,18 +187,43 @@ if(AASDK_TEST)
     FetchContent_MakeAvailable(googletest)
 endif(AASDK_TEST)
 
-# Build aap_protobuf as part of this project (includes building Protobuf v30.0)
-message(STATUS "Building aap_protobuf as subdirectory")
-add_subdirectory(protobuf)
+# Check if Protobuf is installed, otherwise build it
+# In Docker environments, always build from source for consistency
+if(DEFINED ENV{CI} OR EXISTS "/.dockerenv" OR EXISTS "/src")
+    message(STATUS "Docker/CI environment detected, building Protobuf from source")
+    set(Protobuf_FOUND FALSE)
+else()
+    # First check if protobuf headers exist to avoid broken installations
+    find_path(Protobuf_INCLUDE_DIR google/protobuf/stubs/common.h QUIET)
+    if(NOT Protobuf_INCLUDE_DIR)
+        message(STATUS "Protobuf headers not found, will build from source")
+        set(Protobuf_FOUND FALSE)
+    else()
+        find_package(Protobuf QUIET)
+        if(NOT Protobuf_FOUND)
+            message(STATUS "Protobuf headers found but find_package failed, will build from source")
+        endif()
+    endif()
+endif()
+
+if(NOT Protobuf_FOUND)
+    message(STATUS "Building aap_protobuf as subdirectory (includes building Protobuf v30.0)")
+    add_subdirectory(protobuf)
+else()
+    message(STATUS "Using installed Protobuf: ${Protobuf_VERSION}")
+endif()
 
 # Building on a Mac requires Abseil
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
     message(STATUS "MacOS System Detected")
     find_package(absl REQUIRED)
 else ()
-    # Use the protobuf targets from the FetchContent build in the protobuf subdirectory
-    # Do NOT call find_package(Protobuf) here as it will find the system version
-    message(STATUS "Using Protobuf v30.0 from FetchContent")
+    if(NOT Protobuf_FOUND)
+        # Use the protobuf targets from the FetchContent build in the protobuf subdirectory
+        message(STATUS "Using Protobuf v30.0 from FetchContent")
+    else()
+        message(STATUS "Using installed Protobuf")
+    endif()
 endif ()
 
 find_package(Boost REQUIRED COMPONENTS system log_setup log OPTIONAL_COMPONENTS unit_test_framework)
@@ -258,8 +283,7 @@ target_link_libraries(aasdk PUBLIC
     ${Boost_LIBRARIES}
     aap_protobuf
     ${OPENSSL_LIBRARIES}
-    ${WINSOCK2_LIBRARIES}
-    $<IF:$<TARGET_EXISTS:protobuf::libprotobuf>,protobuf::libprotobuf,${PROTOBUF_LIBRARIES}>)
+    ${WINSOCK2_LIBRARIES})
 
 # Link nlohmann/json if available and JSON logging is enabled
 if(ENABLE_JSON_LOGGING AND nlohmann_json_FOUND)

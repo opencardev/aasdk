@@ -62,13 +62,19 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     # Development libraries (native for this platform)
     libboost-all-dev \
-    libprotobuf-dev \
-    protobuf-compiler \
     libusb-1.0-0-dev \
     libssl-dev \
     # Packaging tools
     file \
     dpkg-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Remove any protobuf packages to ensure clean optional building
+RUN apt-get update && apt-get remove --purge -y \
+    libprotobuf* \
+    protobuf* \
+    && apt-get autoremove -y \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory

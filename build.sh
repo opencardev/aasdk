@@ -144,9 +144,10 @@ check_dependencies() {
     fi
     
     # Check for required libraries
-    if ! pkg-config --exists protobuf; then
-        missing_deps+=("libprotobuf-dev protobuf-compiler")
-    fi
+    # Note: protobuf is now optional and will be built from source if not available
+    # if ! pkg-config --exists protobuf; then
+    #     missing_deps+=("libprotobuf-dev protobuf-compiler")
+    # fi
     
     if ! ldconfig -p | grep -q libboost_system; then
         missing_deps+=("libboost-all-dev")
@@ -416,10 +417,13 @@ create_packages() {
         
         cd "$BUILD_DIR"
         
-        # Create DEB packages
+        # Create DEB packages for main AASDK
         cpack --config CPackConfig.cmake
         
-        # Move packages to top-level packages directory
+        # Note: When protobuf is built as a subdirectory, it does not create separate packages.
+        # The protobuf libraries are installed as part of the main aasdk project's install rules.
+        
+        # Move all packages to top-level packages directory
         mkdir -p ../packages
         mv *.deb ../packages/ 2>/dev/null || true
         mv *.tar.* ../packages/ 2>/dev/null || true

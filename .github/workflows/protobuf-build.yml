@@ -25,13 +25,15 @@ jobs:
             git \
             pkg-config \
             dpkg-dev \
-            fakeroot
+            fakeroot \
+            libabsl-dev
 
       - name: Configure protobuf build
         run: |
           cmake -S protobuf -B build-protobuf \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX=/usr
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -Dprotobuf_BUILD_SHARED_LIBS=OFF
 
       - name: Build protobuf
         run: |

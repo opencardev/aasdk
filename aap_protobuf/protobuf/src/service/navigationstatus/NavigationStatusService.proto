@@ -1,0 +1,55 @@
+syntax="proto2";
+
+package aap_protobuf.service.navigationstatus;
+
+/**
+ * @file NavigationStatusService.proto
+ * @brief Navigation instrument cluster display and status service.
+ *
+ * NavigationStatusService configures how the head unit will display navigation
+ * turn-by-turn directions. Defines the rendering format (images or text/icons),
+ * display resolution, colour depth, and update frequency constraints.
+ *
+ * Display modes:
+ *   - IMAGE: Android sends high-quality rendered navigation images. Head unit
+ *     displays pre-rendered PNG/JPEG frames from Android (Google Maps). Provides
+ *     best visual quality but higher bandwidth (50-200KB per frame).
+ *   - ENUM: Android sends turn instructions as structured messages (next turn,
+ *     distance, road name). Head unit renders with local assets/fonts. Lower
+ *     bandwidth (<5KB per message) but requires head unit UI implementation.
+ *
+ * Configuration parameters:
+ *   - minimum_interval_ms: Minimum time between updates. If minimum_interval_ms=500,
+ *     Android throttles updates to max 2 per second (prevents overwhelming display).
+ *   - image_options: Required for IMAGE mode. Specifies display constraints:
+ *     - height/width: Pixel dimensions (e.g., 480x272 for automotive dash)
+ *     - colour_depth_bits: 16 (RGB565) or 32 (RGBA8888)
+ *
+ * Scenario: Turn-by-turn navigation on 5-inch head unit display
+ *   - T+0ms: Head unit opens NavigationStatusService
+ *   - T+5ms: Sends config: IMAGE mode, 480x272, 16-bit, 500ms minimum interval
+ *   - T+10ms: Android acknowledges; ready for navigation
+ *   - T+100ms: Route starts; Android sends rendered navigation image (PNG, 50KB)
+ *   - T+500ms+: Every 500ms, new image with updated turn or distance
+ *   - User sees smooth animated turn directions on cluster screen
+ *   - Bandwidth: ~100 frames/minute * 50KB = 83 Mbps peak (local USB)
+ *
+ * Design: Flexible display modes support diverse head unit hardware from
+ * advanced infotainment to basic automotive clusters with small LCD screens.
+ */
+message NavigationStatusService {
+    required int32 minimum_interval_ms = 1;
+
+    required InstrumentClusterType type = 2;
+    enum InstrumentClusterType {
+        IMAGE = 1;
+        ENUM = 2;
+    }
+
+    optional ImageOptions image_options = 3;
+    message ImageOptions {
+        required int32 height = 1;
+        required int32 width = 2;
+        required int32 colour_depth_bits = 3;
+    }
+}
