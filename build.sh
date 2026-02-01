@@ -424,7 +424,7 @@ create_packages() {
         if [ -d "protobuf" ]; then
             print_step "Creating protobuf packages..."
             cd protobuf
-            cpack --config CPackConfig.cmake
+            cpack -G DEB  # Use default CPack config for protobuf
             cd ..
         fi
         
