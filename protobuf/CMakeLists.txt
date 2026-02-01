@@ -425,7 +425,7 @@ include(CPack)
 
 # Install Protobuf v30.0 libraries and tools built by FetchContent
 message(STATUS "Installing Protobuf v30.0 runtime and development files")
-install(TARGETS protobuf protoc
+install(TARGETS libprotobuf protoc
         RUNTIME DESTINATION bin COMPONENT runtime
         LIBRARY DESTINATION lib COMPONENT runtime
         ARCHIVE DESTINATION lib COMPONENT development
