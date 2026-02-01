@@ -62,8 +62,6 @@ RUN apt-get update && apt-get install -y \
     lsb-release \
     # Development libraries (native for this platform)
     libboost-all-dev \
-    libprotobuf-dev \
-    protobuf-compiler \
     libusb-1.0-0-dev \
     libssl-dev \
     # Packaging tools
