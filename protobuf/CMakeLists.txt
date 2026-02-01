@@ -381,13 +381,11 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aap_protobufConfigVersion.cmake"
     # CPack will package both aap_protobuf library and protobuf dependency
 endif()
 
-# CPack packaging (DEB) - only when building as standalone project
-# When built as a subdirectory, the parent project controls packaging
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-    set(CPACK_GENERATOR "DEB")
-    set(CPACK_PACKAGE_NAME "aap-protobuf")
-    set(CPACK_PACKAGE_VENDOR "OpenCarDev Team")
-    set(CPACK_PACKAGE_CONTACT "OpenCarDev Team")
+# CPack packaging (DEB) - applies to both standalone and submodule modes
+set(CPACK_GENERATOR "DEB")
+set(CPACK_PACKAGE_NAME "aap-protobuf")
+set(CPACK_PACKAGE_VENDOR "OpenCarDev Team")
+set(CPACK_PACKAGE_CONTACT "OpenCarDev Team")
     set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "AASDK Protobuf library and Google Protobuf v30.0")
     set(CPACK_PACKAGE_VERSION "${LIBRARY_BUILD_VERSION_STRING}")
     set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
@@ -424,7 +422,6 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "libc6 (>= 2.34)")
     
     include(CPack)
-endif()
 
 # Install Protobuf v30.0 libraries and tools built by FetchContent
 message(STATUS "Installing Protobuf v30.0 runtime and development files")

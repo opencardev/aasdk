@@ -424,23 +424,7 @@ create_packages() {
         if [ -d "protobuf" ]; then
             print_step "Creating protobuf packages..."
             cd protobuf
-            # Force CPack to create packages even for subdirectory builds
-            cpack -G DEB \
-                  -D CPACK_PACKAGE_NAME="aap-protobuf" \
-                  -D CPACK_PACKAGE_VENDOR="OpenCarDev Team" \
-                  -D CPACK_PACKAGE_CONTACT="OpenCarDev Team" \
-                  -D CPACK_PACKAGE_DESCRIPTION_SUMMARY="AASDK Protobuf library and Google Protobuf v30.0" \
-                  -D CPACK_PACKAGE_VERSION="${LIBRARY_BUILD_VERSION_STRING:-4.0.0}" \
-                  -D CPACK_DEBIAN_PACKAGE_SECTION="libs" \
-                  -D CPACK_DEBIAN_PACKAGE_PRIORITY="optional" \
-                  -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS=OFF \
-                  -D CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS="libc6 (>= 2.34)" \
-                  -D CPACK_DEB_COMPONENT_INSTALL=ON \
-                  -D CPACK_COMPONENTS_ALL="runtime;development" \
-                  -D CPACK_DEBIAN_RUNTIME_PACKAGE_NAME="aap-protobuf" \
-                  -D CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME="aap-protobuf-dev" \
-                  -D CPACK_COMPONENT_DEVELOPMENT_DEPENDS=runtime \
-                  -D CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS="aap-protobuf (= ${LIBRARY_BUILD_VERSION_STRING:-4.0.0})"
+            cpack -G DEB
             cd ..
         fi
         
