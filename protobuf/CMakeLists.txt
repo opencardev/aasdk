@@ -41,20 +41,12 @@ endif()
 
 # Use FetchContent to build Protobuf v30.0 with C++20 support
 message(STATUS "AASDK will build and package Google Protobuf v30.0")
-
-# Configure git to use HTTPS instead of SSH
-set(ENV{GIT_CONFIG_GLOBAL} "")
-execute_process(COMMAND git config --global url."https://github.com/".insteadOf "git@github.com:")
-execute_process(COMMAND git config --global url."https://github.com/".insteadOf "ssh://git@github.com/")
-
 include(FetchContent)
 
 # Fetch Abseil (required by Protobuf v22.0+)
 FetchContent_Declare(
   abseil
-  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
-  GIT_TAG 20240722.0  # LTS 2024-07-22, compatible with Protobuf v30.0
-  GIT_SHALLOW TRUE
+  URL https://github.com/abseil/abseil-cpp/archive/refs/tags/20240722.0.zip
 )
 
 # Ensure external static libs are built with -fPIC for shared protobuf
@@ -77,9 +69,7 @@ FetchContent_MakeAvailable(abseil)
 # Fetch Protobuf v30.0
 FetchContent_Declare(
   protobuf
-  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-  GIT_TAG v30.0
-  GIT_SHALLOW TRUE
+  URL https://github.com/protocolbuffers/protobuf/archive/refs/tags/v30.0.zip
 )
 set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
