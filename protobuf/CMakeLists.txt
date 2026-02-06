@@ -417,6 +417,9 @@ set(CPACK_PACKAGE_CONTACT "OpenCarDev Team")
     set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OFF)
     set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "libc6 (>= 2.34)")
     
+    # Explicitly set CPACK_PROJECT_NAME to ensure CPack knows the project name
+    set(CPACK_PROJECT_NAME "aap_protobuf")
+    
     include(CPack)
 
 # Install Protobuf v30.0 libraries and tools built by FetchContent
