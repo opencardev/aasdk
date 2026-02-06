@@ -206,12 +206,65 @@ else()
     endif()
 endif()
 
-if(NOT Protobuf_FOUND)
-    message(STATUS "Building aap_protobuf as subdirectory (includes building Protobuf v30.0)")
-    add_subdirectory(protobuf)
-else()
+# Find required dependencies - protobuf should be installed as a dependency first
+find_package(Protobuf REQUIRED)
+if(Protobuf_FOUND)
     message(STATUS "Using installed Protobuf: ${Protobuf_VERSION}")
+else()
+    message(FATAL_ERROR "Protobuf not found. Please build and install protobuf dependency first using: ./build.sh protobuf")
 endif()
+
+# Build AAP protocol library using the installed protobuf
+message(STATUS "Building AAP protocol library with installed protobuf")
+
+# Include protobuf generate cmake module if not already available
+if(NOT COMMAND protobuf_generate)
+    include(FindProtobuf)
+    if(Protobuf_FOUND)
+        # Try to find the protobuf cmake module
+        find_file(PROTOBUF_CMAKE_MODULE
+            NAMES protobuf-generate.cmake
+            PATHS ${Protobuf_DIR}/cmake ${Protobuf_DIR}/../cmake
+            NO_DEFAULT_PATH
+        )
+        if(PROTOBUF_CMAKE_MODULE)
+            include(${PROTOBUF_CMAKE_MODULE})
+        else()
+            message(FATAL_ERROR "Could not find protobuf-generate.cmake. Please ensure protobuf was installed with CMake support.")
+        endif()
+    endif()
+endif()
+
+# Locate all proto files
+file(GLOB_RECURSE PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/protobuf/aap_protobuf/*.proto)
+
+# Create the AAP protobuf library
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
+    message(STATUS "Configuring STATIC AAP protobuf library for MacOS")
+    add_library(aap_protobuf STATIC ${PROTO_FILES})
+else()
+    message(STATUS "Configuring SHARED AAP protobuf library")
+    add_library(aap_protobuf SHARED ${PROTO_FILES})
+endif()
+
+# Generate protobuf sources
+protobuf_generate(TARGET aap_protobuf)
+
+# Link against the installed protobuf library
+target_link_libraries(aap_protobuf PUBLIC protobuf::libprotobuf)
+
+# Set include directories
+target_include_directories(aap_protobuf PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf/aap_protobuf>
+    $<INSTALL_INTERFACE:include/aap_protobuf>
+)
+
+# Set version properties
+set_target_properties(aap_protobuf PROPERTIES
+    VERSION ${LIBRARY_BUILD_VERSION_STRING}
+    SOVERSION ${LIBRARY_BUILD_MAJOR_RELEASE}
+)
 
 # Building on a Mac requires Abseil
 if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
