@@ -66,7 +66,7 @@ CREATE_PACKAGES=false
 
 for arg in "$@"; do
     case $arg in
-        debug|release|protobuf)
+        debug|release)
             BUILD_TYPE=$arg
             ;;
         clean)
@@ -274,40 +274,6 @@ setup_cross_compilation() {
     fi
 }
 
-build_protobuf_dependency() {
-    if [ ! -d "protobuf/build" ] || [ "$CLEAN" = true ]; then
-        print_step "Building Protobuf dependency..."
-        
-        if [ "$CLEAN" = true ] && [ -d "protobuf/build" ]; then
-            rm -rf protobuf/build
-        fi
-        
-        mkdir -p protobuf/build
-        cd protobuf/build
-        
-        cmake -DCMAKE_BUILD_TYPE=Release \
-            -DTARGET_ARCH=$TARGET_ARCH \
-            -DCMAKE_INSTALL_PREFIX="/usr/local" \
-            $CMAKE_ARGS \
-            ..
-        
-        make -j$JOBS
-        
-        # Install to system location (requires sudo)
-        if [ "$DRY_RUN" = false ]; then
-            print_step "Installing protobuf to /usr/local (requires sudo)..."
-            sudo make install
-        else
-            print_step "DRY RUN: Would install protobuf to /usr/local"
-        fi
-        
-        cd ../..
-        
-        print_success "Protobuf dependency built and installed successfully"
-    else
-        print_step "Protobuf dependency already built, skipping..."
-    fi
-}
 
 configure_cmake() {
     print_step "Configuring CMake..."
@@ -517,7 +483,6 @@ show_usage() {
     echo "BUILD_TYPE:"
     echo "  debug       Debug build with optimizations disabled (default)"
     echo "  release     Release build with optimizations enabled"
-    echo "  protobuf    Build and install only the protobuf dependency"
     echo
     echo "OPTIONS:"
     echo "  clean       Clean build directory before building"
@@ -550,32 +515,28 @@ main() {
     fi
     
     # Validate build type
-    if [ "$BUILD_TYPE" != "debug" ] && [ "$BUILD_TYPE" != "release" ] && [ "$BUILD_TYPE" != "protobuf" ]; then
+    if [ "$BUILD_TYPE" != "debug" ] && [ "$BUILD_TYPE" != "release" ]; then
         print_error "Invalid build type: $BUILD_TYPE"
-        echo "Valid build types: debug, release, protobuf"
+        echo "Valid build types: debug, release"
         exit 1
     fi
     
     print_header
     
     # Build process
-    if [ "$BUILD_TYPE" = "protobuf" ]; then
-        # Build only protobuf dependency
-        check_dependencies
-        setup_cross_compilation
-        build_protobuf_dependency
-    else
-        # Full AASDK build
-        check_dependencies
-        setup_cross_compilation
-        configure_cmake
-        build_project
-        validate_build
-        run_tests
-        install_project
-        create_packages
-        show_build_summary
-    fi
+    check_dependencies
+    setup_cross_compilation
+    # NOTE: aap_protobuf is built via add_subdirectory(protobuf) inside the main CMake build.
+    # Prebuilding and installing it separately is unnecessary and can require elevated privileges.
+    # The previous step has been disabled to keep dry runs Pi-safe and rootless.
+    configure_cmake
+    build_project
+    validate_build
+    run_tests
+    install_project
+    create_packages
+    
+    show_build_summary
 }
 
 # Execute main function
