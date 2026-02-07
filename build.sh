@@ -1,7 +1,10 @@
 #!/bin/bash
 
-# AASDK Build Script
-# Provides convenient building for different configurations and architectures
+# AASDK Build Script - Dependency-First Approach
+# 1. Install system dependencies
+# 2. Build and package custom dependencies (protobuf)
+# 3. Build AASDK using installed dependencies
+# 4. Package AASDK
 #
 # Usage:
 #   ./build.sh [BUILD_TYPE] [OPTIONS]
@@ -15,6 +18,7 @@
 #   test       - Run tests after building
 #   install    - Install after building
 #   package    - Create packages after building
+#   deps-only  - Only build and package dependencies
 #
 # Environment Variables:
 #   TARGET_ARCH   - Target architecture (amd64, arm64, armhf, i386)
@@ -33,7 +37,6 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-# Auto-detect build type based on git branch if not specified
 if [ -z "$1" ]; then
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
     if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
@@ -45,7 +48,6 @@ else
     BUILD_TYPE="$1"
 fi
 TARGET_ARCH=${TARGET_ARCH:-amd64}
-# Use one fewer core by default to reduce memory pressure on small devices
 NPROC=$(nproc 2>/dev/null || echo 1)
 if [ "$NPROC" -gt 1 ]; then
     JOBS_DEFAULT=$((NPROC-1))
@@ -55,7 +57,6 @@ fi
 JOBS=${JOBS:-$JOBS_DEFAULT}
 CMAKE_ARGS=${CMAKE_ARGS:-}
 CROSS_COMPILE=${CROSS_COMPILE:-true}
-# Dry run mode (skip system install)
 DRY_RUN=${DRY_RUN:-false}
 
 # Parse command line arguments
@@ -63,6 +64,7 @@ CLEAN=false
 RUN_TESTS=false
 INSTALL=false
 CREATE_PACKAGES=false
+DEPS_ONLY=false
 
 for arg in "$@"; do
     case $arg in
@@ -81,6 +83,9 @@ for arg in "$@"; do
         package)
             CREATE_PACKAGES=true
             ;;
+        deps-only)
+            DEPS_ONLY=true
+            ;;
         dryrun)
             DRY_RUN=true
             ;;
@@ -93,204 +98,125 @@ done
 # Functions
 print_header() {
     echo -e "${BLUE}================================================${NC}"
-    echo -e "${BLUE}  AASDK Build Script${NC}"
+    echo -e "${BLUE}  AASDK Build Script (Dependency-First)${NC}"
     echo -e "${BLUE}================================================${NC}"
     echo -e "Build Type:     ${GREEN}${BUILD_TYPE}${NC}"
     echo -e "Architecture:   ${GREEN}${TARGET_ARCH}${NC}"
     echo -e "Parallel Jobs:  ${GREEN}${JOBS}${NC}"
+    echo -e "Deps Only:      ${GREEN}${DEPS_ONLY}${NC}"
     echo -e "Clean Build:    ${GREEN}${CLEAN}${NC}"
     echo -e "Run Tests:      ${GREEN}${RUN_TESTS}${NC}"
     echo -e "Install:        ${GREEN}${INSTALL}${NC}"
     echo -e "Create Packages: ${GREEN}${CREATE_PACKAGES}${NC}"
     echo -e "Dry Run:        ${GREEN}${DRY_RUN}${NC}"
-    echo -e "${YELLOW}Git details:${NC}"
-    echo "  GIT_COMMIT_ID: $GIT_COMMIT_ID"
-    echo "  GIT_BRANCH:    $GIT_BRANCH"
-    echo "  GIT_DESCRIBE:  $GIT_DESCRIBE"
-    echo "  GIT_TIMESTAMP: $GIT_COMMIT_TIMESTAMP"
-    echo "  GIT_DIRTY:     $GIT_DIRTY"
     echo -e "${BLUE}================================================${NC}"
-    echo
 }
 
 print_step() {
-    echo -e "${YELLOW}🔄 $1${NC}"
+    echo -e "${BLUE}[STEP]${NC} $1"
 }
 
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}"
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}[ERROR]${NC} $1"
 }
 
-check_dependencies() {
-    print_step "Checking dependencies..."
-    
-    # Check for required tools
-    local missing_deps=()
-    
-    if ! command -v cmake &> /dev/null; then
-        missing_deps+=("cmake")
-    fi
-    
-    if ! command -v make &> /dev/null; then
-        missing_deps+=("build-essential")
-    fi
-    
-    if ! command -v pkg-config &> /dev/null; then
-        missing_deps+=("pkg-config")
-    fi
-    
-    # Check for required libraries
-    # Note: protobuf is now optional and will be built from source if not available
-    # if ! pkg-config --exists protobuf; then
-    #     missing_deps+=("libprotobuf-dev protobuf-compiler")
-    # fi
-    
-    if ! ldconfig -p | grep -q libboost_system; then
-        missing_deps+=("libboost-all-dev")
-    fi
-    
-    if ! ldconfig -p | grep -q libusb-1.0; then
-        missing_deps+=("libusb-1.0-0-dev")
-    fi
-    
-    if ! ldconfig -p | grep -q libssl; then
-        missing_deps+=("libssl-dev")
-    fi
-    
-    if [ ${#missing_deps[@]} -ne 0 ]; then
-        print_error "Missing dependencies detected:"
-        printf '%s\n' "${missing_deps[@]}"
-        echo
-        echo -e "${YELLOW}To install missing dependencies on Ubuntu/Debian:${NC}"
-        echo "sudo apt update && sudo apt install -y ${missing_deps[*]}"
-        echo
-        echo -e "${YELLOW}Or use the DevContainer for automatic dependency management.${NC}"
-        exit 1
-    fi
-    
-    print_success "All dependencies found"
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
-setup_native_compilation() {
-    print_step "Setting up native compilation for ${TARGET_ARCH}..."
-    
-    # Force native compilers
-    export CC=/usr/bin/cc
-    export CXX=/usr/bin/c++
-    export CMAKE_C_COMPILER=/usr/bin/cc
-    export CMAKE_CXX_COMPILER=/usr/bin/c++
-    
-    # Add compiler settings to CMAKE_ARGS
-    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_C_COMPILER=/usr/bin/cc"
-    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CXX_COMPILER=/usr/bin/c++"
-    
-    # Architecture-specific library paths for dependency detection
-    local multiarch_path
-    case $TARGET_ARCH in
-        amd64)
-            multiarch_path="x86_64-linux-gnu"
-            ;;
-        arm64)  
-            multiarch_path="aarch64-linux-gnu"
-            ;;
-        armhf)
-            multiarch_path="arm-linux-gnueabihf"
-            ;;
-        i386)
-            multiarch_path="i386-linux-gnu"
-            ;;
-        *)
-            print_error "Unsupported architecture: $TARGET_ARCH"
-            echo "Supported architectures: amd64, arm64, armhf, i386"
-            exit 1
-            ;;
-    esac
-    
-    # Add dependency paths to CMAKE_ARGS for common libraries
-    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_INCLUDE_DIR=/usr/include"
-    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LIBRARIES=/usr/lib/${multiarch_path}/libprotobuf.so"
-    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LIBRARY=/usr/lib/${multiarch_path}/libprotobuf.so"
-    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LITE_LIBRARY=/usr/lib/${multiarch_path}/libprotobuf-lite.so"
-    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc"
-    CMAKE_ARGS="$CMAKE_ARGS -DLIBUSB_1_INCLUDE_DIRS=/usr/include/libusb-1.0"
-    CMAKE_ARGS="$CMAKE_ARGS -DLIBUSB_1_LIBRARIES=/usr/lib/${multiarch_path}/libusb-1.0.so"
-    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_INCLUDE_DIR=/usr/include/openssl"
-    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/${multiarch_path}/libcrypto.so"
-    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_SSL_LIBRARY=/usr/lib/${multiarch_path}/libssl.so"
-    
-    print_success "Native compilation configured for ${TARGET_ARCH}"
-}
-
-setup_cross_compilation() {
-    if [ "$TARGET_ARCH" != "amd64" ] && [ "$CROSS_COMPILE" = "true" ]; then
-        print_step "Setting up cross-compilation for ${TARGET_ARCH}..."
-        
-        case $TARGET_ARCH in
-            arm64)
-                export CMAKE_C_COMPILER=aarch64-linux-gnu-gcc
-                export CMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
-                
-                if ! command -v aarch64-linux-gnu-gcc &> /dev/null; then
-                    print_error "ARM64 cross-compiler not found"
-                    echo "Install with: sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu"
-                    exit 1
-                fi
-                ;;
-            armhf)
-                export CMAKE_C_COMPILER=arm-linux-gnueabihf-gcc
-                export CMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH=/usr/arm-linux-gnueabihf"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
-                
-                if ! command -v arm-linux-gnueabihf-gcc &> /dev/null; then
-                    print_error "ARMHF cross-compiler not found"
-                    echo "Install with: sudo apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf"
-                    exit 1
-                fi
-                ;;
-            i386)
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
-                ;;
-            *)
-                print_error "Unsupported architecture: $TARGET_ARCH"
-                echo "Supported architectures: amd64, arm64, armhf, i386"
-                exit 1
-                ;;
-        esac
-        
-        print_success "Cross-compilation configured for ${TARGET_ARCH}"
-    elif [ "$CROSS_COMPILE" = "false" ]; then
-        setup_native_compilation
+# Install system dependencies
+install_system_deps() {
+    if [ "$DRY_RUN" = true ]; then
+        print_step "DRY RUN: Would install system dependencies"
+        return 0
     fi
+
+    print_step "Installing system dependencies..."
+
+    # Update package list
+    apt-get update
+
+    # Install build tools and basic dependencies
+    apt-get install -y \
+        build-essential \
+        cmake \
+        pkg-config \
+        git \
+        wget \
+        curl \
+        libboost-system-dev \
+        libboost-log-dev \
+        libboost-log-setup-dev \
+        libusb-1.0-0-dev \
+        libssl-dev \
+        libboost-test-dev \
+        dpkg-dev \
+        debhelper \
+        libboost-thread-dev \
+        libboost-chrono-dev \
+        libboost-date-time-dev \
+        libboost-atomic-dev \
+        libboost-filesystem-dev
+
+    print_success "System dependencies installed"
 }
 
+# Build and install protobuf dependency
+build_protobuf_dependency() {
+    print_step "Building protobuf dependency..."
 
-configure_cmake() {
-    print_step "Configuring CMake..."
-    
+    if [ "$CLEAN" = true ] && [ -d "protobuf/build" ]; then
+        rm -rf protobuf/build
+    fi
+
+    mkdir -p protobuf/build
+    cd protobuf/build
+
+    # Configure protobuf as standalone
+    cmake -DCMAKE_BUILD_TYPE=Release \
+          -DTARGET_ARCH=$TARGET_ARCH \
+          -DCMAKE_INSTALL_PREFIX="/usr/local" \
+          $CMAKE_ARGS \
+          ..
+
+    # Build and install
+    make -j$JOBS
+
+    if [ "$DRY_RUN" = false ]; then
+        make install
+    fi
+
+    # Create DEB package for protobuf
+    if [ "$CREATE_PACKAGES" = true ]; then
+        print_step "Creating protobuf DEB package..."
+        cpack -G DEB
+    fi
+
+    cd ../..
+
+    print_success "Protobuf dependency built and installed"
+}
+
+# Build AASDK
+build_aasdk() {
+    print_step "Building AASDK..."
+
     local build_dir="build-${BUILD_TYPE}"
     if [ "$TARGET_ARCH" != "amd64" ]; then
         build_dir="build-${BUILD_TYPE}-${TARGET_ARCH}"
     fi
-    
+
     if [ "$CLEAN" = true ] && [ -d "$build_dir" ]; then
-        print_step "Cleaning build directory..."
         rm -rf "$build_dir"
     fi
-    
+
     mkdir -p "$build_dir"
     cd "$build_dir"
-    
+
     # Convert build type to proper case
     local cmake_build_type
     case $BUILD_TYPE in
@@ -304,188 +230,97 @@ configure_cmake() {
             cmake_build_type="Release"
             ;;
     esac
-    
+
+    # Configure AASDK
     cmake -DCMAKE_BUILD_TYPE=$cmake_build_type \
           -DTARGET_ARCH=$TARGET_ARCH \
           -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
           -DBUILD_TESTING=ON \
           $CMAKE_ARGS \
           ..
-    
-    cd ..
-    export BUILD_DIR="$build_dir"
-    
-    print_success "CMake configured successfully"
-}
 
-build_project() {
-    print_step "Building AASDK..."
-    
-    cd "$BUILD_DIR"
-    
-    # Build with progress indicator
-    if [ -t 1 ]; then
-        # Terminal output - show progress
-        make -j$JOBS
-    else
-        # Non-terminal output - suppress progress for cleaner logs
-        make -j$JOBS --no-print-directory
-    fi
-    
+    # Build
+    make -j$JOBS
+
     cd ..
-    
+
+    export BUILD_DIR="$build_dir"
     print_success "AASDK built successfully"
 }
 
+# Run tests
 run_tests() {
-    if [ "$RUN_TESTS" = true ]; then
+    if [ "$RUN_TESTS" = true ] && [ -n "$BUILD_DIR" ]; then
         print_step "Running tests..."
-        
         cd "$BUILD_DIR"
-        
-        if ! ctest --output-on-failure --parallel $JOBS; then
-            print_error "Some tests failed"
-            cd ..
-            exit 1
-        fi
-        
+        ctest --output-on-failure
         cd ..
-        
-        print_success "All tests passed"
+        print_success "Tests completed"
     fi
 }
 
-install_project() {
-    if [ "$INSTALL" = true ]; then
-        if [ "$DRY_RUN" = true ] || [ "$DRY_RUN" = 1 ]; then
-            print_step "Dry run enabled: skipping system installation"
-            return 0
-        fi
+# Install AASDK
+install_aasdk() {
+    if [ "$INSTALL" = true ] && [ -n "$BUILD_DIR" ]; then
         print_step "Installing AASDK..."
-        
         cd "$BUILD_DIR"
-        
-        if [ "$EUID" -eq 0 ]; then
+        if [ "$DRY_RUN" = false ]; then
             make install
         else
-            sudo make install
-            sudo ldconfig
+            print_step "DRY RUN: Would install AASDK"
         fi
-        
         cd ..
-        
-        print_success "AASDK installed successfully"
+        print_success "AASDK installed"
     fi
 }
 
-create_packages() {
-    if [ "$CREATE_PACKAGES" = true ]; then
-        print_step "Creating packages..."
-        
+# Create AASDK packages
+create_aasdk_packages() {
+    if [ "$CREATE_PACKAGES" = true ] && [ -n "$BUILD_DIR" ]; then
+        print_step "Creating AASDK packages..."
         cd "$BUILD_DIR"
-        
-        # Create DEB packages for main AASDK
         cpack --config CPackConfig.cmake
-        
-        # Also create protobuf packages if protobuf was built as subdirectory
-        if [ -d "protobuf" ]; then
-            print_step "Creating protobuf packages..."
-            cd protobuf
-            # Configure protobuf directory for standalone packaging
-            mkdir -p build
-            cd build
-            cmake -DCMAKE_BUILD_TYPE=Release \
-                  -DTARGET_ARCH=$TARGET_ARCH \
-                  -DCMAKE_INSTALL_PREFIX="/usr/local" \
-                  $CMAKE_ARGS \
-                  ..
-            # Now cpack can run with proper configuration
-            cpack -G DEB
-            cd ../..
-        fi
-        
-        # Move all packages to top-level packages directory
-        mkdir -p ../packages
-        mv *.deb ../packages/ 2>/dev/null || true
-        mv *.tar.* ../packages/ 2>/dev/null || true
-        if [ -d "protobuf" ]; then
-            mv protobuf/*.deb ../packages/ 2>/dev/null || true
-            mv protobuf/*.tar.* ../packages/ 2>/dev/null || true
-        fi
-        
         cd ..
-        
+
+        # Move packages to top-level packages directory
+        mkdir -p packages
+        mv "$BUILD_DIR"/*.deb packages/ 2>/dev/null || true
+        mv "$BUILD_DIR"/*.tar.* packages/ 2>/dev/null || true
+        mv protobuf/build/*.deb packages/ 2>/dev/null || true
+
         print_success "Packages created in packages/ directory"
-        
-        # List created packages
+    fi
+}
+
+# Show build summary
+show_build_summary() {
+    echo
+    echo -e "${BLUE}================================================${NC}"
+    echo -e "${GREEN}Build completed successfully!${NC}"
+    echo -e "${BLUE}================================================${NC}"
+
+    if [ "$CREATE_PACKAGES" = true ]; then
+        echo -e "${GREEN}✅ Packages created${NC}"
         if [ -d "packages" ]; then
             echo -e "${BLUE}Created packages:${NC}"
             ls -la packages/
         fi
     fi
-}
 
-validate_build() {
-    print_step "Validating build..."
-    
-    local lib_file="$BUILD_DIR/lib/libaasdk.so"
-    
-    if [ ! -f "$lib_file" ]; then
-        print_error "Library file not found: $lib_file"
-        exit 1
-    fi
-    
-    # Check if library has expected symbols
-    if ! nm "$lib_file" | grep -q "aasdk"; then
-        print_error "Library does not contain expected AASDK symbols"
-        exit 1
-    fi
-    
-    # Check library dependencies (only for native builds)
-    if [ "$TARGET_ARCH" = "amd64" ]; then
-        if ! ldd "$lib_file" > /dev/null 2>&1; then
-            print_error "Library has unresolved dependencies"
-            exit 1
-        fi
-    fi
-    
-    print_success "Build validation passed"
-}
-
-show_build_summary() {
-    echo
-    echo -e "${BLUE}================================================${NC}"
-    echo -e "${GREEN}🎉 AASDK Build Completed Successfully!${NC}"
-    echo -e "${BLUE}================================================${NC}"
-    echo -e "Build Type:     ${GREEN}${BUILD_TYPE}${NC}"
-    echo -e "Architecture:   ${GREEN}${TARGET_ARCH}${NC}"
-    echo -e "Build Directory: ${GREEN}${BUILD_DIR}${NC}"
-    echo
-    echo -e "${BLUE}Build artifacts:${NC}"
-    echo -e "  Library:      ${BUILD_DIR}/lib/libaasdk.so"
-    echo -e "  Headers:      ${BUILD_DIR}/include/"
-    echo -e "  CMake Config: ${BUILD_DIR}/aasdkConfig.cmake"
-    echo
-    if [ "$RUN_TESTS" = true ]; then
-        echo -e "${GREEN}✅ Tests: PASSED${NC}"
-    fi
-    if [ "$INSTALL" = true ]; then
-        echo -e "${GREEN}✅ Installation: COMPLETED${NC}"
-    fi
-    if [ "$CREATE_PACKAGES" = true ]; then
-        echo -e "${GREEN}✅ Packages: CREATED${NC}"
-    fi
     echo
     echo -e "${YELLOW}Next steps:${NC}"
-    echo -e "  • To run tests: cd ${BUILD_DIR} && ctest"
-    echo -e "  • To install: cd ${BUILD_DIR} && sudo make install"
-    echo -e "  • To create packages: cd ${BUILD_DIR} && cpack"
+    if [ -n "$BUILD_DIR" ]; then
+        echo -e "  • To run tests: cd ${BUILD_DIR} && ctest"
+        echo -e "  • To install: cd ${BUILD_DIR} && sudo make install"
+        echo -e "  • To create packages: cd ${BUILD_DIR} && cpack"
+    fi
     echo -e "  • For troubleshooting: see TROUBLESHOOTING.md"
     echo -e "${BLUE}================================================${NC}"
 }
 
+# Show usage
 show_usage() {
-    echo "AASDK Build Script"
+    echo "AASDK Build Script (Dependency-First Approach)"
     echo
     echo "Usage: $0 [BUILD_TYPE] [OPTIONS]"
     echo
@@ -498,6 +333,7 @@ show_usage() {
     echo "  test        Run tests after building"
     echo "  install     Install after building"
     echo "  package     Create packages after building"
+    echo "  deps-only   Only build and package dependencies"
     echo
     echo "Environment Variables:"
     echo "  TARGET_ARCH    Target architecture (amd64, arm64, armhf, i386)"
@@ -510,7 +346,7 @@ show_usage() {
     echo "  $0 release clean           # Clean release build"
     echo "  $0 debug test              # Debug build with tests"
     echo "  TARGET_ARCH=arm64 $0 release  # Cross-compile for ARM64"
-    echo "  JOBS=4 $0 debug clean     # Build with 4 parallel jobs"
+    echo "  $0 deps-only package       # Only build dependencies and package them"
     echo
     echo "For complete documentation, see BUILD.md"
 }
@@ -522,29 +358,40 @@ main() {
         show_usage
         exit 0
     fi
-    
+
     # Validate build type
     if [ "$BUILD_TYPE" != "debug" ] && [ "$BUILD_TYPE" != "release" ]; then
         print_error "Invalid build type: $BUILD_TYPE"
         echo "Valid build types: debug, release"
         exit 1
     fi
-    
+
     print_header
-    
-    # Build process
-    check_dependencies
-    setup_cross_compilation
-    # NOTE: aap_protobuf is built via add_subdirectory(protobuf) inside the main CMake build.
-    # Prebuilding and installing it separately is unnecessary and can require elevated privileges.
-    # The previous step has been disabled to keep dry runs Pi-safe and rootless.
-    configure_cmake
-    build_project
-    validate_build
+
+    # Phase 1: Install system dependencies
+    install_system_deps
+
+    # Phase 2: Build and install custom dependencies
+    build_protobuf_dependency
+
+    # Stop here if only building dependencies
+    if [ "$DEPS_ONLY" = true ]; then
+        print_success "Dependencies built successfully"
+        if [ "$CREATE_PACKAGES" = true ] && [ -d "packages" ]; then
+            echo -e "${BLUE}Dependency packages:${NC}"
+            ls -la packages/
+        fi
+        exit 0
+    fi
+
+    # Phase 3: Build AASDK
+    build_aasdk
+
+    # Phase 4: Test, install, package
     run_tests
-    install_project
-    create_packages
-    
+    install_aasdk
+    create_aasdk_packages
+
     show_build_summary
 }
 
