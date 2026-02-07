@@ -38,8 +38,14 @@ NC='\033[0m' # No Color
 
 # Default values
 if [ -z "$1" ]; then
-    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-    if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+    # Use environment variable if set, otherwise try to detect from git
+    if [ -n "$GIT_BRANCH" ] && [ "$GIT_BRANCH" != "unknown" ]; then
+        CURRENT_BRANCH="$GIT_BRANCH"
+    else
+        CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    fi
+    
+    if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ] || [ "$CURRENT_BRANCH" = "development" ]; then
         BUILD_TYPE="release"
     else
         BUILD_TYPE="debug"

@@ -174,11 +174,24 @@ jobs:
               fi
             fi
           fi
+          
+          # Collect git information for Docker build
+          GIT_COMMIT_ID=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+          GIT_BRANCH="${{ github.ref_name }}"
+          GIT_DESCRIBE=$(git describe --tags --always 2>/dev/null || echo "unknown")
+          GIT_COMMIT_TIMESTAMP=$(git log -1 --format=%ct 2>/dev/null || echo "unknown")
+          GIT_DIRTY=$(git diff --quiet 2>/dev/null && echo "false" || echo "true")
+          
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
           echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
           echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
           echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
           echo "package_name=aasdk-${{ matrix.arch }}-${VERSION}" >> $GITHUB_OUTPUT
+          echo "git_commit_id=${GIT_COMMIT_ID}" >> $GITHUB_OUTPUT
+          echo "git_branch=${GIT_BRANCH}" >> $GITHUB_OUTPUT
+          echo "git_describe=${GIT_DESCRIBE}" >> $GITHUB_OUTPUT
+          echo "git_commit_timestamp=${GIT_COMMIT_TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "git_dirty=${GIT_DIRTY}" >> $GITHUB_OUTPUT
 
       - name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
         run: |
@@ -196,6 +209,11 @@ jobs:
             --build-arg TARGET_ARCH=${{ matrix.arch }} \
             --build-arg DEBIAN_VERSION=${{ matrix.distro }} \
             --build-arg BUILD_TYPE=${BUILD_TYPE} \
+            --build-arg GIT_COMMIT_ID=${{ steps.build_info.outputs.git_commit_id }} \
+            --build-arg GIT_BRANCH=${{ steps.build_info.outputs.git_branch }} \
+            --build-arg GIT_DESCRIBE=${{ steps.build_info.outputs.git_describe }} \
+            --build-arg GIT_COMMIT_TIMESTAMP=${{ steps.build_info.outputs.git_commit_timestamp }} \
+            --build-arg GIT_DIRTY=${{ steps.build_info.outputs.git_dirty }} \
             --tag aasdk-build:${{ matrix.arch }} \
             --load \
             .
