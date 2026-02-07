@@ -391,8 +391,17 @@ create_packages() {
         if [ -d "protobuf" ]; then
             print_step "Creating protobuf packages..."
             cd protobuf
+            # Configure protobuf directory for standalone packaging
+            mkdir -p build
+            cd build
+            cmake -DCMAKE_BUILD_TYPE=Release \
+                  -DTARGET_ARCH=$TARGET_ARCH \
+                  -DCMAKE_INSTALL_PREFIX="/usr/local" \
+                  $CMAKE_ARGS \
+                  ..
+            # Now cpack can run with proper configuration
             cpack -G DEB
-            cd ..
+            cd ../..
         fi
         
         # Move all packages to top-level packages directory
