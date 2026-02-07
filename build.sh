@@ -136,6 +136,13 @@ print_warning() {
 
 # Install system dependencies
 install_system_deps() {
+    # Skip system dependency installation in Docker containers
+    # The Dockerfile already installs all required dependencies
+    if [ -f "/.dockerenv" ] || [ -n "$GIT_COMMIT_ID" ] || [ "$EUID" -eq 0 ]; then
+        print_step "Running in Docker container - skipping system dependency installation"
+        return 0
+    fi
+
     if [ "$DRY_RUN" = true ]; then
         print_step "DRY RUN: Would install system dependencies"
         return 0
@@ -156,17 +163,16 @@ install_system_deps() {
         curl \
         libboost-system-dev \
         libboost-log-dev \
-        libboost-log-setup-dev \
-        libusb-1.0-0-dev \
-        libssl-dev \
-        libboost-test-dev \
-        dpkg-dev \
-        debhelper \
         libboost-thread-dev \
         libboost-chrono-dev \
         libboost-date-time-dev \
         libboost-atomic-dev \
-        libboost-filesystem-dev
+        libboost-filesystem-dev \
+        libusb-1.0-0-dev \
+        libssl-dev \
+        libboost-test-dev \
+        dpkg-dev \
+        debhelper
 
     print_success "System dependencies installed"
 }
@@ -199,7 +205,7 @@ build_protobuf_dependency() {
     # Create DEB package for protobuf
     if [ "$CREATE_PACKAGES" = true ]; then
         print_step "Creating protobuf DEB package..."
-        cpack -G DEB
+        cpack
     fi
 
     cd ../..
