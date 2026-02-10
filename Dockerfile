@@ -112,7 +112,7 @@ RUN echo "=== Git environment variables before build ===" && \
         # Pass through to CMake via build.sh using CMAKE_ARGS
         env DISTRO_DEB_RELEASE="$CPACK_DEB_RELEASE" CMAKE_ARGS="$CMAKE_ARGS -DCPACK_DEBIAN_PACKAGE_RELEASE=$CPACK_DEB_RELEASE -DCPACK_PROJECT_CONFIG_FILE=/src/cmake_modules/CPackProjectConfig.cmake" \
             CROSS_COMPILE=${CROSS_COMPILE} \
-            ./build.sh ${BUILD_TYPE} clean package && \
+            ./build.sh ${BUILD_TYPE} clean package --skip-protobuf && \
     if [ -d "packages" ]; then \
         cp packages/*.deb /output/ 2>/dev/null || true && \
         echo "Packages built:" && \
