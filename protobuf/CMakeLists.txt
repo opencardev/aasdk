@@ -39,58 +39,84 @@ if(NOT CMAKE_BUILD_TYPE)
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Use FetchContent to build Protobuf v30.0 with C++20 support
-message(STATUS "Using FetchContent to download and build Protobuf v30.0")
-include(FetchContent)
+# Use FetchContent to build Protobuf v30.0 with C++20 support, unless using system protobuf
+if(NOT SKIP_BUILD_PROTOBUF)
+    message(STATUS "Using FetchContent to download and build Protobuf v30.0")
+    include(FetchContent)
+else()
+    message(STATUS "Using system protobuf for aap_protobuf generation")
+    find_package(Protobuf REQUIRED)
+endif()
 
-# Fetch Abseil (required by Protobuf v22.0+)
-FetchContent_Declare(
-  abseil
-  GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
-  GIT_TAG 20240722.0  # LTS 2024-07-22, compatible with Protobuf v30.0
-  GIT_SHALLOW TRUE
-)
+# Fetch Abseil (required by Protobuf v22.0+) unless skipping
+if(NOT SKIP_BUILD_ABSL AND NOT SKIP_BUILD_PROTOBUF)
+    FetchContent_Declare(
+      abseil
+      GIT_REPOSITORY https://github.com/abseil/abseil-cpp.git
+      GIT_TAG 20240722.0  # LTS 2024-07-22, compatible with Protobuf v30.0
+      GIT_SHALLOW TRUE
+    )
 
-# Save current compiler flags to restore later
-set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    # Save current compiler flags to restore later
+    set(SAVED_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
-# Remove -pedantic from flags for external dependencies (Abseil, Protobuf)
-# These external libraries may have valid code that triggers pedantic warnings
-string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-message(STATUS "Temporarily disabled -pedantic flag for external dependency compilation")
+    # Remove -pedantic from flags for external dependencies (Abseil, Protobuf)
+    # These external libraries may have valid code that triggers pedantic warnings
+    string(REPLACE " -pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    message(STATUS "Temporarily disabled -pedantic flag for external dependency compilation")
 
-set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
-set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
-message(STATUS "Fetching Abseil LTS 2024-07-22...")
-FetchContent_MakeAvailable(abseil)
+    set(ABSL_PROPAGATE_CXX_STD ON CACHE BOOL "" FORCE)
+    set(ABSL_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    message(STATUS "Fetching Abseil LTS 2024-07-22...")
+    FetchContent_MakeAvailable(abseil)
+else()
+    if(NOT SKIP_BUILD_PROTOBUF)
+        message(STATUS "Skipping Abseil build, using system-installed version")
+        find_package(absl REQUIRED)
+    else()
+        message(STATUS "Using system protobuf - Abseil not needed for generation")
+    endif()
+endif()
 
-# Fetch Protobuf v30.0
-FetchContent_Declare(
-  protobuf
-  GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
-  GIT_TAG v30.0
-  GIT_SHALLOW TRUE
-)
-set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
-set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
-message(STATUS "Fetching Protobuf v30.0...")
+# Fetch Protobuf v30.0 or use system protobuf
+if(NOT SKIP_BUILD_PROTOBUF)
+    FetchContent_Declare(
+      protobuf
+      GIT_REPOSITORY https://github.com/protocolbuffers/protobuf.git
+      GIT_TAG v30.0
+      GIT_SHALLOW TRUE
+    )
+    set(protobuf_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+    set(protobuf_ABSL_PROVIDER "package" CACHE STRING "" FORCE)
+    set(protobuf_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+    set(protobuf_INSTALL OFF CACHE BOOL "" FORCE)
+    message(STATUS "Fetching Protobuf v30.0...")
 
-# Make protobuf available - this will configure and build it
-FetchContent_MakeAvailable(protobuf)
+    # Make protobuf available - this will configure and build it
+    FetchContent_MakeAvailable(protobuf)
+else()
+    message(STATUS "Using system protobuf for aap_protobuf generation")
+endif()
 
-# Restore original compiler flags for AASDK code
-set(CMAKE_CXX_FLAGS "${SAVED_CMAKE_CXX_FLAGS}")
-message(STATUS "Restored original compiler flags (with -pedantic) for AASDK code")
+# Set protobuf_BIN_DIR and protoc executable based on whether we're building protobuf or using system
+if(NOT SKIP_BUILD_PROTOBUF)
+    # Use the built protoc from FetchContent
+    set(PROTOBUF_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
+    message(STATUS "Using protoc from FetchContent: ${PROTOBUF_PROTOC_EXECUTABLE}")
+else()
+    # Use system protoc
+    find_program(PROTOBUF_PROTOC_EXECUTABLE protoc REQUIRED)
+    message(STATUS "Using system protoc: ${PROTOBUF_PROTOC_EXECUTABLE}")
+endif()
 
-# Set protobuf_BIN_DIR to use the built protoc from FetchContent, NOT system protoc
-set(PROTOBUF_PROTOC_EXECUTABLE "${protobuf_BINARY_DIR}/protoc")
-message(STATUS "Using protoc from FetchContent: ${PROTOBUF_PROTOC_EXECUTABLE}")
-
-# Include it if not already available
-if(NOT COMMAND protobuf_generate)
-    include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
+# Include protobuf generate functions
+if(NOT SKIP_BUILD_PROTOBUF)
+    if(NOT COMMAND protobuf_generate)
+        include(${protobuf_SOURCE_DIR}/cmake/protobuf-generate.cmake)
+    endif()
+else()
+    # For system protobuf, use the standard CMake protobuf_generate
+    include(FindProtobuf)
 endif()
 
 # Locate all proto files
@@ -111,14 +137,25 @@ protobuf_generate(
     IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/aap_protobuf
 )
 
-# Link against the fetched protobuf library (PRIVATE to avoid export issues)
-target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
-target_include_directories(aap_protobuf PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
-    $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
-    $<INSTALL_INTERFACE:include/aap_protobuf>
-)
+# Link against protobuf library
+if(NOT SKIP_BUILD_PROTOBUF)
+    # Link against the built protobuf library
+    target_link_libraries(aap_protobuf PRIVATE protobuf::libprotobuf)
+    target_include_directories(aap_protobuf PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
+        $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include/aap_protobuf>
+    )
+else()
+    # Link against system protobuf
+    target_link_libraries(aap_protobuf PRIVATE ${Protobuf_LIBRARIES})
+    target_include_directories(aap_protobuf PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/aap_protobuf>
+        $<INSTALL_INTERFACE:include/aap_protobuf>
+    )
+endif()
 
 set(LIBRARY_BUILD_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_INCREMENTAL}+${LIBRARY_BUILD_DATE}")
 message(STATUS "aap_protobuf Project Version: ${LIBRARY_BUILD_VERSION_STRING}")

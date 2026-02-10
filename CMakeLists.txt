@@ -4,6 +4,10 @@ project(aasdk)
 message(STATUS "AASDK Library")
 message(STATUS "Cross Compiling?")
 
+# Options to skip building dependencies
+option(SKIP_BUILD_PROTOBUF "Skip building protobuf, use system-installed version" OFF)
+option(SKIP_BUILD_ABSL "Skip building Abseil, use system-installed version" OFF)
+
 # Cross Compiling Architecture and Package Architecture Detection
 if( TARGET_ARCH STREQUAL "amd64" )
     message(STATUS "...amd64")
@@ -187,19 +191,30 @@ if(AASDK_TEST)
     FetchContent_MakeAvailable(googletest)
 endif(AASDK_TEST)
 
-# Build aap_protobuf as part of this project (includes building Protobuf v30.0)
-message(STATUS "Building aap_protobuf as subdirectory")
+# Always build aap_protobuf for header generation
 add_subdirectory(protobuf)
 
-# Building on a Mac requires Abseil
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
-    message(STATUS "MacOS System Detected")
+# Handle protobuf library linking based on skip option
+if(NOT SKIP_BUILD_PROTOBUF)
+    message(STATUS "Using built protobuf v30.0")
+else()
+    message(STATUS "Skipping protobuf build, using system-installed version")
+    find_package(Protobuf REQUIRED)
+endif()
+
+# Require Abseil when building protobuf ourselves (which we always do for aap_protobuf), or on macOS
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR NOT SKIP_BUILD_ABSL)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        message(STATUS "MacOS System Detected - Abseil required")
+    elseif(SKIP_BUILD_ABSL)
+        message(STATUS "Building protobuf with system-installed Abseil")
+    else()
+        message(STATUS "Building protobuf with bundled Abseil")
+    endif()
     find_package(absl REQUIRED)
-else ()
-    # Use the protobuf targets from the FetchContent build in the protobuf subdirectory
-    # Do NOT call find_package(Protobuf) here as it will find the system version
-    message(STATUS "Using Protobuf v30.0 from FetchContent")
-endif ()
+else()
+    message(STATUS "Skipping Abseil requirement - using system protobuf")
+endif()
 
 find_package(Boost REQUIRED COMPONENTS system log_setup log OPTIONAL_COMPONENTS unit_test_framework)
 
@@ -253,6 +268,7 @@ target_include_directories(aasdk PUBLIC
         $<INSTALL_INTERFACE:include/aap_protobuf>
 )
 
+# Link libraries - aap_protobuf is always built as subdirectory
 target_link_libraries(aasdk PUBLIC
     ${LIBUSB_1_LIBRARIES}
     ${Boost_LIBRARIES}

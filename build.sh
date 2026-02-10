@@ -63,6 +63,8 @@ CLEAN=false
 RUN_TESTS=false
 INSTALL=false
 CREATE_PACKAGES=false
+SKIP_PROTOBUF=false
+SKIP_ABSL=false
 
 for arg in "$@"; do
     case $arg in
@@ -84,11 +86,25 @@ for arg in "$@"; do
         dryrun)
             DRY_RUN=true
             ;;
+        --skip-protobuf)
+            SKIP_PROTOBUF=true
+            ;;
+        --skip-absl)
+            SKIP_ABSL=true
+            ;;
         *)
             # Unknown option
             ;;
     esac
 done
+
+# Add skip options to CMake args after parsing arguments
+if [ "$SKIP_PROTOBUF" = true ]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DSKIP_BUILD_PROTOBUF=ON"
+fi
+if [ "$SKIP_ABSL" = true ]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DSKIP_BUILD_ABSL=ON"
+fi
 
 # Functions
 print_header() {
@@ -103,6 +119,8 @@ print_header() {
     echo -e "Install:        ${GREEN}${INSTALL}${NC}"
     echo -e "Create Packages: ${GREEN}${CREATE_PACKAGES}${NC}"
     echo -e "Dry Run:        ${GREEN}${DRY_RUN}${NC}"
+    echo -e "Skip Protobuf:  ${GREEN}${SKIP_PROTOBUF}${NC}"
+    echo -e "Skip Abseil:    ${GREEN}${SKIP_ABSL}${NC}"
     echo -e "${YELLOW}Git details:${NC}"
     echo "  GIT_COMMIT_ID: $GIT_COMMIT_ID"
     echo "  GIT_BRANCH:    $GIT_BRANCH"
@@ -158,6 +176,11 @@ check_dependencies() {
     
     if ! ldconfig -p | grep -q libssl; then
         missing_deps+=("libssl-dev")
+    fi
+    
+    # Check for absl only if not skipping protobuf (system protobuf v3.21.12 doesn't require absl)
+    if [ "$SKIP_PROTOBUF" != true ] && ! pkg-config --exists absl_base; then
+        missing_deps+=("libabsl-dev")
     fi
     
     if [ ${#missing_deps[@]} -ne 0 ]; then
@@ -505,10 +528,12 @@ show_usage() {
     echo "  release     Release build with optimizations enabled"
     echo
     echo "OPTIONS:"
-    echo "  clean       Clean build directory before building"
-    echo "  test        Run tests after building"
-    echo "  install     Install after building"
-    echo "  package     Create packages after building"
+    echo "  clean          Clean build directory before building"
+    echo "  test           Run tests after building"
+    echo "  install        Install after building"
+    echo "  package        Create packages after building"
+    echo "  --skip-protobuf  Skip building protobuf, use system-installed version"
+    echo "  --skip-absl      Skip building Abseil, use system-installed version"
     echo
     echo "Environment Variables:"
     echo "  TARGET_ARCH    Target architecture (amd64, arm64, armhf, i386)"
@@ -520,8 +545,14 @@ show_usage() {
     echo "  $0 debug                    # Debug build"
     echo "  $0 release clean           # Clean release build"
     echo "  $0 debug test              # Debug build with tests"
+    echo "  $0 debug --skip-protobuf   # Debug build using system protobuf"
+    echo "  $0 release --skip-absl     # Release build using system Abseil"
     echo "  TARGET_ARCH=arm64 $0 release  # Cross-compile for ARM64"
     echo "  JOBS=4 $0 debug clean     # Build with 4 parallel jobs"
+    echo
+    echo "Backward Compatibility:"
+    echo "  This version includes API changes from AASDK v4.x. For migration help,"
+    echo "  see include/aasdk/BackwardCompatibility.hpp and the migration guide."
     echo
     echo "For complete documentation, see BUILD.md"
 }

@@ -244,10 +244,18 @@ Enhanced by the OpenCarDev community
 - ✅ **Improved Packaging** - Professional DEB package distribution
 
 ### Migration Notes
+- **API Changes**: C++17 nested namespace syntax now preferred (`aasdk::messenger` instead of `aasdk { namespace messenger {`)
+- **Type Aliases**: `typedef` declarations modernized to `using` declarations
+- **Copy Operations**: `boost::noncopyable` inheritance deprecated in favor of explicit copy operation deletion
+- **Build Options**: New `--skip-protobuf` and `--skip-absl` options for system library usage
+- **Backward Compatibility**: Include `<aasdk/BackwardCompatibility.hpp>` for legacy namespace support
+- **Protobuf**: Now supports both built v30.0 and system protobuf v3.21.12+ (absl not required for system protobuf)
 - Legacy logging syntax remains fully supported
 - New projects should use modern logger categories
 - DevContainer is now the recommended development method
 - Package versioning changed to date-based format
+
+**Migration Guide**: See `include/aasdk/BackwardCompatibility.hpp` for API migration details.
 
 ---
 
