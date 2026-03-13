@@ -95,7 +95,8 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
     static std::string loadCertificate() {
       // Try paths in order of preference
       std::vector<std::string> certPaths = {
-        "/etc/openauto/headunit.crt",           // Installed system path
+        "/etc/aasdk/headunit.crt",              // Installed system path
+        "/etc/openauto/headunit.crt",           // Legacy path (backward compatibility)
         "/usr/share/aasdk/cert/headunit.crt",   // Alternative system path
         "./cert/headunit.crt",                   // Development path
         "../cert/headunit.crt"                   // Alternative development path
@@ -117,7 +118,8 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
     static std::string loadPrivateKey() {
       // Try paths in order of preference
       std::vector<std::string> keyPaths = {
-        "/etc/openauto/headunit.key",           // Installed system path
+        "/etc/aasdk/headunit.key",              // Installed system path
+        "/etc/openauto/headunit.key",           // Legacy path (backward compatibility)
         "/usr/share/aasdk/cert/headunit.key",   // Alternative system path
         "./cert/headunit.key",                   // Development path
         "../cert/headunit.key"                   // Alternative development path
@@ -268,29 +270,59 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
       this->write(buffer);
       const size_t beginOffset = output.size();
 
-      size_t totalReadSize = 0;                                                                               // Initialise
-      size_t availableBytes = length;
-      size_t readBytes = (availableBytes - totalReadSize) > 2048 ? 2048 : availableBytes -
-                                                                  totalReadSize;                     // Calculate How many Bytes to Read
-      output.resize(output.size() +
-                    readBytes);                                                               // Resize Output to match the bytes we want to read
+      size_t totalReadSize = 0;
+      size_t availableBytes = static_cast<size_t>(std::max(0, sslWrapper_->getAvailableBytes(ssl_)));
+      const size_t expectedBytes = static_cast<size_t>(std::max(0, length));
 
-      // We try to be a bit more explicit here, using the frame length from the frame itself rather than just blindly reading from the SSL buffer.
+      // Prefer bytes currently available from SSL pending, but fall back to expected payload length
+      // to preserve existing frame-size guidance when pending is temporarily empty.
+      while (availableBytes > 0 || (expectedBytes > 0 && totalReadSize < expectedBytes)) {
+        size_t readBytes = availableBytes;
+        if (readBytes == 0 && expectedBytes > totalReadSize) {
+          readBytes = expectedBytes - totalReadSize;
+        }
+        readBytes = std::min<size_t>(readBytes, 2048);
 
-      while (readBytes > 0) {
+        if (readBytes == 0) {
+          break;
+        }
+
+        output.resize(beginOffset + totalReadSize + readBytes);
+
         const auto &currentBuffer = common::DataBuffer(output, totalReadSize + beginOffset);
         auto readSize = sslWrapper_->sslRead(ssl_, currentBuffer.data, currentBuffer.size);
 
         if (readSize <= 0) {
-          throw error::Error(error::ErrorCode::SSL_READ, sslWrapper_->getError(ssl_, readSize));
+          const auto nativeError = sslWrapper_->getError(ssl_, readSize);
+
+          if (nativeError == SSL_ERROR_WANT_READ || nativeError == SSL_ERROR_WANT_WRITE) {
+            AASDK_LOG(warning) << "[Cryptor] Partial SSL frame decrypt; waiting for more encrypted data"
+                               << " frameLength=" << frameLength
+                               << " payloadLength=" << length
+                               << " expectedBytes=" << expectedBytes
+                               << " totalReadSize=" << totalReadSize
+                               << " requestedReadBytes=" << readBytes
+                               << " sslError=" << nativeError;
+            output.resize(beginOffset + totalReadSize);
+            return totalReadSize;
+          }
+
+          const std::string info = "decrypt sslRead<=0"
+                                   " frameLength=" + std::to_string(frameLength) +
+                                   " payloadLength=" + std::to_string(length) +
+                                   " availableBytes=" + std::to_string(availableBytes) +
+                                   " expectedBytes=" + std::to_string(expectedBytes) +
+                                   " totalReadSize=" + std::to_string(totalReadSize) +
+                                   " requestedReadBytes=" + std::to_string(readBytes) +
+                                   " returnCode=" + std::to_string(readSize);
+          throw error::Error(error::ErrorCode::SSL_READ, nativeError, info);
         }
 
-        totalReadSize += readSize;
-        availableBytes = sslWrapper_->getAvailableBytes(ssl_);
-        readBytes = (length - totalReadSize) > 2048 ? 2048 : length - totalReadSize;
-        output.resize(output.size() + readBytes);
+        totalReadSize += static_cast<size_t>(readSize);
+        availableBytes = static_cast<size_t>(std::max(0, sslWrapper_->getAvailableBytes(ssl_)));
       }
 
+      output.resize(beginOffset + totalReadSize);
       return totalReadSize;
     }
 
@@ -320,7 +352,13 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
         const auto readSize = sslWrapper_->bioRead(bIOs_.second, currentBuffer.data, currentBuffer.size);
 
         if (readSize <= 0) {
-          throw error::Error(error::ErrorCode::SSL_BIO_READ, sslWrapper_->getError(ssl_, readSize));
+          const auto nativeError = sslWrapper_->getError(ssl_, readSize);
+          const std::string info = "read bioRead<=0"
+                                   " pendingSize=" + std::to_string(pendingSize) +
+                                   " totalReadSize=" + std::to_string(totalReadSize) +
+                                   " currentBufferSize=" + std::to_string(currentBuffer.size) +
+                                   " returnCode=" + std::to_string(readSize);
+          throw error::Error(error::ErrorCode::SSL_BIO_READ, nativeError, info);
         }
 
         totalReadSize += readSize;

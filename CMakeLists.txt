@@ -347,8 +347,8 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/aasdk/Version.hpp"
 install(FILES 
         "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.crt"
         "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.key"
-        DESTINATION /etc/openauto
-        PERMISSIONS OWNER_READ GROUP_READ
+    DESTINATION /etc/aasdk
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ
         COMPONENT runtime
 )
 

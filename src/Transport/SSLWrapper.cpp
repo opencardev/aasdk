@@ -18,6 +18,8 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <string>
+#include <cerrno>
+#include <cstring>
 #if defined(__has_include) && __has_include(<openssl/engine.h>) && !defined(OPENSSL_NO_ENGINE)
 #include <openssl/engine.h>
 #define HAVE_ENGINE_H
@@ -31,6 +33,35 @@
 
 namespace aasdk {
   namespace transport {
+
+    static auto sslErrorToString(int sslErrorCode) -> const char* {
+      switch (sslErrorCode) {
+        case SSL_ERROR_NONE:
+          return "SSL_ERROR_NONE";
+        case SSL_ERROR_SSL:
+          return "SSL_ERROR_SSL";
+        case SSL_ERROR_WANT_READ:
+          return "SSL_ERROR_WANT_READ";
+        case SSL_ERROR_WANT_WRITE:
+          return "SSL_ERROR_WANT_WRITE";
+        case SSL_ERROR_WANT_X509_LOOKUP:
+          return "SSL_ERROR_WANT_X509_LOOKUP";
+        case SSL_ERROR_SYSCALL:
+          return "SSL_ERROR_SYSCALL";
+        case SSL_ERROR_ZERO_RETURN:
+          return "SSL_ERROR_ZERO_RETURN";
+#if defined(SSL_ERROR_WANT_CONNECT)
+        case SSL_ERROR_WANT_CONNECT:
+          return "SSL_ERROR_WANT_CONNECT";
+#endif
+#if defined(SSL_ERROR_WANT_ACCEPT)
+        case SSL_ERROR_WANT_ACCEPT:
+          return "SSL_ERROR_WANT_ACCEPT";
+#endif
+        default:
+          return "SSL_ERROR_UNKNOWN";
+      }
+    }
 
     SSLWrapper::SSLWrapper() {
       SSL_library_init();
@@ -187,10 +218,21 @@ namespace aasdk {
     }
 
     int SSLWrapper::getError(SSL *ssl, int returnCode) {
+      const int sslErrorCode = SSL_get_error(ssl, returnCode);
+      const int savedErrno = errno;
+
+      AASDK_LOG(error) << "[SSLWrapper] getError returnCode=" << returnCode
+                       << " ssl_error=" << sslErrorCode
+                       << "(" << sslErrorToString(sslErrorCode) << ")"
+                       << " errno=" << savedErrno
+                       << "(" << std::strerror(savedErrno) << ")"
+                       << " state="
+                       << (ssl ? SSL_state_string_long(ssl) : "<null-ssl>");
+
       while (auto err = ERR_get_error()) {
         AASDK_LOG(error) << "[SSLWrapper] SSL Error " << ERR_error_string(err, NULL);
       }
-      return SSL_get_error(ssl, returnCode);
+      return sslErrorCode;
     }
 
   }

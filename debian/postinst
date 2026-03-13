@@ -6,6 +6,40 @@ export DEBIAN_FRONTEND=noninteractive
 
 case "$1" in
     configure)
+        cert_dir="/etc/aasdk"
+        legacy_dir="/etc/openauto"
+        cert_file="$cert_dir/headunit.crt"
+        key_file="$cert_dir/headunit.key"
+
+        # Ensure target cert directory exists.
+        mkdir -p "$cert_dir"
+        chmod 755 "$cert_dir" || true
+
+        # Migrate from the old location if needed.
+        if [ ! -f "$cert_file" ] && [ -f "$legacy_dir/headunit.crt" ]; then
+            cp -f "$legacy_dir/headunit.crt" "$cert_file"
+        fi
+
+        if [ ! -f "$key_file" ] && [ -f "$legacy_dir/headunit.key" ]; then
+            cp -f "$legacy_dir/headunit.key" "$key_file"
+        fi
+
+        # Use pi group when available so non-root Crankshaft/OpenAuto runtimes can read certs.
+        cert_group="root"
+        if getent group pi >/dev/null 2>&1; then
+            cert_group="pi"
+        fi
+
+        if [ -f "$cert_file" ]; then
+            chown root:"$cert_group" "$cert_file" || true
+            chmod 640 "$cert_file" || true
+        fi
+
+        if [ -f "$key_file" ]; then
+            chown root:"$cert_group" "$key_file" || true
+            chmod 640 "$key_file" || true
+        fi
+
         # Update the dynamic linker cache
         if [ -x /sbin/ldconfig ]; then
             /sbin/ldconfig || true
