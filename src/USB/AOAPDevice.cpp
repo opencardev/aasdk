@@ -55,6 +55,7 @@
 #include <aasdk/USB/USBEndpoint.hpp>
 #include <aasdk/USB/AOAPDevice.hpp>
 #include <aasdk/Error/Error.hpp>
+#include <aasdk/Common/Log.hpp>
 
 
 namespace aasdk {
@@ -101,6 +102,15 @@ namespace aasdk {
       }
 
       auto result = usbWrapper.claimInterface(handle, interfaceDescriptor->bInterfaceNumber);
+
+      // Recovery path for stale interface ownership after abrupt transport teardown.
+      if (result == LIBUSB_ERROR_BUSY) {
+        AASDK_LOG(warning) << "[AOAPDevice] claimInterface busy on iface="
+                           << static_cast<int>(interfaceDescriptor->bInterfaceNumber)
+                           << ", attempting release+retry";
+        usbWrapper.releaseInterface(handle, interfaceDescriptor->bInterfaceNumber);
+        result = usbWrapper.claimInterface(handle, interfaceDescriptor->bInterfaceNumber);
+      }
 
       if (result != 0) {
         throw error::Error(error::ErrorCode::USB_CLAIM_INTERFACE, result);

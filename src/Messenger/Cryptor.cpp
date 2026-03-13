@@ -263,55 +263,34 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
     }
 
     size_t Cryptor::decrypt(common::Data &output, const common::DataConstBuffer &buffer, int frameLength) {
-      int overhead = 29;
-      int length = frameLength - overhead;
       std::lock_guard<decltype(mutex_)> lock(mutex_);
 
       this->write(buffer);
       const size_t beginOffset = output.size();
 
       size_t totalReadSize = 0;
-      size_t availableBytes = static_cast<size_t>(std::max(0, sslWrapper_->getAvailableBytes(ssl_)));
-      const size_t expectedBytes = static_cast<size_t>(std::max(0, length));
-
-      // Prefer bytes currently available from SSL pending, but fall back to expected payload length
-      // to preserve existing frame-size guidance when pending is temporarily empty.
-      while (availableBytes > 0 || (expectedBytes > 0 && totalReadSize < expectedBytes)) {
-        size_t readBytes = availableBytes;
-        if (readBytes == 0 && expectedBytes > totalReadSize) {
-          readBytes = expectedBytes - totalReadSize;
-        }
-        readBytes = std::min<size_t>(readBytes, 2048);
-
-        if (readBytes == 0) {
-          break;
-        }
-
+      while (true) {
+        const size_t readBytes = 2048;
         output.resize(beginOffset + totalReadSize + readBytes);
 
         const auto &currentBuffer = common::DataBuffer(output, totalReadSize + beginOffset);
-        auto readSize = sslWrapper_->sslRead(ssl_, currentBuffer.data, currentBuffer.size);
+        const auto readSize = sslWrapper_->sslRead(ssl_, currentBuffer.data, currentBuffer.size);
 
         if (readSize <= 0) {
           const auto nativeError = sslWrapper_->getError(ssl_, readSize);
 
           if (nativeError == SSL_ERROR_WANT_READ || nativeError == SSL_ERROR_WANT_WRITE) {
-            AASDK_LOG(warning) << "[Cryptor] Partial SSL frame decrypt; waiting for more encrypted data"
-                               << " frameLength=" << frameLength
-                               << " payloadLength=" << length
-                               << " expectedBytes=" << expectedBytes
-                               << " totalReadSize=" << totalReadSize
-                               << " requestedReadBytes=" << readBytes
-                               << " sslError=" << nativeError;
+            AASDK_LOG(debug) << "[Cryptor] SSL decrypt drained"
+                             << " frameLength=" << frameLength
+                             << " totalReadSize=" << totalReadSize
+                             << " requestedReadBytes=" << readBytes
+                             << " sslError=" << nativeError;
             output.resize(beginOffset + totalReadSize);
             return totalReadSize;
           }
 
           const std::string info = "decrypt sslRead<=0"
                                    " frameLength=" + std::to_string(frameLength) +
-                                   " payloadLength=" + std::to_string(length) +
-                                   " availableBytes=" + std::to_string(availableBytes) +
-                                   " expectedBytes=" + std::to_string(expectedBytes) +
                                    " totalReadSize=" + std::to_string(totalReadSize) +
                                    " requestedReadBytes=" + std::to_string(readBytes) +
                                    " returnCode=" + std::to_string(readSize);
@@ -319,11 +298,7 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
         }
 
         totalReadSize += static_cast<size_t>(readSize);
-        availableBytes = static_cast<size_t>(std::max(0, sslWrapper_->getAvailableBytes(ssl_)));
       }
-
-      output.resize(beginOffset + totalReadSize);
-      return totalReadSize;
     }
 
     common::Data Cryptor::readHandshakeBuffer() {

@@ -17,6 +17,7 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <aasdk/Transport/USBTransport.hpp>
+#include <aasdk/Common/Log.hpp>
 
 
 namespace aasdk {
@@ -26,11 +27,24 @@ namespace aasdk {
         : Transport(ioService), aoapDevice_(std::move(aoapDevice)) {}
 
     void USBTransport::enqueueReceive(common::DataBuffer buffer) {
+      const auto inEndpoint = aoapDevice_->getInEndpoint().getAddress();
+      AASDK_LOG(info) << "[USBTransport] enqueueReceive endpoint=0x" << std::hex
+                      << static_cast<int>(inEndpoint) << std::dec
+                      << " requestedBytes=" << buffer.size;
+
       auto usbEndpointPromise = usb::IUSBEndpoint::Promise::defer(receiveStrand_);
-      usbEndpointPromise->then([this, self = this->shared_from_this()](auto bytesTransferred) {
+      usbEndpointPromise->then([this, self = this->shared_from_this(), inEndpoint](auto bytesTransferred) {
+                                 AASDK_LOG(info) << "[USBTransport] receiveComplete endpoint=0x"
+                                                 << std::hex << static_cast<int>(inEndpoint)
+                                                 << std::dec << " bytesTransferred=" << bytesTransferred;
                                  this->receiveHandler(bytesTransferred);
                                },
-                               [this, self = this->shared_from_this()](auto e) {
+                               [this, self = this->shared_from_this(), inEndpoint](auto e) {
+                                 AASDK_LOG(warning) << "[USBTransport] receiveError endpoint=0x"
+                                                    << std::hex << static_cast<int>(inEndpoint)
+                                                    << std::dec << " code=" << static_cast<int>(e.getCode())
+                                                    << " native=" << e.getNativeCode()
+                                                    << " what=" << e.what();
                                  this->rejectReceivePromises(e);
                                });
 
@@ -42,12 +56,32 @@ namespace aasdk {
     }
 
     void USBTransport::doSend(SendQueue::iterator queueElement, common::Data::size_type offset) {
+      const auto outEndpoint = aoapDevice_->getOutEndpoint().getAddress();
+      const auto remainingBytes = queueElement->first.size() - offset;
+      AASDK_LOG(info) << "[USBTransport] doSend endpoint=0x" << std::hex
+                      << static_cast<int>(outEndpoint) << std::dec
+                      << " offset=" << offset
+                      << " remainingBytes=" << remainingBytes
+                      << " totalMessageBytes=" << queueElement->first.size();
+
       auto usbEndpointPromise = usb::IUSBEndpoint::Promise::defer(sendStrand_);
       usbEndpointPromise->then(
-          [this, self = this->shared_from_this(), queueElement, offset](size_t bytesTransferred) mutable {
+          [this, self = this->shared_from_this(), queueElement, offset, outEndpoint](size_t bytesTransferred) mutable {
+            AASDK_LOG(info) << "[USBTransport] sendComplete endpoint=0x" << std::hex
+                            << static_cast<int>(outEndpoint) << std::dec
+                            << " offset=" << offset
+                            << " bytesTransferred=" << bytesTransferred
+                            << " totalMessageBytes=" << queueElement->first.size();
             this->sendHandler(queueElement, offset, bytesTransferred);
           },
-          [this, self = this->shared_from_this(), queueElement](const error::Error &e) mutable {
+          [this, self = this->shared_from_this(), queueElement, offset, outEndpoint](const error::Error &e) mutable {
+            AASDK_LOG(warning) << "[USBTransport] sendError endpoint=0x" << std::hex
+                               << static_cast<int>(outEndpoint) << std::dec
+                               << " offset=" << offset
+                               << " totalMessageBytes=" << queueElement->first.size()
+                               << " code=" << static_cast<int>(e.getCode())
+                               << " native=" << e.getNativeCode()
+                               << " what=" << e.what();
             queueElement->second->reject(e);
             sendQueue_.erase(queueElement);
 

@@ -17,6 +17,7 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <aasdk/Messenger/MessageInStream.hpp>
+#include <aasdk/Messenger/MessageId.hpp>
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Common/Log.hpp>
 #include <aasdk/Common/ModernLogger.hpp>
@@ -59,9 +60,14 @@ namespace aasdk::messenger {
   void MessageInStream::receiveFrameHeaderHandler(const common::DataConstBuffer &buffer) {
     FrameHeader frameHeader(buffer);
 
-    AASDK_LOG(debug) << "[MessageInStream] Processing Frame Header: Ch "
+    AASDK_LOG(info) << "[MessageInStream] Processing Frame Header: Ch "
                      << channelIdToString(frameHeader.getChannelId()) << " Fr "
-                     << frameTypeToString(frameHeader.getType());
+                     << frameTypeToString(frameHeader.getType())
+                     << " Enc " << (frameHeader.getEncryptionType() == EncryptionType::ENCRYPTED ? "ENCRYPTED" : "PLAIN")
+                     << " Msg " << (frameHeader.getMessageType() == MessageType::CONTROL ? "CONTROL" : "SPECIFIC")
+                     << " Raw[0]=0x" << std::hex << static_cast<int>(buffer.cdata[0])
+                     << " Raw[1]=0x" << static_cast<int>(buffer.cdata[1])
+                     << std::dec;
 
     isValidFrame_ = true;
 
@@ -125,20 +131,46 @@ namespace aasdk::messenger {
 
     FrameSize frameSize(buffer);
     frameSize_ = (int) frameSize.getFrameSize();
+    AASDK_LOG(info) << "[MessageInStream] Frame size parsed: frameSize=" << frameSize.getFrameSize()
+                     << " totalSize=" << frameSize.getTotalSize();
     transport_->receive(frameSize.getFrameSize(), std::move(transportPromise));
   }
 
   void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer &buffer) {
+    AASDK_LOG(info) << "[MessageInStream] Payload handler: ch=" << channelIdToString(message_->getChannelId())
+                     << " enc=" << (message_->getEncryptionType() == EncryptionType::ENCRYPTED ? "ENCRYPTED" : "PLAIN")
+                     << " msg=" << (message_->getType() == MessageType::CONTROL ? "CONTROL" : "SPECIFIC")
+                     << " frameType=" << frameTypeToString(thisFrameType_)
+                     << " frameSize=" << frameSize_
+                     << " payloadBytes=" << buffer.size
+                     << " cryptorActive=" << (cryptor_->isActive() ? "true" : "false");
+
     if (message_->getEncryptionType() == EncryptionType::ENCRYPTED) {
-      try {
-        cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
-      }
-      catch (const error::Error &e) {
-        AASDK_LOG_MESSENGER(debug, "Rejecting message.");
-        message_.reset();
-        promise_->reject(e);
-        promise_.reset();
-        return;
+      if (!cryptor_->isActive()) {
+        // Some devices deliver raw TLS records on control before cryptor activation.
+        // Only synthesize ENCAPSULATED_SSL for TLS-looking records to avoid
+        // misclassifying regular control payloads (e.g. version responses).
+        const bool looksLikeTlsRecord =
+            (buffer.size >= 2) &&
+            (buffer.cdata[0] >= 0x14 && buffer.cdata[0] <= 0x17) &&
+            (buffer.cdata[1] == 0x03);
+
+        if (message_->getChannelId() == ChannelId::CONTROL && looksLikeTlsRecord) {
+          message_->insertPayload(messenger::MessageId(3).getData());
+        }
+
+        message_->insertPayload(buffer);
+      } else {
+        try {
+          cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
+        }
+        catch (const error::Error &e) {
+          AASDK_LOG_MESSENGER(debug, "Rejecting message.");
+          message_.reset();
+          promise_->reject(e);
+          promise_.reset();
+          return;
+        }
       }
     } else {
       message_->insertPayload(buffer);

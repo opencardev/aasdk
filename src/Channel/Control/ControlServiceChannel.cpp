@@ -37,6 +37,8 @@ namespace aasdk {
 
       void ControlServiceChannel::sendVersionRequest(SendPromise::Pointer promise) {
         AASDK_LOG_CHANNEL_CONTROL(debug, "sendVersionRequest()");
+        AASDK_LOG(info) << "[ControlServiceChannel] sendVersionRequest major=" << AASDK_MAJOR
+                        << " minor=" << AASDK_MINOR;
 
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::PLAIN,
                                                           messenger::MessageType::SPECIFIC));
@@ -53,6 +55,7 @@ namespace aasdk {
 
       void ControlServiceChannel::sendHandshake(common::Data handshakeBuffer, SendPromise::Pointer promise) {
         AASDK_LOG_CHANNEL_CONTROL(debug, "sendHandshake()");
+        AASDK_LOG(info) << "[ControlServiceChannel] sendHandshake bytes=" << handshakeBuffer.size();
         auto message(std::make_shared<messenger::Message>(channelId_, messenger::EncryptionType::PLAIN,
                                                           messenger::MessageType::SPECIFIC));
         message->insertPayload(
@@ -193,7 +196,7 @@ namespace aasdk {
         messenger::MessageId messageId(message->getPayload());
         common::DataConstBuffer payload(message->getPayload(), messageId.getSizeOf());
 
-        AASDK_LOG(debug) << "[ControlServiceChannel] MessageId: " << messageId.getId();
+        AASDK_LOG(info) << "[ControlServiceChannel] MessageId: " << messageId.getId();
 
         switch (messageId.getId()) {
           case aap_protobuf::service::control::message::ControlMessageType::MESSAGE_VERSION_RESPONSE:
