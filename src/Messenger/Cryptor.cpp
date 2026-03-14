@@ -18,6 +18,9 @@
 // along with aasdk. If not, see <http://www.gnu.org/licenses/>.
 
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdlib>
 #include <functional>
 #include <fstream>
 #include <sstream>
@@ -28,6 +31,82 @@
 
 namespace aasdk {
   namespace messenger {
+
+    namespace {
+
+      struct RuntimeTraceConfig {
+        bool enabled{false};
+        int sampleEvery{1};
+      };
+
+      static auto parseEnvBool(const char* value, bool defaultValue) -> bool {
+        if (value == nullptr) {
+          return defaultValue;
+        }
+
+        const std::string token(value);
+        if (token.empty()) {
+          return defaultValue;
+        }
+
+        if (token == "1" || token == "true" || token == "TRUE" || token == "on" ||
+            token == "ON" || token == "yes" || token == "YES") {
+          return true;
+        }
+
+        if (token == "0" || token == "false" || token == "FALSE" || token == "off" ||
+            token == "OFF" || token == "no" || token == "NO") {
+          return false;
+        }
+
+        return defaultValue;
+      }
+
+      static auto parseEnvInt(const char* value, int defaultValue, int minValue, int maxValue) -> int {
+        if (value == nullptr) {
+          return defaultValue;
+        }
+
+        try {
+          const int parsed = std::stoi(value);
+          return std::max(minValue, std::min(maxValue, parsed));
+        } catch (...) {
+          return defaultValue;
+        }
+      }
+
+      static auto readRuntimeTraceConfig() -> RuntimeTraceConfig {
+        RuntimeTraceConfig cfg;
+        cfg.enabled = parseEnvBool(std::getenv("AASDK_TRACE_CRYPTOR"), false);
+        cfg.sampleEvery = parseEnvInt(std::getenv("AASDK_TRACE_CRYPTOR_SAMPLE_EVERY"), 1, 1, 1000);
+        return cfg;
+      }
+
+      static auto getRuntimeTraceConfig() -> RuntimeTraceConfig {
+        static RuntimeTraceConfig cached = readRuntimeTraceConfig();
+        static auto lastRefresh = std::chrono::steady_clock::now();
+
+        const auto now = std::chrono::steady_clock::now();
+        if (now - lastRefresh > std::chrono::seconds(1)) {
+          cached = readRuntimeTraceConfig();
+          lastRefresh = now;
+        }
+
+        return cached;
+      }
+
+      static auto shouldEmitTraceSample() -> bool {
+        static std::atomic<uint64_t> counter{0};
+        const RuntimeTraceConfig cfg = getRuntimeTraceConfig();
+        if (!cfg.enabled) {
+          return false;
+        }
+
+        const uint64_t current = ++counter;
+        return (current % static_cast<uint64_t>(cfg.sampleEvery)) == 0;
+      }
+
+    } // namespace
 
     // Embedded certificate constants
     static const std::string cCertificate = "-----BEGIN CERTIFICATE-----\n\
@@ -265,6 +344,9 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
     size_t Cryptor::decrypt(common::Data &output, const common::DataConstBuffer &buffer, int frameLength) {
       std::lock_guard<decltype(mutex_)> lock(mutex_);
 
+      const bool traceSample = shouldEmitTraceSample();
+      const int pendingBeforeWrite = sslWrapper_->getAvailableBytes(ssl_);
+
       this->write(buffer);
       const size_t beginOffset = output.size();
 
@@ -278,8 +360,19 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
 
         if (readSize <= 0) {
           const auto nativeError = sslWrapper_->getError(ssl_, readSize);
+          const int pendingAfterRead = sslWrapper_->getAvailableBytes(ssl_);
 
           if (nativeError == SSL_ERROR_WANT_READ || nativeError == SSL_ERROR_WANT_WRITE) {
+            if (traceSample) {
+              AASDK_LOG(info) << "[CryptorTrace] decrypt-drained"
+                              << " frameLength=" << frameLength
+                              << " encryptedBytesIn=" << buffer.size
+                              << " totalReadSize=" << totalReadSize
+                              << " requestedReadBytes=" << readBytes
+                              << " sslError=" << nativeError
+                              << " pendingBeforeWrite=" << pendingBeforeWrite
+                              << " pendingAfterRead=" << pendingAfterRead;
+            }
             AASDK_LOG(debug) << "[Cryptor] SSL decrypt drained"
                              << " frameLength=" << frameLength
                              << " totalReadSize=" << totalReadSize
@@ -298,6 +391,14 @@ KAwp3tIHPoJOQiKNQ3/qks5km/9dujUGU2ARiU3qmxLMdgegFz8e\n\
         }
 
         totalReadSize += static_cast<size_t>(readSize);
+        if (traceSample) {
+          AASDK_LOG(info) << "[CryptorTrace] decrypt-read"
+                          << " frameLength=" << frameLength
+                          << " encryptedBytesIn=" << buffer.size
+                          << " readSize=" << readSize
+                          << " totalReadSize=" << totalReadSize
+                          << " pendingBeforeWrite=" << pendingBeforeWrite;
+        }
       }
     }
 

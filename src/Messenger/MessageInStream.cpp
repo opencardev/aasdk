@@ -21,10 +21,92 @@
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Common/Log.hpp>
 #include <aasdk/Common/ModernLogger.hpp>
+#include <algorithm>
+#include <chrono>
+#include <cstdlib>
 #include <iostream>
+#include <string>
 
 
 namespace aasdk::messenger {
+
+  namespace {
+
+    struct MessageTraceConfig {
+      bool enabled{false};
+      bool videoOnly{true};
+      int sampleEvery{1};
+    };
+
+    static auto parseEnvBool(const char* value, bool defaultValue) -> bool {
+      if (value == nullptr) {
+        return defaultValue;
+      }
+
+      const std::string token(value);
+      if (token == "1" || token == "true" || token == "TRUE" || token == "on" ||
+          token == "ON" || token == "yes" || token == "YES") {
+        return true;
+      }
+
+      if (token == "0" || token == "false" || token == "FALSE" || token == "off" ||
+          token == "OFF" || token == "no" || token == "NO") {
+        return false;
+      }
+
+      return defaultValue;
+    }
+
+    static auto parseEnvInt(const char* value, int defaultValue, int minValue, int maxValue) -> int {
+      if (value == nullptr) {
+        return defaultValue;
+      }
+
+      try {
+        const int parsed = std::stoi(value);
+        return std::max(minValue, std::min(maxValue, parsed));
+      } catch (...) {
+        return defaultValue;
+      }
+    }
+
+    static auto readMessageTraceConfig() -> MessageTraceConfig {
+      MessageTraceConfig cfg;
+      cfg.enabled = parseEnvBool(std::getenv("AASDK_TRACE_MESSAGE"), false);
+      cfg.videoOnly = parseEnvBool(std::getenv("AASDK_TRACE_MESSAGE_VIDEO_ONLY"), true);
+      cfg.sampleEvery = parseEnvInt(std::getenv("AASDK_TRACE_MESSAGE_SAMPLE_EVERY"), 1, 1, 1000);
+      return cfg;
+    }
+
+    static auto getMessageTraceConfig() -> MessageTraceConfig {
+      static MessageTraceConfig cached = readMessageTraceConfig();
+      static auto lastRefresh = std::chrono::steady_clock::now();
+
+      const auto now = std::chrono::steady_clock::now();
+      if (now - lastRefresh > std::chrono::seconds(1)) {
+        cached = readMessageTraceConfig();
+        lastRefresh = now;
+      }
+
+      return cached;
+    }
+
+    static auto shouldTraceMessage(ChannelId channelId) -> bool {
+      static size_t counter = 0;
+      const MessageTraceConfig cfg = getMessageTraceConfig();
+      if (!cfg.enabled) {
+        return false;
+      }
+
+      if (cfg.videoOnly && channelId != ChannelId::MEDIA_SINK_VIDEO) {
+        return false;
+      }
+
+      ++counter;
+      return (counter % static_cast<size_t>(cfg.sampleEvery)) == 0;
+    }
+
+  } // namespace
 
   MessageInStream::MessageInStream(boost::asio::io_service &ioService, transport::ITransport::Pointer transport,
                                    ICryptor::Pointer cryptor)
@@ -137,6 +219,10 @@ namespace aasdk::messenger {
   }
 
   void MessageInStream::receiveFramePayloadHandler(const common::DataConstBuffer &buffer) {
+    const ChannelId channelId = message_->getChannelId();
+    const bool traceMessage = shouldTraceMessage(channelId);
+    const size_t payloadSizeBefore = message_->getPayload().size();
+
     AASDK_LOG(info) << "[MessageInStream] Payload handler: ch=" << channelIdToString(message_->getChannelId())
                      << " enc=" << (message_->getEncryptionType() == EncryptionType::ENCRYPTED ? "ENCRYPTED" : "PLAIN")
                      << " msg=" << (message_->getType() == MessageType::CONTROL ? "CONTROL" : "SPECIFIC")
@@ -160,9 +246,24 @@ namespace aasdk::messenger {
         }
 
         message_->insertPayload(buffer);
+        if (traceMessage) {
+          AASDK_LOG(info) << "[MessageTrace] encrypted-pass-through"
+                          << " ch=" << channelIdToString(channelId)
+                          << " payloadBytes=" << buffer.size
+                          << " payloadSizeAfter=" << message_->getPayload().size();
+        }
       } else {
         try {
-          cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
+          const size_t decryptedBytes = cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
+          if (traceMessage) {
+            AASDK_LOG(info) << "[MessageTrace] decrypt"
+                            << " ch=" << channelIdToString(channelId)
+                            << " frameSize=" << frameSize_
+                            << " encryptedBytes=" << buffer.size
+                            << " decryptedBytes=" << decryptedBytes
+                            << " payloadSizeBefore=" << payloadSizeBefore
+                            << " payloadSizeAfter=" << message_->getPayload().size();
+          }
         }
         catch (const error::Error &e) {
           AASDK_LOG_MESSENGER(debug, "Rejecting message.");
@@ -181,6 +282,12 @@ namespace aasdk::messenger {
     // If this is the LAST frame or a BULK frame...
     if ((thisFrameType_ == FrameType::BULK || thisFrameType_ == FrameType::LAST) && isValidFrame_) {
       AASDK_LOG_MESSENGER(debug, "Resolving message.");
+      if (traceMessage) {
+        AASDK_LOG(info) << "[MessageTrace] resolve"
+                        << " ch=" << channelIdToString(channelId)
+                        << " frameType=" << frameTypeToString(thisFrameType_)
+                        << " totalPayloadBytes=" << message_->getPayload().size();
+      }
       promise_->resolve(std::move(message_));
       promise_.reset();
       isResolved = true;

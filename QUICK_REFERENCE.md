@@ -135,10 +135,37 @@ export TARGET_ARCH=arm64           # Cross-compilation target
 export CMAKE_BUILD_PARALLEL_LEVEL=4 # Parallel build jobs
 export AASDK_LOG_LEVEL=DEBUG       # Logging level
 
+# Runtime tracing (no rebuild required)
+export AASDK_TRACE_CRYPTOR=1               # Enable Cryptor decrypt trace
+export AASDK_TRACE_CRYPTOR_SAMPLE_EVERY=8  # Log every Nth decrypt sample (1-1000)
+export AASDK_TRACE_MESSAGE=1               # Enable MessageInStream trace
+export AASDK_TRACE_MESSAGE_VIDEO_ONLY=1    # Restrict message trace to video channel
+export AASDK_TRACE_MESSAGE_SAMPLE_EVERY=2  # Log every Nth message sample (1-1000)
+
 # Library paths
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH"
 export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
 ```
+
+## Runtime Trace Toggles
+
+Use these toggles to inspect encrypted frame flow at runtime without rebuilding aasdk.
+
+```bash
+# Example: focused projection-path diagnostics
+export AASDK_TRACE_CRYPTOR=1
+export AASDK_TRACE_CRYPTOR_SAMPLE_EVERY=8
+export AASDK_TRACE_MESSAGE=1
+export AASDK_TRACE_MESSAGE_VIDEO_ONLY=1
+export AASDK_TRACE_MESSAGE_SAMPLE_EVERY=2
+```
+
+Expected tags in logs:
+- `[CryptorTrace] decrypt-read`
+- `[CryptorTrace] decrypt-drained`
+- `[MessageTrace] encrypted-pass-through`
+- `[MessageTrace] decrypt`
+- `[MessageTrace] resolve`
 
 ## 📦 Package Information
 
