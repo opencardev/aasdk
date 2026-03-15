@@ -25,6 +25,7 @@ FROM debian:${DEBIAN_VERSION}-slim
 # Build arguments
 ARG TARGET_ARCH=amd64
 ARG BUILD_TYPE=release
+ARG RUN_TESTS=false
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_COMMIT_ID=unknown
 ARG GIT_BRANCH=unknown
@@ -102,8 +103,11 @@ RUN echo "=== Git environment variables before build ===" && \
     echo "  GIT_DESCRIBE=$GIT_DESCRIBE" && \
     echo "  GIT_COMMIT_TIMESTAMP=$GIT_COMMIT_TIMESTAMP" && \
     echo "  GIT_DIRTY=$GIT_DIRTY" && \
+    echo "  RUN_TESTS=$RUN_TESTS" && \
     echo "=============================================" && \
     export TARGET_ARCH=$(dpkg-architecture -qDEB_HOST_ARCH) && \
+        TEST_ARG="" && \
+        if [ "$RUN_TESTS" = "true" ]; then TEST_ARG="test"; fi && \
         echo "Building AASDK for architecture: $TARGET_ARCH (native compilation)" && \
         # Compute distro-specific release suffix for DEB packages
         DISTRO_DEB_RELEASE=$(bash /src/scripts/distro_release.sh) && \
@@ -112,7 +116,7 @@ RUN echo "=== Git environment variables before build ===" && \
         # Pass through to CMake via build.sh using CMAKE_ARGS
         env DISTRO_DEB_RELEASE="$CPACK_DEB_RELEASE" CMAKE_ARGS="$CMAKE_ARGS -DCPACK_DEBIAN_PACKAGE_RELEASE=$CPACK_DEB_RELEASE -DCPACK_PROJECT_CONFIG_FILE=/src/cmake_modules/CPackProjectConfig.cmake" \
             CROSS_COMPILE=${CROSS_COMPILE} \
-            ./build.sh ${BUILD_TYPE} clean package --skip-protobuf --skip-absl && \
+            ./build.sh ${BUILD_TYPE} clean ${TEST_ARG} package --skip-protobuf --skip-absl && \
     if [ -d "packages" ]; then \
         cp packages/*.deb /output/ 2>/dev/null || true && \
         echo "Packages built:" && \

@@ -17,6 +17,8 @@
 */
 
 #include <gtest/gtest.h>
+#include <aap_protobuf/service/control/ControlMessageType.pb.h>
+#include <aasdk/Messenger/MessageId.hpp>
 #include <aasdk/Transport/UT/Transport.mock.hpp>
 #include <aasdk/Messenger/UT/Cryptor.mock.hpp>
 #include <aasdk/Messenger/UT/ReceivePromiseHandler.mock.hpp>
@@ -134,6 +136,7 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_ReceiveEncryptedMessage)
     EXPECT_CALL(transportMock_, receive(framePayload.size(), _)).WillOnce(SaveArg<1>(&framePayloadTransportPromise));
 
     common::Data decryptedPayload(500, 0x5F);
+    ON_CALL(cryptorMock_, isActive()).WillByDefault(Return(true));
     EXPECT_CALL(cryptorMock_, decrypt(_, _, _)).WillOnce(DoAll(SetArgReferee<0>(decryptedPayload), Return(decryptedPayload.size())));
     frameSizeTransportPromise->resolve(frameSize.getData());
 
@@ -181,6 +184,7 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_MessageDecryptionFailed)
     EXPECT_CALL(transportMock_, receive(framePayload.size(), _)).WillOnce(SaveArg<1>(&framePayloadTransportPromise));
 
     common::Data decryptedPayload(500, 0x5F);
+    ON_CALL(cryptorMock_, isActive()).WillByDefault(Return(true));
     EXPECT_CALL(cryptorMock_, decrypt(_, _, _)).WillOnce(ThrowSSLReadException());
     frameSizeTransportPromise->resolve(frameSize.getData());
 
@@ -350,13 +354,15 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_ReceiveSplittedMessage)
     EXPECT_THAT(payload, testing::ContainerEq(expectedPayload));
 }
 
-TEST_F(MessageInStreamUnitTest, MessageInStream_IntertwinedChannels)
+TEST_F(MessageInStreamUnitTest, MessageInStream_IntertwinedChannelsContinueReceivingWithoutResolving)
 {
     MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
     FrameHeader frame1Header(ChannelId::BLUETOOTH, FrameType::FIRST, EncryptionType::PLAIN, MessageType::SPECIFIC);
 
     transport::ITransport::ReceivePromise::Pointer frameHeaderTransportPromise;
-    EXPECT_CALL(transportMock_, receive(FrameHeader::getSizeOf(), _)).Times(2).WillRepeatedly(SaveArg<1>(&frameHeaderTransportPromise));
+    // FrameHeader::getSizeOf() == FrameSize::getSizeOf(SHORT) == 2, so all receive(2,_) calls
+    // (3 header reads + 1 SHORT frame-size read) must share a single unified expectation.
+    EXPECT_CALL(transportMock_, receive(FrameHeader::getSizeOf(), _)).Times(4).WillRepeatedly(SaveArg<1>(&frameHeaderTransportPromise));
 
     messageInStream->startReceive(std::move(receivePromise_));
 
@@ -387,12 +393,153 @@ TEST_F(MessageInStreamUnitTest, MessageInStream_IntertwinedChannels)
     ioService_.reset();
 
     FrameHeader frame2Header(ChannelId::MEDIA_SINK_VIDEO, FrameType::LAST, EncryptionType::PLAIN, MessageType::SPECIFIC);
-
-    EXPECT_CALL(receivePromiseHandlerMock_, onReject(error::Error(error::ErrorCode::MESSENGER_INTERTWINED_CHANNELS)));
-    EXPECT_CALL(receivePromiseHandlerMock_, onResolve(_)).Times(0);
+    // Resolving frame2Header causes receiveFrameHeaderHandler to request the SHORT frame-size (2 bytes).
+    // frameHeaderTransportPromise is reused — after ioService_.run() it will point to the size promise.
     frameHeaderTransportPromise->resolve(frame2Header.getData());
 
     ioService_.run();
+    ioService_.reset();
+
+    transport::ITransport::ReceivePromise::Pointer frame2PayloadTransportPromise;
+    EXPECT_CALL(transportMock_, receive(frame2Payload.size(), _)).WillOnce(SaveArg<1>(&frame2PayloadTransportPromise));
+    FrameSize frame2Size(frame2Payload.size());
+    // frameHeaderTransportPromise now holds the SHORT frame-size promise (saved by WillRepeatedly above).
+    frameHeaderTransportPromise->resolve(frame2Size.getData());
+
+    ioService_.run();
+    ioService_.reset();
+
+    EXPECT_CALL(receivePromiseHandlerMock_, onReject(_)).Times(0);
+    EXPECT_CALL(receivePromiseHandlerMock_, onResolve(_)).Times(0);
+    frame2PayloadTransportPromise->resolve(frame2Payload);
+
+    ioService_.run();
+}
+
+TEST_F(MessageInStreamUnitTest, MessageInStream_InactiveCryptorTlsControlPayloadGetsEncapsulatedSslPrefix)
+{
+    MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
+
+    FrameHeader frameHeader(ChannelId::CONTROL, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
+    transport::ITransport::ReceivePromise::Pointer frameHeaderTransportPromise;
+    EXPECT_CALL(transportMock_, receive(FrameHeader::getSizeOf(), _)).WillOnce(SaveArg<1>(&frameHeaderTransportPromise));
+
+    messageInStream->startReceive(std::move(receivePromise_));
+
+    ioService_.run();
+    ioService_.reset();
+
+    common::Data framePayload{0x17, 0x03, 0x03, 0x00, 0x2A};
+    FrameSize frameSize(framePayload.size());
+    transport::ITransport::ReceivePromise::Pointer frameSizeTransportPromise;
+    EXPECT_CALL(transportMock_, receive(FrameSize::getSizeOf(FrameSizeType::SHORT), _)).WillOnce(SaveArg<1>(&frameSizeTransportPromise));
+    frameHeaderTransportPromise->resolve(frameHeader.getData());
+
+    ioService_.run();
+    ioService_.reset();
+
+    transport::ITransport::ReceivePromise::Pointer framePayloadTransportPromise;
+    EXPECT_CALL(transportMock_, receive(framePayload.size(), _)).WillOnce(SaveArg<1>(&framePayloadTransportPromise));
+    ON_CALL(cryptorMock_, isActive()).WillByDefault(Return(false));
+    EXPECT_CALL(cryptorMock_, decrypt(_, _, _)).Times(0);
+    frameSizeTransportPromise->resolve(frameSize.getData());
+
+    ioService_.run();
+    ioService_.reset();
+
+    Message::Pointer message;
+    EXPECT_CALL(receivePromiseHandlerMock_, onReject(_)).Times(0);
+    EXPECT_CALL(receivePromiseHandlerMock_, onResolve(_)).WillOnce(SaveArg<0>(&message));
+    framePayloadTransportPromise->resolve(framePayload);
+
+    ioService_.run();
+
+    common::Data expectedPayload = MessageId(
+        aap_protobuf::service::control::message::ControlMessageType::MESSAGE_ENCAPSULATED_SSL).getData();
+    expectedPayload.insert(expectedPayload.end(), framePayload.begin(), framePayload.end());
+    EXPECT_THAT(message->getPayload(), testing::ContainerEq(expectedPayload));
+}
+
+TEST_F(MessageInStreamUnitTest, MessageInStream_InactiveCryptorNonTlsControlPayloadPassesThroughRaw)
+{
+    MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
+
+    FrameHeader frameHeader(ChannelId::CONTROL, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::CONTROL);
+    transport::ITransport::ReceivePromise::Pointer frameHeaderTransportPromise;
+    EXPECT_CALL(transportMock_, receive(FrameHeader::getSizeOf(), _)).WillOnce(SaveArg<1>(&frameHeaderTransportPromise));
+
+    messageInStream->startReceive(std::move(receivePromise_));
+
+    ioService_.run();
+    ioService_.reset();
+
+    common::Data framePayload{0x01, 0x02, 0x03, 0x04};
+    FrameSize frameSize(framePayload.size());
+    transport::ITransport::ReceivePromise::Pointer frameSizeTransportPromise;
+    EXPECT_CALL(transportMock_, receive(FrameSize::getSizeOf(FrameSizeType::SHORT), _)).WillOnce(SaveArg<1>(&frameSizeTransportPromise));
+    frameHeaderTransportPromise->resolve(frameHeader.getData());
+
+    ioService_.run();
+    ioService_.reset();
+
+    transport::ITransport::ReceivePromise::Pointer framePayloadTransportPromise;
+    EXPECT_CALL(transportMock_, receive(framePayload.size(), _)).WillOnce(SaveArg<1>(&framePayloadTransportPromise));
+    ON_CALL(cryptorMock_, isActive()).WillByDefault(Return(false));
+    EXPECT_CALL(cryptorMock_, decrypt(_, _, _)).Times(0);
+    frameSizeTransportPromise->resolve(frameSize.getData());
+
+    ioService_.run();
+    ioService_.reset();
+
+    Message::Pointer message;
+    EXPECT_CALL(receivePromiseHandlerMock_, onReject(_)).Times(0);
+    EXPECT_CALL(receivePromiseHandlerMock_, onResolve(_)).WillOnce(SaveArg<0>(&message));
+    framePayloadTransportPromise->resolve(framePayload);
+
+    ioService_.run();
+
+    EXPECT_THAT(message->getPayload(), testing::ContainerEq(framePayload));
+}
+
+TEST_F(MessageInStreamUnitTest, MessageInStream_InactiveCryptorTlsVideoPayloadDoesNotSynthesizeControlMessageId)
+{
+    MessageInStream::Pointer messageInStream(std::make_shared<MessageInStream>(ioService_, transport_, cryptor_));
+
+    FrameHeader frameHeader(ChannelId::MEDIA_SINK_VIDEO, FrameType::BULK, EncryptionType::ENCRYPTED, MessageType::SPECIFIC);
+    transport::ITransport::ReceivePromise::Pointer frameHeaderTransportPromise;
+    EXPECT_CALL(transportMock_, receive(FrameHeader::getSizeOf(), _)).WillOnce(SaveArg<1>(&frameHeaderTransportPromise));
+
+    messageInStream->startReceive(std::move(receivePromise_));
+
+    ioService_.run();
+    ioService_.reset();
+
+    common::Data framePayload{0x17, 0x03, 0x03, 0x00, 0x10};
+    FrameSize frameSize(framePayload.size());
+    transport::ITransport::ReceivePromise::Pointer frameSizeTransportPromise;
+    EXPECT_CALL(transportMock_, receive(FrameSize::getSizeOf(FrameSizeType::SHORT), _)).WillOnce(SaveArg<1>(&frameSizeTransportPromise));
+    frameHeaderTransportPromise->resolve(frameHeader.getData());
+
+    ioService_.run();
+    ioService_.reset();
+
+    transport::ITransport::ReceivePromise::Pointer framePayloadTransportPromise;
+    EXPECT_CALL(transportMock_, receive(framePayload.size(), _)).WillOnce(SaveArg<1>(&framePayloadTransportPromise));
+    ON_CALL(cryptorMock_, isActive()).WillByDefault(Return(false));
+    EXPECT_CALL(cryptorMock_, decrypt(_, _, _)).Times(0);
+    frameSizeTransportPromise->resolve(frameSize.getData());
+
+    ioService_.run();
+    ioService_.reset();
+
+    Message::Pointer message;
+    EXPECT_CALL(receivePromiseHandlerMock_, onReject(_)).Times(0);
+    EXPECT_CALL(receivePromiseHandlerMock_, onResolve(_)).WillOnce(SaveArg<0>(&message));
+    framePayloadTransportPromise->resolve(framePayload);
+
+    ioService_.run();
+
+    EXPECT_THAT(message->getPayload(), testing::ContainerEq(framePayload));
 }
 
 TEST_F(MessageInStreamUnitTest, MessageInStream_RejectWhenInProgress)

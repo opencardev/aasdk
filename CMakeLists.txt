@@ -153,7 +153,7 @@ endif()
 # Paths
 set(sources_directory ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(include_directory ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(include_ut_directory ${CMAKE_CURRENT_SOURCE_DIR}/include_ut)
+set(include_ut_directory ${CMAKE_CURRENT_SOURCE_DIR}/unit_test)
 
 # Set output directories to build directory for proper packaging
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
@@ -396,6 +396,8 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aasdk.pc"
         COMPONENT development)
 
 if(AASDK_TEST)
+    enable_testing()
+
     add_executable(aasdk_ut
             ${tests_source_files}
             ${tests_include_files})
@@ -405,6 +407,8 @@ if(AASDK_TEST)
             aasdk
             gtest_main
             gmock_main)
+
+    add_test(NAME aasdk_ut COMMAND aasdk_ut)
 
     if(AASDK_CODE_COVERAGE)
         include(CodeCoverage)

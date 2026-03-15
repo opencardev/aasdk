@@ -183,6 +183,11 @@ jobs:
       - name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
         run: |
           echo "Building AASDK for ${{ matrix.arch }} architecture"
+          RUN_TESTS=false
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/develop" ]; then
+            RUN_TESTS=true
+          fi
+          echo "RUN_TESTS=${RUN_TESTS} for this build"
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
             BUILD_TYPE="release"
             echo "Building release packages for main branch"
@@ -196,6 +201,7 @@ jobs:
             --build-arg TARGET_ARCH=${{ matrix.arch }} \
             --build-arg DEBIAN_VERSION=${{ matrix.distro }} \
             --build-arg BUILD_TYPE=${BUILD_TYPE} \
+            --build-arg RUN_TESTS=${RUN_TESTS} \
             --tag aasdk-build:${{ matrix.arch }} \
             --load \
             .
