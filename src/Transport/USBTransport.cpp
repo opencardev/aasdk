@@ -28,13 +28,13 @@ namespace aasdk {
 
     void USBTransport::enqueueReceive(common::DataBuffer buffer) {
       const auto inEndpoint = aoapDevice_->getInEndpoint().getAddress();
-      AASDK_LOG(info) << "[USBTransport] enqueueReceive endpoint=0x" << std::hex
+      AASDK_LOG(debug) << "[USBTransport] enqueueReceive endpoint=0x" << std::hex
                       << static_cast<int>(inEndpoint) << std::dec
                       << " requestedBytes=" << buffer.size;
 
       auto usbEndpointPromise = usb::IUSBEndpoint::Promise::defer(receiveStrand_);
       usbEndpointPromise->then([this, self = this->shared_from_this(), inEndpoint](auto bytesTransferred) {
-                                 AASDK_LOG(info) << "[USBTransport] receiveComplete endpoint=0x"
+                                 AASDK_LOG(debug) << "[USBTransport] receiveComplete endpoint=0x"
                                                  << std::hex << static_cast<int>(inEndpoint)
                                                  << std::dec << " bytesTransferred=" << bytesTransferred;
                                  this->receiveHandler(bytesTransferred);
@@ -58,7 +58,7 @@ namespace aasdk {
     void USBTransport::doSend(SendQueue::iterator queueElement, common::Data::size_type offset) {
       const auto outEndpoint = aoapDevice_->getOutEndpoint().getAddress();
       const auto remainingBytes = queueElement->first.size() - offset;
-      AASDK_LOG(info) << "[USBTransport] doSend endpoint=0x" << std::hex
+      AASDK_LOG(debug) << "[USBTransport] doSend endpoint=0x" << std::hex
                       << static_cast<int>(outEndpoint) << std::dec
                       << " offset=" << offset
                       << " remainingBytes=" << remainingBytes
@@ -67,7 +67,7 @@ namespace aasdk {
       auto usbEndpointPromise = usb::IUSBEndpoint::Promise::defer(sendStrand_);
       usbEndpointPromise->then(
           [this, self = this->shared_from_this(), queueElement, offset, outEndpoint](size_t bytesTransferred) mutable {
-            AASDK_LOG(info) << "[USBTransport] sendComplete endpoint=0x" << std::hex
+            AASDK_LOG(debug) << "[USBTransport] sendComplete endpoint=0x" << std::hex
                             << static_cast<int>(outEndpoint) << std::dec
                             << " offset=" << offset
                             << " bytesTransferred=" << bytesTransferred

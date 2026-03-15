@@ -24,20 +24,26 @@ case "$1" in
             cp -f "$legacy_dir/headunit.key" "$key_file"
         fi
 
-        # Use pi group when available so non-root Crankshaft/OpenAuto runtimes can read certs.
+        # Prefer a dedicated service group when present.
         cert_group="root"
-        if getent group pi >/dev/null 2>&1; then
-            cert_group="pi"
+        if getent group aasdk >/dev/null 2>&1; then
+            cert_group="aasdk"
         fi
 
         if [ -f "$cert_file" ]; then
             chown root:"$cert_group" "$cert_file" || true
-            chmod 640 "$cert_file" || true
+            chmod 644 "$cert_file" || true
         fi
 
         if [ -f "$key_file" ]; then
-            chown root:"$cert_group" "$key_file" || true
-            chmod 640 "$key_file" || true
+            chown root:root "$key_file" || true
+            chmod 600 "$key_file" || true
+
+            # Optional compatibility mode for non-root runtimes in the aasdk group.
+            if [ "$cert_group" = "aasdk" ]; then
+                chown root:aasdk "$key_file" || true
+                chmod 640 "$key_file" || true
+            fi
         fi
 
         # Update the dynamic linker cache

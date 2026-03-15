@@ -344,12 +344,18 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/aasdk/Version.hpp"
 )
 
 # Install SSL certificate and key files
-install(FILES 
-        "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.crt"
-        "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.key"
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.crt"
     DESTINATION /etc/aasdk
-    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ
-        COMPONENT runtime
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+    COMPONENT runtime
+)
+
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.key"
+    DESTINATION /etc/aasdk
+    PERMISSIONS OWNER_READ OWNER_WRITE
+    COMPONENT runtime
 )
 
 # Export the targets to a script

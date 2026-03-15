@@ -220,17 +220,34 @@ namespace aasdk {
     int SSLWrapper::getError(SSL *ssl, int returnCode) {
       const int sslErrorCode = SSL_get_error(ssl, returnCode);
       const int savedErrno = errno;
+      const bool fatalError =
+          sslErrorCode != SSL_ERROR_NONE &&
+          sslErrorCode != SSL_ERROR_WANT_READ &&
+          sslErrorCode != SSL_ERROR_WANT_WRITE &&
+          sslErrorCode != SSL_ERROR_WANT_X509_LOOKUP;
 
-      AASDK_LOG(error) << "[SSLWrapper] getError returnCode=" << returnCode
-                       << " ssl_error=" << sslErrorCode
-                       << "(" << sslErrorToString(sslErrorCode) << ")"
-                       << " errno=" << savedErrno
-                       << "(" << std::strerror(savedErrno) << ")"
-                       << " state="
-                       << (ssl ? SSL_state_string_long(ssl) : "<null-ssl>");
+      if (fatalError) {
+        AASDK_LOG(error) << "[SSLWrapper] getError returnCode=" << returnCode
+                         << " ssl_error=" << sslErrorCode
+                         << "(" << sslErrorToString(sslErrorCode) << ")"
+                         << " errno=" << savedErrno
+                         << "(" << std::strerror(savedErrno) << ")"
+                         << " state="
+                         << (ssl ? SSL_state_string_long(ssl) : "<null-ssl>");
+      } else {
+        AASDK_LOG(debug) << "[SSLWrapper] getError returnCode=" << returnCode
+                         << " ssl_error=" << sslErrorCode
+                         << "(" << sslErrorToString(sslErrorCode) << ")"
+                         << " errno=" << savedErrno
+                         << "(" << std::strerror(savedErrno) << ")"
+                         << " state="
+                         << (ssl ? SSL_state_string_long(ssl) : "<null-ssl>");
+      }
 
-      while (auto err = ERR_get_error()) {
-        AASDK_LOG(error) << "[SSLWrapper] SSL Error " << ERR_error_string(err, NULL);
+      if (fatalError) {
+        while (auto err = ERR_get_error()) {
+          AASDK_LOG(error) << "[SSLWrapper] SSL Error " << ERR_error_string(err, NULL);
+        }
       }
       return sslErrorCode;
     }

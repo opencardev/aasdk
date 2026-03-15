@@ -21,7 +21,9 @@
 #include <aasdk/Error/Error.hpp>
 #include <aasdk/Common/Log.hpp>
 #include <aasdk/Common/ModernLogger.hpp>
+#include <aap_protobuf/service/control/ControlMessageType.pb.h>
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <iostream>
@@ -92,7 +94,7 @@ namespace aasdk::messenger {
     }
 
     static auto shouldTraceMessage(ChannelId channelId) -> bool {
-      static size_t counter = 0;
+      static std::atomic<uint64_t> counter{0};
       const MessageTraceConfig cfg = getMessageTraceConfig();
       if (!cfg.enabled) {
         return false;
@@ -102,8 +104,8 @@ namespace aasdk::messenger {
         return false;
       }
 
-      ++counter;
-      return (counter % static_cast<size_t>(cfg.sampleEvery)) == 0;
+      const uint64_t current = ++counter;
+      return (current % static_cast<uint64_t>(cfg.sampleEvery)) == 0;
     }
 
   } // namespace
@@ -142,7 +144,7 @@ namespace aasdk::messenger {
   void MessageInStream::receiveFrameHeaderHandler(const common::DataConstBuffer &buffer) {
     FrameHeader frameHeader(buffer);
 
-    AASDK_LOG(info) << "[MessageInStream] Processing Frame Header: Ch "
+    AASDK_LOG(debug) << "[MessageInStream] Processing Frame Header: Ch "
                      << channelIdToString(frameHeader.getChannelId()) << " Fr "
                      << frameTypeToString(frameHeader.getType())
                      << " Enc " << (frameHeader.getEncryptionType() == EncryptionType::ENCRYPTED ? "ENCRYPTED" : "PLAIN")
@@ -213,7 +215,7 @@ namespace aasdk::messenger {
 
     FrameSize frameSize(buffer);
     frameSize_ = (int) frameSize.getFrameSize();
-    AASDK_LOG(info) << "[MessageInStream] Frame size parsed: frameSize=" << frameSize.getFrameSize()
+    AASDK_LOG(debug) << "[MessageInStream] Frame size parsed: frameSize=" << frameSize.getFrameSize()
                      << " totalSize=" << frameSize.getTotalSize();
     transport_->receive(frameSize.getFrameSize(), std::move(transportPromise));
   }
@@ -223,7 +225,7 @@ namespace aasdk::messenger {
     const bool traceMessage = shouldTraceMessage(channelId);
     const size_t payloadSizeBefore = message_->getPayload().size();
 
-    AASDK_LOG(info) << "[MessageInStream] Payload handler: ch=" << channelIdToString(message_->getChannelId())
+    AASDK_LOG(debug) << "[MessageInStream] Payload handler: ch=" << channelIdToString(message_->getChannelId())
                      << " enc=" << (message_->getEncryptionType() == EncryptionType::ENCRYPTED ? "ENCRYPTED" : "PLAIN")
                      << " msg=" << (message_->getType() == MessageType::CONTROL ? "CONTROL" : "SPECIFIC")
                      << " frameType=" << frameTypeToString(thisFrameType_)
@@ -242,12 +244,13 @@ namespace aasdk::messenger {
             (buffer.cdata[1] == 0x03);
 
         if (message_->getChannelId() == ChannelId::CONTROL && looksLikeTlsRecord) {
-          message_->insertPayload(messenger::MessageId(3).getData());
+          message_->insertPayload(messenger::MessageId(
+              aap_protobuf::service::control::message::ControlMessageType::MESSAGE_ENCAPSULATED_SSL).getData());
         }
 
         message_->insertPayload(buffer);
         if (traceMessage) {
-          AASDK_LOG(info) << "[MessageTrace] encrypted-pass-through"
+          AASDK_LOG(debug) << "[MessageTrace] encrypted-pass-through"
                           << " ch=" << channelIdToString(channelId)
                           << " payloadBytes=" << buffer.size
                           << " payloadSizeAfter=" << message_->getPayload().size();
@@ -256,7 +259,7 @@ namespace aasdk::messenger {
         try {
           const size_t decryptedBytes = cryptor_->decrypt(message_->getPayload(), buffer, frameSize_);
           if (traceMessage) {
-            AASDK_LOG(info) << "[MessageTrace] decrypt"
+            AASDK_LOG(debug) << "[MessageTrace] decrypt"
                             << " ch=" << channelIdToString(channelId)
                             << " frameSize=" << frameSize_
                             << " encryptedBytes=" << buffer.size
@@ -283,7 +286,7 @@ namespace aasdk::messenger {
     if ((thisFrameType_ == FrameType::BULK || thisFrameType_ == FrameType::LAST) && isValidFrame_) {
       AASDK_LOG_MESSENGER(debug, "Resolving message.");
       if (traceMessage) {
-        AASDK_LOG(info) << "[MessageTrace] resolve"
+        AASDK_LOG(debug) << "[MessageTrace] resolve"
                         << " ch=" << channelIdToString(channelId)
                         << " frameType=" << frameTypeToString(thisFrameType_)
                         << " totalPayloadBytes=" << message_->getPayload().size();
