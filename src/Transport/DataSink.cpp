@@ -25,10 +25,24 @@ namespace aasdk {
   namespace transport {
 
     DataSink::DataSink()
-        : data_(common::cStaticDataSize) {
+        : data_(common::cStaticDataSize), pendingFill_(false) {
     }
 
     common::DataBuffer DataSink::fill() {
+      if (pendingFill_) {
+        // Safety net: a previous fill() never received a matching commit() — most
+        // likely a USB transfer retry path where the transfer returned an error
+        // before writing any data (e.g. EINTR, LIBUSB_ERROR_NO_DEVICE).  Roll back
+        // that dangling allocation now so it can never be mistaken for real protocol
+        // data by distributeReceivedData().  Callers on the retry path should also
+        // call rollback() explicitly before fill() to document intent, but this
+        // auto-rollback acts as a hard safety net for any path that misses that.
+        if (data_.size() >= cChunkSize) {
+          data_.erase_end(cChunkSize);
+        }
+      }
+      pendingFill_ = true;
+
       const auto offset = data_.size();
       data_.resize(data_.size() + cChunkSize);
 
@@ -41,7 +55,20 @@ namespace aasdk {
         throw error::Error(error::ErrorCode::DATA_SINK_COMMIT_OVERFLOW);
       }
 
+      pendingFill_ = false;
       data_.erase_end((cChunkSize - size));
+    }
+
+    void DataSink::rollback() {
+      if (!pendingFill_) {
+        return;
+      }
+      // Only erase if there's actually a pending chunk to roll back.
+      // Safety check: circular_buffer::erase_end(n) requires size() >= n.
+      if (data_.size() >= cChunkSize) {
+        data_.erase_end(cChunkSize);
+      }
+      pendingFill_ = false;
     }
 
     common::Data::size_type DataSink::getAvailableSize() {

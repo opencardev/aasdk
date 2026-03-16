@@ -294,6 +294,47 @@ lsusb
 sudo chmod 666 /dev/bus/usb/001/002  # Replace with your device
 ```
 
+### USB Receive Retry Corruption
+
+#### Issue: transport retries eventually produce zero-length frames or channel storms
+```
+Repeated receive retries are followed by malformed frame parsing,
+zero-byte payload loops, or channel receive queues being rejected.
+```
+
+**Typical Symptoms:**
+
+1. `LIBUSB_ERROR_INTERRUPTED` (`native=-4` / `4294967292`) or transient `LIBUSB_ERROR_NO_DEVICE` during bulk IN receives.
+2. A later burst of bogus protocol data, often seen as zero-sized frames or repeated channel wakeups.
+3. Session teardown even though the original USB error looked transient.
+
+**Root Cause:**
+
+`DataSink::fill()` reserves a 16 KB receive slot before libusb writes into it. If the transfer fails and no matching `commit()` happens, that slot remains in the circular buffer unless it is explicitly rolled back. On the next receive cycle, the stale zero-filled slot can be exposed to `distributeReceivedData()` and parsed as real protocol bytes.
+
+**Fix:**
+
+1. Track whether a `fill()` is still pending.
+2. Call `rollback()` before re-arming a failed receive.
+3. Keep `fill()` self-healing so any missed rollback still discards the dangling slot.
+
+Relevant implementation points:
+
+1. `include/aasdk/Transport/DataSink.hpp`
+2. `src/Transport/DataSink.cpp`
+3. `src/Transport/USBTransport.cpp`
+
+**Validation:**
+```bash
+# Enable verbose transport logs and watch for receive retries.
+export AASDK_LOG_LEVEL=DEBUG
+export AASDK_VERBOSE_USB=1
+
+# The important invariant is that every failed receive path either calls
+# rollback() explicitly or reaches a later fill() that auto-discards the
+# uncommitted slot before allocating another 16 KB chunk.
+```
+
 ### SSL/TLS Certificate Issues
 
 #### Issue: SSL handshake failures

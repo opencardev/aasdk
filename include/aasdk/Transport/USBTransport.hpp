@@ -73,9 +73,10 @@ namespace aasdk::transport {
        * @param ioService Boost ASIO io_service for async operations
        * @param aoapDevice AOAP device handle (from IUSBHub discovery)
        *
-       * Note: ioService must outlive the USBTransport instance.
+      * The shared_ptr keeps the io_service alive as long as the USBTransport
+      * (or any pending handler with a shared_from_this() capture) is alive.
        */
-      USBTransport(boost::asio::io_service &ioService, usb::IAOAPDevice::Pointer aoapDevice);
+      USBTransport(std::shared_ptr<boost::asio::io_service> ioService, usb::IAOAPDevice::Pointer aoapDevice);
 
       /**
        * @brief Stop USB transport and reject pending operations.
@@ -98,14 +99,35 @@ namespace aasdk::transport {
       /// Internal: handle USB OUT transfer completion; check for errors, resolve promise
       void sendHandler(SendQueue::iterator queueElement, common::Data::size_type offset, size_t bytesTransferred);
 
+      /// Internal: re-queue a receive after a short recovery delay (strand-safe)
+      void scheduleReceiveRetry(uint32_t delayMs);
+
       /// AOAP device handle (provides bulk IN/OUT endpoint access)
       usb::IAOAPDevice::Pointer aoapDevice_;
+
+      /// How many times we have retried a LIBUSB_ERROR_NO_DEVICE on the IN endpoint
+      uint32_t receiveNoDeviceRetryCount_{0};
+
+      /// How many times we have retried a LIBUSB_ERROR_INTERRUPTED on the IN endpoint
+      uint32_t receiveInterruptedRetryCount_{0};
 
       /// Timeout for send operations (10 seconds)
       static constexpr uint32_t cSendTimeoutMs = 10000;
 
       /// Timeout for receive operations (infinite: 0)
       static constexpr uint32_t cReceiveTimeoutMs = 0;
+
+      /// Max bounded retries for a post-handshake no-device transient error
+      static constexpr uint32_t cReceiveNoDeviceRetryMax = 2;
+
+      /// Delay (ms) between no-device IN endpoint retries
+      static constexpr uint32_t cReceiveNoDeviceRetryDelayMs = 200;
+
+      /// Max bounded retries for LIBUSB_ERROR_INTERRUPTED (-4); resets on success
+      static constexpr uint32_t cReceiveInterruptedRetryMax = 60;
+
+      /// Delay (ms) between interrupted IN endpoint retries (short — just reschedule)
+      static constexpr uint32_t cReceiveInterruptedRetryDelayMs = 10;
     };
 
 }

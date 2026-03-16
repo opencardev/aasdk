@@ -20,6 +20,7 @@
 #include <string>
 #include <cerrno>
 #include <cstring>
+#include <mutex>
 #if defined(__has_include) && __has_include(<openssl/engine.h>) && !defined(OPENSSL_NO_ENGINE)
 #include <openssl/engine.h>
 #define HAVE_ENGINE_H
@@ -33,6 +34,10 @@
 
 namespace aasdk {
   namespace transport {
+
+    namespace {
+      std::once_flag gOpenSslInitOnce;
+    }
 
     static auto sslErrorToString(int sslErrorCode) -> const char* {
       switch (sslErrorCode) {
@@ -64,25 +69,20 @@ namespace aasdk {
     }
 
     SSLWrapper::SSLWrapper() {
-      SSL_library_init();
-      SSL_load_error_strings(); // Optional: Can also be removed if not needed.
-      OpenSSL_add_all_algorithms();
+      std::call_once(gOpenSslInitOnce, []() {
+    #if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+        SSL_library_init();
+        SSL_load_error_strings();
+        OpenSSL_add_all_algorithms();
+    #else
+        OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS,
+             nullptr);
+    #endif
+      });
     }
 
     SSLWrapper::~SSLWrapper() {
-#ifdef FIPS_mode_set
-      FIPS_mode_set(0); // FIPS_mode_set removed in later versions of OpenSSL.
-#endif
-#ifdef HAVE_ENGINE_H
-      ENGINE_cleanup();
-#endif
-      CONF_modules_unload(1);
-      EVP_cleanup();
-      CRYPTO_cleanup_all_ex_data();
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
-      ERR_remove_state(0);
-#endif
-      ERR_free_strings();
+      // OpenSSL state is process-global. Do not tear it down per wrapper instance.
     }
 
     X509 *SSLWrapper::readCertificate(const std::string &certificate) {

@@ -30,7 +30,9 @@ namespace aasdk::transport {
 
     class Transport : public ITransport, public std::enable_shared_from_this<Transport> {
     public:
-      Transport(boost::asio::io_service &ioService);
+      // ioService is held by shared_ptr so the io_context outlives any
+      // pending handlers that carry a shared_from_this() capture.
+      explicit Transport(std::shared_ptr<boost::asio::io_service> ioService);
 
       // Deleted copy operations
       Transport(const Transport &) = delete;
@@ -57,6 +59,9 @@ namespace aasdk::transport {
       virtual void enqueueSend(SendQueue::iterator queueElement) = 0;
 
       DataSink receivedDataSink_;
+
+      // Must be declared before strands so it is initialised first.
+      std::shared_ptr<boost::asio::io_service> ioServicePtr_;
 
       boost::asio::io_service::strand receiveStrand_;
       ReceiveQueue receiveQueue_;

@@ -52,6 +52,7 @@
  */
 
 #include <stdexcept>
+#include <tuple>
 #include <aasdk/USB/USBEndpoint.hpp>
 #include <aasdk/USB/AOAPDevice.hpp>
 #include <aasdk/Error/Error.hpp>
@@ -62,25 +63,17 @@ namespace aasdk {
   namespace usb {
 
     AOAPDevice::AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
-                           const libusb_interface_descriptor *interfaceDescriptor)
-        : usbWrapper_(usbWrapper), handle_(std::move(handle)), interfaceDescriptor_(interfaceDescriptor) {
-      if ((interfaceDescriptor->endpoint[0].bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
-        inEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                    interfaceDescriptor_->endpoint[0].bEndpointAddress);
-        outEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                     interfaceDescriptor_->endpoint[1].bEndpointAddress);
-      } else {
-        inEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                    interfaceDescriptor_->endpoint[1].bEndpointAddress);
-        outEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_,
-                                                     interfaceDescriptor_->endpoint[0].bEndpointAddress);
-      }
+                           uint8_t interfaceNumber, unsigned char inEndpointAddress,
+                           unsigned char outEndpointAddress)
+        : usbWrapper_(usbWrapper), handle_(std::move(handle)), interfaceNumber_(interfaceNumber) {
+      inEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_, inEndpointAddress);
+      outEndpoint_ = std::make_shared<USBEndpoint>(usbWrapper_, ioService, handle_, outEndpointAddress);
     }
 
     AOAPDevice::~AOAPDevice() {
       inEndpoint_->cancelTransfers();
       outEndpoint_->cancelTransfers();
-      usbWrapper_.releaseInterface(handle_, interfaceDescriptor_->bInterfaceNumber);
+      usbWrapper_.releaseInterface(handle_, interfaceNumber_);
     }
 
     IUSBEndpoint &AOAPDevice::getInEndpoint() {
@@ -101,22 +94,26 @@ namespace aasdk {
         throw error::Error(error::ErrorCode::USB_INVALID_DEVICE_ENDPOINTS);
       }
 
-      auto result = usbWrapper.claimInterface(handle, interfaceDescriptor->bInterfaceNumber);
+      const auto [interfaceNumber, inEndpointAddress, outEndpointAddress] =
+          AOAPDevice::extractEndpointDetails(interfaceDescriptor);
+
+      auto result = usbWrapper.claimInterface(handle, interfaceNumber);
 
       // Recovery path for stale interface ownership after abrupt transport teardown.
       if (result == LIBUSB_ERROR_BUSY) {
         AASDK_LOG(warning) << "[AOAPDevice] claimInterface busy on iface="
-                           << static_cast<int>(interfaceDescriptor->bInterfaceNumber)
+                           << static_cast<int>(interfaceNumber)
                            << ", attempting release+retry";
-        usbWrapper.releaseInterface(handle, interfaceDescriptor->bInterfaceNumber);
-        result = usbWrapper.claimInterface(handle, interfaceDescriptor->bInterfaceNumber);
+        usbWrapper.releaseInterface(handle, interfaceNumber);
+        result = usbWrapper.claimInterface(handle, interfaceNumber);
       }
 
       if (result != 0) {
         throw error::Error(error::ErrorCode::USB_CLAIM_INTERFACE, result);
       }
 
-      return std::make_unique<AOAPDevice>(usbWrapper, ioService, std::move(handle), interfaceDescriptor);
+      return std::make_unique<AOAPDevice>(usbWrapper, ioService, std::move(handle), interfaceNumber,
+                  inEndpointAddress, outEndpointAddress);
     }
 
     ConfigDescriptorHandle AOAPDevice::getConfigDescriptor(IUSBWrapper &usbWrapper, DeviceHandle handle) {
@@ -149,6 +146,18 @@ namespace aasdk {
       }
 
       return &interface->altsetting[0];
+    }
+
+    std::tuple<uint8_t, unsigned char, unsigned char>
+    AOAPDevice::extractEndpointDetails(const libusb_interface_descriptor *interfaceDescriptor) {
+      const auto firstEndpointAddress = interfaceDescriptor->endpoint[0].bEndpointAddress;
+      const auto secondEndpointAddress = interfaceDescriptor->endpoint[1].bEndpointAddress;
+
+      if ((firstEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_IN) {
+        return {interfaceDescriptor->bInterfaceNumber, firstEndpointAddress, secondEndpointAddress};
+      }
+
+      return {interfaceDescriptor->bInterfaceNumber, secondEndpointAddress, firstEndpointAddress};
     }
 
   }

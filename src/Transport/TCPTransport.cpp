@@ -22,10 +22,8 @@
 namespace aasdk {
   namespace transport {
 
-    TCPTransport::TCPTransport(boost::asio::io_service &ioService, tcp::ITCPEndpoint::Pointer tcpEndpoint)
-        : Transport(ioService), tcpEndpoint_(std::move(tcpEndpoint)) {
-
-    }
+    TCPTransport::TCPTransport(std::shared_ptr<boost::asio::io_service> ioService, tcp::ITCPEndpoint::Pointer tcpEndpoint)
+        : Transport(std::move(ioService)), tcpEndpoint_(std::move(tcpEndpoint)) {}
 
     void TCPTransport::enqueueReceive(common::DataBuffer buffer) {
       auto receivePromise = tcp::ITCPEndpoint::Promise::defer(receiveStrand_);

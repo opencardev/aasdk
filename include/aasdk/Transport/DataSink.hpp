@@ -29,9 +29,21 @@ namespace aasdk::transport {
     public:
       DataSink();
 
+      /// Allocate a cChunkSize slot at the tail of the buffer for the next USB
+      /// receive transfer to write into.  If a previous fill() was never
+      /// followed by commit() (e.g. the USB transfer returned an error), the
+      /// dangling uncommitted slot is automatically rolled back first so that
+      /// stale zero-bytes never appear in the protocol stream.
       common::DataBuffer fill();
 
+      /// Finalise the most recent fill(): trim the unused tail of the slot to
+      /// the actual number of bytes transferred and clear the pending flag.
       void commit(common::Data::size_type size);
+
+      /// Discard the uncommitted slot from the most recent fill() that was
+      /// never followed by a successful commit().  Safe to call even when no
+      /// fill is pending (no-op in that case).
+      void rollback();
 
       common::Data::size_type getAvailableSize();
 
@@ -39,6 +51,8 @@ namespace aasdk::transport {
 
     private:
       boost::circular_buffer<common::Data::value_type> data_;
+      /// True between a fill() call and its matching commit() or rollback().
+      bool pendingFill_{false};
       static constexpr common::Data::size_type cChunkSize = 16384;
     };
 

@@ -30,7 +30,8 @@ namespace aasdk::usb {
     class AOAPDevice : public IAOAPDevice {
     public:
       AOAPDevice(IUSBWrapper &usbWrapper, boost::asio::io_service &ioService, DeviceHandle handle,
-                 const libusb_interface_descriptor *interfaceDescriptor);
+                 uint8_t interfaceNumber, unsigned char inEndpointAddress,
+                 unsigned char outEndpointAddress);
 
       ~AOAPDevice() override;
 
@@ -52,9 +53,12 @@ namespace aasdk::usb {
 
       static const libusb_interface_descriptor *getInterfaceDescriptor(const libusb_interface *interface);
 
+      static std::tuple<uint8_t, unsigned char, unsigned char>
+      extractEndpointDetails(const libusb_interface_descriptor *interfaceDescriptor);
+
       IUSBWrapper &usbWrapper_;
       DeviceHandle handle_;
-      const libusb_interface_descriptor *interfaceDescriptor_;
+      uint8_t interfaceNumber_;
       IUSBEndpoint::Pointer inEndpoint_;
       IUSBEndpoint::Pointer outEndpoint_;
 

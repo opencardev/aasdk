@@ -53,8 +53,10 @@
 namespace aasdk {
   namespace transport {
 
-    Transport::Transport(boost::asio::io_service &ioService)
-        : receiveStrand_(ioService), sendStrand_(ioService) {}
+    Transport::Transport(std::shared_ptr<boost::asio::io_service> ioService)
+        : ioServicePtr_(std::move(ioService)),
+          receiveStrand_(*ioServicePtr_),
+          sendStrand_(*ioServicePtr_) {}
 
     /**
      * @brief Queue a receive request for N bytes from the transport.
@@ -133,6 +135,9 @@ namespace aasdk {
     }
 
     void Transport::rejectReceivePromises(const error::Error &e) {
+      // Continue to next receive even if this one failed, to avoid infinite loops.
+      // The DataSink.pendingFill_ flag prevents dangling slots from being served
+      // as protocol data.
       for (auto &queueElement: receiveQueue_) {
         queueElement.second->reject(e);
       }

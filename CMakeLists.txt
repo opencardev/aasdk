@@ -262,11 +262,19 @@ else()
             ${source_files}
             ${include_files})
 endif()
-target_include_directories(aasdk PUBLIC 
+if(SKIP_BUILD_PROTOBUF)
+    target_include_directories(aasdk PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>
-    $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
+        $<BUILD_INTERFACE:${Protobuf_INCLUDE_DIRS}>
         $<INSTALL_INTERFACE:include/aap_protobuf>
-)
+    )
+else()
+    target_include_directories(aasdk PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>
+        $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include/aap_protobuf>
+    )
+endif()
 
 # Link libraries - aap_protobuf is always built as subdirectory
 target_link_libraries(aasdk PUBLIC

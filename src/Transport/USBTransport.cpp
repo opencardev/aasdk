@@ -18,13 +18,15 @@
 
 #include <aasdk/Transport/USBTransport.hpp>
 #include <aasdk/Common/Log.hpp>
+#include <boost/asio/steady_timer.hpp>
+#include <chrono>
 
 
 namespace aasdk {
   namespace transport {
 
-    USBTransport::USBTransport(boost::asio::io_service &ioService, usb::IAOAPDevice::Pointer aoapDevice)
-        : Transport(ioService), aoapDevice_(std::move(aoapDevice)) {}
+    USBTransport::USBTransport(std::shared_ptr<boost::asio::io_service> ioService, usb::IAOAPDevice::Pointer aoapDevice)
+        : Transport(std::move(ioService)), aoapDevice_(std::move(aoapDevice)) {}
 
     void USBTransport::enqueueReceive(common::DataBuffer buffer) {
       const auto inEndpoint = aoapDevice_->getInEndpoint().getAddress();
@@ -37,6 +39,8 @@ namespace aasdk {
                                  AASDK_LOG(debug) << "[USBTransport] receiveComplete endpoint=0x"
                                                  << std::hex << static_cast<int>(inEndpoint)
                                                  << std::dec << " bytesTransferred=" << bytesTransferred;
+                                 receiveNoDeviceRetryCount_ = 0;
+                                 receiveInterruptedRetryCount_ = 0;
                                  this->receiveHandler(bytesTransferred);
                                },
                                [this, self = this->shared_from_this(), inEndpoint](auto e) {
@@ -45,10 +49,70 @@ namespace aasdk {
                                                     << std::dec << " code=" << static_cast<int>(e.getCode())
                                                     << " native=" << e.getNativeCode()
                                                     << " what=" << e.what();
+
+                                 // Bounded recovery for LIBUSB_ERROR_NO_DEVICE (native=5) on the IN
+                                 // endpoint: Android briefly resets the USB link after AOAP handshake.
+                                 // Re-arm the bulk transfer after a short delay instead of cascading
+                                 // the error to all channels immediately.
+                                 static constexpr uint32_t kLibusbNoDevice = 5u;
+                                 // Bounded recovery for LIBUSB_ERROR_INTERRUPTED (native=-4 / 4294967292)
+                                 // on the IN endpoint: Linux EINTR from signal; data still in USB buffer.
+                                 // Retry immediately rather than disrupting receive queue.
+                                 static constexpr uint32_t kLibusbInterrupted = 4294967292u;
+
+                                 if (e.getNativeCode() == kLibusbNoDevice &&
+                                     receiveNoDeviceRetryCount_ < cReceiveNoDeviceRetryMax) {
+                                   receiveNoDeviceRetryCount_++;
+                                   AASDK_LOG(warning)
+                                       << "[USBTransport] receiveError native=5 transient recovery "
+                                       << receiveNoDeviceRetryCount_ << "/" << cReceiveNoDeviceRetryMax
+                                       << " delayMs=" << cReceiveNoDeviceRetryDelayMs;
+                                   this->scheduleReceiveRetry(cReceiveNoDeviceRetryDelayMs);
+                                   return;
+                                 }
+
+                                 if (e.getNativeCode() == kLibusbInterrupted &&
+                                     receiveInterruptedRetryCount_ < cReceiveInterruptedRetryMax) {
+                                   receiveInterruptedRetryCount_++;
+                                   AASDK_LOG(debug)
+                                       << "[USBTransport] receiveError native=-4 interrupted retry "
+                                       << receiveInterruptedRetryCount_ << "/" << cReceiveInterruptedRetryMax
+                                       << " delayMs=" << cReceiveInterruptedRetryDelayMs;
+                                   this->scheduleReceiveRetry(cReceiveInterruptedRetryDelayMs);
+                                   return;
+                                 }
+
+                                 receiveNoDeviceRetryCount_ = 0;
+                                 receiveInterruptedRetryCount_ = 0;
                                  this->rejectReceivePromises(e);
                                });
 
       aoapDevice_->getInEndpoint().bulkTransfer(buffer, cReceiveTimeoutMs, std::move(usbEndpointPromise));
+    }
+
+    void USBTransport::scheduleReceiveRetry(uint32_t delayMs) {
+      auto timer = std::make_shared<boost::asio::steady_timer>(
+          *ioServicePtr_, std::chrono::milliseconds(delayMs));
+      timer->async_wait(
+          receiveStrand_.wrap([this, self = this->shared_from_this(), timer](
+                                  const boost::system::error_code& timerError) {
+            if (timerError) {
+              return;
+            }
+            if (!receiveQueue_.empty()) {
+              AASDK_LOG(warning) << "[USBTransport] receiveRetry re-arming IN endpoint";
+              // Discard the uncommitted fill() slot from the failed transfer.
+              // Without this, each retry would append another 16 KB zero-chunk to
+              // the DataSink; distributeReceivedData() would later consume those
+              // zeros as real protocol frames, corrupting the AA session before
+              // any channel can open.  The self-healing fill() in DataSink would
+              // catch this even without an explicit rollback(), but we call it
+              // here explicitly to make the retry semantics unambiguous.
+              receivedDataSink_.rollback();
+              auto buf = receivedDataSink_.fill();
+              this->enqueueReceive(buf);
+            }
+          }));
     }
 
     void USBTransport::enqueueSend(SendQueue::iterator queueElement) {

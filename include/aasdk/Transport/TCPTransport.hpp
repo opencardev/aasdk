@@ -79,9 +79,10 @@ namespace aasdk::transport {
        * @param ioService Boost ASIO io_service for async socket operations
        * @param tcpEndpoint Connected TCP socket endpoint (phone or test client)
        *
-       * Note: ioService and tcpEndpoint must remain valid until TCPTransport is destroyed.
+      * The shared_ptr keeps the io_service alive as long as the TCPTransport
+      * (or any pending handler with a shared_from_this() capture) is alive.
        */
-      TCPTransport(boost::asio::io_service &ioService, tcp::ITCPEndpoint::Pointer tcpEndpoint);
+      TCPTransport(std::shared_ptr<boost::asio::io_service> ioService, tcp::ITCPEndpoint::Pointer tcpEndpoint);
 
       /**
        * @brief Stop TCP transport and close socket.
