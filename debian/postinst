@@ -11,6 +11,15 @@ case "$1" in
         cert_file="$cert_dir/headunit.crt"
         key_file="$cert_dir/headunit.key"
 
+        # Ensure dedicated runtime group exists.
+        if ! getent group aasdk >/dev/null 2>&1; then
+            if command -v addgroup >/dev/null 2>&1; then
+                addgroup --system aasdk || true
+            elif command -v groupadd >/dev/null 2>&1; then
+                groupadd --system aasdk || true
+            fi
+        fi
+
         # Ensure target cert directory exists.
         mkdir -p "$cert_dir"
         chmod 755 "$cert_dir" || true
@@ -36,14 +45,8 @@ case "$1" in
         fi
 
         if [ -f "$key_file" ]; then
-            chown root:root "$key_file" || true
-            chmod 600 "$key_file" || true
-
-            # Optional compatibility mode for non-root runtimes in the aasdk group.
-            if [ "$cert_group" = "aasdk" ]; then
-                chown root:aasdk "$key_file" || true
-                chmod 640 "$key_file" || true
-            fi
+            chown root:"$cert_group" "$key_file" || true
+            chmod 640 "$key_file" || true
         fi
 
         # Update the dynamic linker cache

@@ -362,9 +362,25 @@ install(FILES
 install(FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.key"
     DESTINATION /etc/aasdk
-    PERMISSIONS OWNER_READ OWNER_WRITE
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ
     COMPONENT runtime
 )
+
+# Align direct "make install" behavior with package postinst:
+# create/use aasdk group and assign cert/key group ownership + key group-read.
+install(CODE [[
+    set(_cert_dir "$ENV{DESTDIR}/etc/aasdk")
+    set(_cert_file "${_cert_dir}/headunit.crt")
+    set(_key_file "${_cert_dir}/headunit.key")
+
+    execute_process(
+        COMMAND /bin/sh -c "if ! getent group aasdk >/dev/null 2>&1; then if command -v addgroup >/dev/null 2>&1; then addgroup --system aasdk || true; elif command -v groupadd >/dev/null 2>&1; then groupadd --system aasdk || true; fi; fi"
+    )
+
+    execute_process(
+        COMMAND /bin/sh -c "if getent group aasdk >/dev/null 2>&1; then if [ -f '${_cert_file}' ]; then chown root:aasdk '${_cert_file}' || true; chmod 644 '${_cert_file}' || true; fi; if [ -f '${_key_file}' ]; then chown root:aasdk '${_key_file}' || true; chmod 640 '${_key_file}' || true; fi; fi"
+    )
+]] COMPONENT runtime)
 
 # Export the targets to a script
 install(EXPORT aasdkTargets
