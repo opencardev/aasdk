@@ -41,7 +41,7 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -229,13 +229,13 @@ jobs:
           cat ../RELEASE_NOTES.md
 
       - name: Ensure git metadata
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Create GitHub Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release_info.outputs.version || github.run_number }}
           name: "AASDK Release ${{ steps.release_info.outputs.version || github.run_number }}"
