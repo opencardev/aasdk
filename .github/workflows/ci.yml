@@ -7,6 +7,7 @@ on:
       - develop
       - 'feature/*'
       - 'bugfix/*'
+      - newdev
     paths-ignore:
       - '**.md'
       - 'docs/**'
@@ -17,6 +18,7 @@ on:
     branches:
       - main
       - develop
+      - newdev
     paths-ignore:
       - '**.md'
       - 'docs/**'
