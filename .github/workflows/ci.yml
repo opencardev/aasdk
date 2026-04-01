@@ -243,14 +243,14 @@ jobs:
           echo "Wrote $out"
 
       - name: Upload version report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "aasdk-deb-versions-${{ matrix.distro }}-${{ matrix.arch }}"
           path: "deb-versions-${{ matrix.distro }}-${{ matrix.arch }}.md"
           retention-days: 60
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "aasdk-packages-${{ matrix.distro }}-${{ matrix.arch }}"
           path: |
@@ -307,7 +307,7 @@ jobs:
           done
 
       - name: Upload test report
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: aasdk-test-report-${{ github.run_number }}
           path: test-report.md
