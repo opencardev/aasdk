@@ -1,19 +1,44 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.16)
 
 project(aasdk)
 message(STATUS "AASDK Library")
 message(STATUS "Cross Compiling?")
 
-# Cross Compiling Architecture
+# Options to skip building dependencies
+option(SKIP_BUILD_PROTOBUF "Skip building protobuf, use system-installed version" OFF)
+option(SKIP_BUILD_ABSL "Skip building Abseil, use system-installed version" OFF)
+
+# Cross Compiling Architecture and Package Architecture Detection
 if( TARGET_ARCH STREQUAL "amd64" )
     message(STATUS "...amd64")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
 elseif( TARGET_ARCH STREQUAL "armhf" )
     message(STATUS "...armhf")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "armhf")
+    # Only set cross-compilation compilers if explicitly using cross-compilation
+    # For native builds (e.g., Docker with QEMU), let CMake use default compilers
+    if(DEFINED ENV{CMAKE_C_COMPILER} AND DEFINED ENV{CMAKE_CXX_COMPILER})
+        # Environment variables are set (from build.sh), use them
+        set(CMAKE_C_COMPILER $ENV{CMAKE_C_COMPILER})
+        set(CMAKE_CXX_COMPILER $ENV{CMAKE_CXX_COMPILER})
+    elseif(CMAKE_CROSSCOMPILING OR DEFINED CMAKE_TOOLCHAIN_FILE)
+        # Only set cross-compilation when actually cross-compiling
+        set(CMAKE_C_COMPILER /usr/bin/arm-linux-gnueabihf-gcc)
+        set(CMAKE_CXX_COMPILER /usr/bin/arm-linux-gnueabihf-g++)
+    endif()
 elseif( TARGET_ARCH STREQUAL "arm64" )
     message(STATUS "...arm64")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "arm64")
+    # Only set cross-compilation compilers if explicitly using cross-compilation
+    if(DEFINED ENV{CMAKE_C_COMPILER} AND DEFINED ENV{CMAKE_CXX_COMPILER})
+        # Environment variables are set (from build.sh), use them
+        set(CMAKE_C_COMPILER $ENV{CMAKE_C_COMPILER})
+        set(CMAKE_CXX_COMPILER $ENV{CMAKE_CXX_COMPILER})
+    elseif(CMAKE_CROSSCOMPILING OR DEFINED CMAKE_TOOLCHAIN_FILE)
+        # Only set cross-compilation when actually cross-compiling
+        set(CMAKE_C_COMPILER /usr/bin/aarch64-linux-gnu-gcc)
+        set(CMAKE_CXX_COMPILER /usr/bin/aarch64-linux-gnu-g++)
+    endif()
 elseif( TARGET_ARCH STREQUAL "i386" )
     message(STATUS "...i386")
     set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "i386")
@@ -51,47 +76,25 @@ string(TIMESTAMP LIBRARY_BUILD_YEAR "%Y" UTC)      # Major version = Year (e.g.,
 string(TIMESTAMP LIBRARY_BUILD_MONTH "%m" UTC)     # Minor version = Month (01-12)
 string(TIMESTAMP LIBRARY_BUILD_DAY "%d" UTC)       # Patch version = Day (01-31)
 
-# Get git commit information
-find_package(Git QUIET)
-if(GIT_FOUND)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --short HEAD
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_COMMIT_ID
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} rev-parse --abbrev-ref HEAD
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_BRANCH
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} describe --tags --dirty --always
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        OUTPUT_VARIABLE GIT_DESCRIBE
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    # Check if repository is dirty (has uncommitted changes)
-    execute_process(
-        COMMAND ${GIT_EXECUTABLE} diff --quiet
-        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-        RESULT_VARIABLE GIT_DIRTY
-        ERROR_QUIET
-    )
-else()
-    set(GIT_COMMIT_ID "unknown")
-    set(GIT_BRANCH "unknown")
-    set(GIT_DESCRIBE "unknown")
-    set(GIT_DIRTY 0)
-endif()
+# Set CMAKE_MODULE_PATH early so we can include gitversion.cmake
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/")
+
+# Get git commit information using gitversion.cmake module
+set(local_dir ${CMAKE_CURRENT_SOURCE_DIR})
+include(gitversion)
+
+# Include DEB package filename generation module
+include(DebPackageFilename)
 
 # Clean up git commit ID (remove any unwanted characters)
-if(NOT GIT_COMMIT_ID)
+if(NOT GIT_COMMIT_ID OR GIT_COMMIT_ID STREQUAL "")
     set(GIT_COMMIT_ID "unknown")
+endif()
+if(NOT GIT_BRANCH OR GIT_BRANCH STREQUAL "")
+    set(GIT_BRANCH "unknown")
+endif()
+if(NOT GIT_DESCRIBE OR GIT_DESCRIBE STREQUAL "")
+    set(GIT_DESCRIBE "unknown")
 endif()
 
 # Set version components
@@ -113,10 +116,9 @@ set(include_ut_directory ${base_directory}/unit_test)
 
 # Configure CMAKE
 message(STATUS "Configuring CMAKE")
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT} -fPIC -Wall -pedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
@@ -151,7 +153,7 @@ endif()
 # Paths
 set(sources_directory ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(include_directory ${CMAKE_CURRENT_SOURCE_DIR}/include)
-set(include_ut_directory ${CMAKE_CURRENT_SOURCE_DIR}/include_ut)
+set(include_ut_directory ${CMAKE_CURRENT_SOURCE_DIR}/unit_test)
 
 # Set output directories to build directory for proper packaging
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib)
@@ -189,55 +191,46 @@ if(AASDK_TEST)
     FetchContent_MakeAvailable(googletest)
 endif(AASDK_TEST)
 
-# Detect cross-compilation
-string(FIND "${CMAKE_C_COMPILER}" "aarch64-linux-gnu" IS_ARM64_CROSS)
-string(FIND "${CMAKE_C_COMPILER}" "arm-linux-gnueabihf" IS_ARMHF_CROSS)
-string(FIND "${CMAKE_CXX_COMPILER}" "aarch64-linux-gnu" IS_ARM64_CXX_CROSS)
-string(FIND "${CMAKE_CXX_COMPILER}" "arm-linux-gnueabihf" IS_ARMHF_CXX_CROSS)
+# Always build aap_protobuf for header generation
+add_subdirectory(protobuf)
 
-if(IS_ARM64_CROSS GREATER -1 OR IS_ARMHF_CROSS GREATER -1 OR IS_ARM64_CXX_CROSS GREATER -1 OR IS_ARMHF_CXX_CROSS GREATER -1)
-    set(CROSS_COMPILING TRUE)
-    message(STATUS "Cross-compilation detected, using system protobuf packages")
+# Handle protobuf library linking based on skip option
+if(NOT SKIP_BUILD_PROTOBUF)
+    message(STATUS "Using built protobuf v30.0")
 else()
-    set(CROSS_COMPILING FALSE)
+    message(STATUS "Skipping protobuf build, using system-installed version")
+    find_package(Protobuf REQUIRED)
 endif()
 
-# Build aap_protobuf as part of this project (unless cross-compiling)
-if(NOT CROSS_COMPILING)
-    message(STATUS "Building aap_protobuf as subdirectory")
-    add_subdirectory(protobuf)
-endif()
-
-# Building on a Mac requires Abseil
-if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")  # macOS
-    message(STATUS "MacOS System Detected")
-    find_package(protobuf REQUIRED CONFIG)
-    find_package(absl REQUIRED)
-else ()
-    # Linux specific command
-    if(CROSS_COMPILING)
-        # For cross-compilation, use pkg-config to find cross-compiled protobuf
-        find_package(PkgConfig REQUIRED)
-        pkg_check_modules(Protobuf REQUIRED protobuf)
-        set(Protobuf_FOUND TRUE)
-        message(STATUS "Using cross-compiled protobuf: ${Protobuf_VERSION}")
+# Require Abseil when building protobuf ourselves (which we always do for aap_protobuf), or on macOS
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR NOT SKIP_BUILD_ABSL)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        message(STATUS "MacOS System Detected - Abseil required")
+    elseif(SKIP_BUILD_ABSL)
+        message(STATUS "Building protobuf with system-installed Abseil")
     else()
-        find_path(Protobuf_INCLUDE_DIR google/protobuf/message.h PATHS /usr/include /usr/local/include)
-        find_library(Protobuf_LIBRARY protobuf PATHS /usr/lib /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib/arm-linux-gnueabihf /usr/local/lib)
-        find_program(PROTOBUF_PROTOC_EXECUTABLE protoc)
-        message(STATUS "Found Protobuf include: ${Protobuf_INCLUDE_DIR}")
-        message(STATUS "Found Protobuf library: ${Protobuf_LIBRARY}")
-        message(STATUS "Found protoc: ${PROTOBUF_PROTOC_EXECUTABLE}")
-        if(NOT Protobuf_INCLUDE_DIR OR NOT Protobuf_LIBRARY OR NOT PROTOBUF_PROTOC_EXECUTABLE)
-            message(FATAL_ERROR "Protobuf not found. Please install libprotobuf-dev and protobuf-compiler")
-        endif()
-        set(Protobuf_FOUND TRUE)
+        message(STATUS "Building protobuf with bundled Abseil")
     endif()
-endif ()
-
-include(FindProtobuf)
+    find_package(absl REQUIRED)
+else()
+    message(STATUS "Skipping Abseil requirement - using system protobuf")
+endif()
 
 find_package(Boost REQUIRED COMPONENTS system log_setup log OPTIONAL_COMPONENTS unit_test_framework)
+
+# Capture Boost version for packaging
+if(Boost_VERSION)
+    string(REPLACE "." ";" VERSION_LIST ${Boost_VERSION})
+    list(GET VERSION_LIST 0 Boost_VERSION_MAJOR)
+    list(GET VERSION_LIST 1 Boost_VERSION_MINOR)
+    set(BOOST_PACKAGE_VERSION "${Boost_VERSION_MAJOR}.${Boost_VERSION_MINOR}.0")
+    message(STATUS "Detected Boost version: ${BOOST_PACKAGE_VERSION}")
+else()
+    # Fallback to common versions if detection fails
+    set(BOOST_PACKAGE_VERSION "1.83.0")
+    message(WARNING "Could not detect Boost version, using fallback: ${BOOST_PACKAGE_VERSION}")
+endif()
+
 find_package(libusb-1.0 REQUIRED)
 find_package(OpenSSL REQUIRED)
 
@@ -269,18 +262,28 @@ else()
             ${source_files}
             ${include_files})
 endif()
-target_include_directories(aasdk PUBLIC 
+if(SKIP_BUILD_PROTOBUF)
+    target_include_directories(aasdk PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>
+        $<BUILD_INTERFACE:${Protobuf_INCLUDE_DIRS}>
         $<INSTALL_INTERFACE:include/aap_protobuf>
-)
+    )
+else()
+    target_include_directories(aasdk PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>
+        $<BUILD_INTERFACE:${protobuf_SOURCE_DIR}/src>
+        $<INSTALL_INTERFACE:include/aap_protobuf>
+    )
+endif()
 
+# Link libraries - aap_protobuf is always built as subdirectory
 target_link_libraries(aasdk PUBLIC
-        ${LIBUSB_1_LIBRARIES}
-        ${Boost_LIBRARIES}
-        ${PROTOBUF_LIBRARIES}
-        aap_protobuf
-        ${OPENSSL_LIBRARIES}
-        ${WINSOCK2_LIBRARIES})
+    ${LIBUSB_1_LIBRARIES}
+    ${Boost_LIBRARIES}
+    aap_protobuf
+    ${OPENSSL_LIBRARIES}
+    ${WINSOCK2_LIBRARIES}
+    $<IF:$<TARGET_EXISTS:protobuf::libprotobuf>,protobuf::libprotobuf,${PROTOBUF_LIBRARIES}>)
 
 # Link nlohmann/json if available and JSON logging is enabled
 if(ENABLE_JSON_LOGGING AND nlohmann_json_FOUND)
@@ -307,6 +310,7 @@ message(STATUS "Project Version: ${LIBRARY_VERSION_STRING}")
 message(STATUS "Git Branch: ${GIT_BRANCH}")
 message(STATUS "Git Commit: ${GIT_COMMIT_ID}")
 message(STATUS "Git Describe: ${GIT_DESCRIBE}")
+message(STATUS "Git Timestamp: ${GIT_COMMIT_TIMESTAMP}")
 if(GIT_DIRTY GREATER 0)
     message(STATUS "Repository Status: DIRTY (has uncommitted changes)")
 else()
@@ -347,6 +351,37 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/include/aasdk/Version.hpp"
         COMPONENT development
 )
 
+# Install SSL certificate and key files
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.crt"
+    DESTINATION /etc/aasdk
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ
+    COMPONENT runtime
+)
+
+install(FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/cert/headunit.key"
+    DESTINATION /etc/aasdk
+    PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ
+    COMPONENT runtime
+)
+
+# Align direct "make install" behavior with package postinst:
+# create/use aasdk group and assign cert/key group ownership + key group-read.
+install(CODE [[
+    set(_cert_dir "$ENV{DESTDIR}/etc/aasdk")
+    set(_cert_file "${_cert_dir}/headunit.crt")
+    set(_key_file "${_cert_dir}/headunit.key")
+
+    execute_process(
+        COMMAND /bin/sh -c "if ! getent group aasdk >/dev/null 2>&1; then if command -v addgroup >/dev/null 2>&1; then addgroup --system aasdk || true; elif command -v groupadd >/dev/null 2>&1; then groupadd --system aasdk || true; fi; fi"
+    )
+
+    execute_process(
+        COMMAND /bin/sh -c "if getent group aasdk >/dev/null 2>&1; then if [ -f '${_cert_file}' ]; then chown root:aasdk '${_cert_file}' || true; chmod 644 '${_cert_file}' || true; fi; if [ -f '${_key_file}' ]; then chown root:aasdk '${_key_file}' || true; chmod 640 '${_key_file}' || true; fi; fi"
+    )
+]] COMPONENT runtime)
+
 # Export the targets to a script
 install(EXPORT aasdkTargets
         FILE aasdkTargets.cmake
@@ -374,7 +409,19 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aasdkConfigVersion.cmake"
         DESTINATION lib/cmake/aasdk
         COMPONENT development)
 
+# Configure and install pkg-config file
+include(GNUInstallDirs)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/aasdk.pc.in
+        "${CMAKE_CURRENT_BINARY_DIR}/aasdk.pc"
+        @ONLY)
+
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/aasdk.pc"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig
+        COMPONENT development)
+
 if(AASDK_TEST)
+    enable_testing()
+
     add_executable(aasdk_ut
             ${tests_source_files}
             ${tests_include_files})
@@ -384,6 +431,8 @@ if(AASDK_TEST)
             aasdk
             gtest_main
             gmock_main)
+
+    add_test(NAME aasdk_ut COMMAND aasdk_ut)
 
     if(AASDK_CODE_COVERAGE)
         include(CodeCoverage)
@@ -395,12 +444,19 @@ endif(AASDK_TEST)
 
 # CPack Configuration for DEB packages
 set(CPACK_GENERATOR "DEB")
-set(CPACK_PACKAGE_NAME "libaasdk")
+
+# Add debug suffix to package name for debug builds
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CPACK_PACKAGE_NAME "libaasdk-dbg")
+else()
+    set(CPACK_PACKAGE_NAME "libaasdk")
+endif()
+
 set(CPACK_PACKAGE_VENDOR "AASDK")
-set(CPACK_PACKAGE_VERSION ${LIBRARY_VERSION_STRING})
+set(CPACK_PACKAGE_CONTACT "OpenCarDev Team <opencardevuk@gmail.com>")
+set(CPACK_PACKAGE_VERSION ${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library")
 set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications.")
-set(CPACK_PACKAGE_CONTACT "AASDK <aasdk@example.com>")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/opencardev/aasdk")
 
 # Set the correct install prefix for packaging
@@ -409,37 +465,28 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 
 # Debian package configuration
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <matthilton2005@gmail.com>")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "AASDK <opencardevuk@gmail.com>")
 set(CPACK_DEBIAN_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/opencardev/aasdk")
-set(CPACK_DEBIAN_PACKAGE_DEPENDS "libusb-1.0-0 (>= 1.0.0), libboost-system1.81.0 | libboost-system1.74.0, libboost-log1.81.0 | libboost-log1.74.0, libssl3 (>= 3.0.0), libprotobuf32 (>= 3.21.0)")
+
+# Compute runtime Depends automatically per distro/arch using dpkg-shlibdeps
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+# Ensure component runtime also gets shlibdeps
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_SHLIBDEPS ON)
+# Help dpkg-shlibdeps find private libs in the build tree (if any)
+set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS "${CMAKE_CURRENT_BINARY_DIR}/lib;${CMAKE_CURRENT_BINARY_DIR}")
 set(CPACK_DEBIAN_PACKAGE_RECOMMENDS "")
 set(CPACK_DEBIAN_PACKAGE_SUGGESTS "")
 
-# Configure different packages based on build type and architecture
-set(ARCH_SUFFIX "-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CPACK_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}-dbg")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}-dbg")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library (Debug) for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-    set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) debug library with debugging symbols and information for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
-    set(CPACK_DEBIAN_PACKAGE_SECTION "debug")
-    set(CPACK_DEBIAN_PACKAGE_PRIORITY "extra")
-else()
-    set(CPACK_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}")
-    set(CPACK_DEBIAN_PACKAGE_NAME "libaasdk${ARCH_SUFFIX}")
-    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
-    set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture.")
-endif()
-
-# File naming based on build type and architecture
-if(DEFINED CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
-    set(CPACK_DEBIAN_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
-else()
-    set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
-endif()
+# Configure DEB package filename using the DebPackageFilename module
+configure_deb_filename(
+    PACKAGE_NAME "${CPACK_PACKAGE_NAME}"
+    VERSION "${LIBRARY_VERSION_STRING}"
+    ARCHITECTURE "${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}"
+    RUNTIME_PACKAGE_NAME "${CPACK_PACKAGE_NAME}"
+    DEVELOPMENT_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-dev"
+)
 
 # Component configuration for multi-package builds
 set(CPACK_DEB_COMPONENT_INSTALL ON)
@@ -448,20 +495,27 @@ set(CPACK_COMPONENTS_ALL runtime development)
 # Runtime package (libraries only)
 set(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "AASDK Runtime Libraries for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 set(CPACK_COMPONENT_RUNTIME_DESCRIPTION "Runtime libraries for Android Auto SDK on ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture")
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}")
-set(CPACK_DEBIAN_RUNTIME_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME "${CPACK_PACKAGE_NAME}")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_SECTION "libs")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_RUNTIME_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}")
+# Do not hardcode Depends here; let dpkg-shlibdeps compute per-distro/arch
 
 # Development package (headers and cmake files)
 set(CPACK_COMPONENT_DEVELOPMENT_DISPLAY_NAME "AASDK Development Files for ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}")
 set(CPACK_COMPONENT_DEVELOPMENT_DESCRIPTION "Development headers and CMake files for Android Auto SDK on ${CPACK_DEBIAN_PACKAGE_ARCHITECTURE} architecture")
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev")
-set(CPACK_DEBIAN_DEVELOPMENT_FILE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}-dev_${LIBRARY_VERSION_STRING}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_NAME "${CPACK_PACKAGE_NAME}-dev")
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_SECTION "libdevel")
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_PRIORITY "optional")
-set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_NAME} (= ${LIBRARY_VERSION_STRING})")
+# Construct the full Debian package version including any CPACK release suffix
+if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE AND NOT "${CPACK_DEBIAN_PACKAGE_RELEASE}" STREQUAL "")
+    # Full version: <YYYY.MM.DD>-<CPACK_DEBIAN_PACKAGE_RELEASE>
+    set(_full_package_version "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE}-${CPACK_DEBIAN_PACKAGE_RELEASE}")
+else()
+    # Fallback to the simple date based version
+    set(_full_package_version "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE}")
+endif()
+
+set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_PACKAGE_NAME} (= ${_full_package_version})")
 
 # Package relationships
 set(CPACK_COMPONENT_DEVELOPMENT_DEPENDS runtime)

@@ -1,0 +1,8 @@
+# Allow the default certificates
+!headunit.crt
+!headunit.key
+
+# But ignore any custom/user certificates
+*.pem
+custom_*.crt
+custom_*.key

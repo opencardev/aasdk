@@ -17,9 +17,11 @@
 #   package    - Create packages after building
 #
 # Environment Variables:
-#   TARGET_ARCH - Target architecture (amd64, arm64, armhf, i386)
-#   JOBS        - Number of parallel build jobs (default: nproc)
-#   CMAKE_ARGS  - Additional CMake arguments
+#   TARGET_ARCH   - Target architecture (amd64, arm64, armhf, i386)
+#   JOBS          - Number of parallel build jobs (default: nproc-1)
+#   CMAKE_ARGS    - Additional CMake arguments
+#   CROSS_COMPILE - Enable cross-compilation (true/false, default: true)
+#   DRY_RUN       - If set to true/1, skip any system installation steps
 
 set -e  # Exit on any error
 
@@ -31,16 +33,38 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-BUILD_TYPE=${1:-debug}
+# Auto-detect build type based on git branch if not specified
+if [ -z "$1" ]; then
+    CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    if [ "$CURRENT_BRANCH" = "main" ] || [ "$CURRENT_BRANCH" = "master" ]; then
+        BUILD_TYPE="release"
+    else
+        BUILD_TYPE="debug"
+    fi
+else
+    BUILD_TYPE="$1"
+fi
 TARGET_ARCH=${TARGET_ARCH:-amd64}
-JOBS=${JOBS:-$(nproc)}
+# Use one fewer core by default to reduce memory pressure on small devices
+NPROC=$(nproc 2>/dev/null || echo 1)
+if [ "$NPROC" -gt 1 ]; then
+    JOBS_DEFAULT=$((NPROC-1))
+else
+    JOBS_DEFAULT=1
+fi
+JOBS=${JOBS:-$JOBS_DEFAULT}
 CMAKE_ARGS=${CMAKE_ARGS:-}
+CROSS_COMPILE=${CROSS_COMPILE:-true}
+# Dry run mode (skip system install)
+DRY_RUN=${DRY_RUN:-false}
 
 # Parse command line arguments
 CLEAN=false
 RUN_TESTS=false
 INSTALL=false
 CREATE_PACKAGES=false
+SKIP_PROTOBUF=false
+SKIP_ABSL=false
 
 for arg in "$@"; do
     case $arg in
@@ -59,11 +83,28 @@ for arg in "$@"; do
         package)
             CREATE_PACKAGES=true
             ;;
+        dryrun)
+            DRY_RUN=true
+            ;;
+        --skip-protobuf)
+            SKIP_PROTOBUF=true
+            ;;
+        --skip-absl)
+            SKIP_ABSL=true
+            ;;
         *)
             # Unknown option
             ;;
     esac
 done
+
+# Add skip options to CMake args after parsing arguments
+if [ "$SKIP_PROTOBUF" = true ]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DSKIP_BUILD_PROTOBUF=ON"
+fi
+if [ "$SKIP_ABSL" = true ]; then
+    CMAKE_ARGS="$CMAKE_ARGS -DSKIP_BUILD_ABSL=ON"
+fi
 
 # Functions
 print_header() {
@@ -77,6 +118,15 @@ print_header() {
     echo -e "Run Tests:      ${GREEN}${RUN_TESTS}${NC}"
     echo -e "Install:        ${GREEN}${INSTALL}${NC}"
     echo -e "Create Packages: ${GREEN}${CREATE_PACKAGES}${NC}"
+    echo -e "Dry Run:        ${GREEN}${DRY_RUN}${NC}"
+    echo -e "Skip Protobuf:  ${GREEN}${SKIP_PROTOBUF}${NC}"
+    echo -e "Skip Abseil:    ${GREEN}${SKIP_ABSL}${NC}"
+    echo -e "${YELLOW}Git details:${NC}"
+    echo "  GIT_COMMIT_ID: $GIT_COMMIT_ID"
+    echo "  GIT_BRANCH:    $GIT_BRANCH"
+    echo "  GIT_DESCRIBE:  $GIT_DESCRIBE"
+    echo "  GIT_TIMESTAMP: $GIT_COMMIT_TIMESTAMP"
+    echo "  GIT_DIRTY:     $GIT_DIRTY"
     echo -e "${BLUE}================================================${NC}"
     echo
 }
@@ -128,91 +178,107 @@ check_dependencies() {
         missing_deps+=("libssl-dev")
     fi
     
+    # Check for absl only if not skipping protobuf (system protobuf v3.21.12 doesn't require absl)
+    if [ "$SKIP_PROTOBUF" != true ] && ! pkg-config --exists absl_base; then
+        missing_deps+=("libabsl-dev")
+    fi
+    
     if [ ${#missing_deps[@]} -ne 0 ]; then
         print_error "Missing dependencies detected:"
         printf '%s\n' "${missing_deps[@]}"
         echo
-        echo -e "${YELLOW}Installing missing dependencies...${NC}"
-        apt update && apt install -y ${missing_deps[*]}
-        print_success "Dependencies installed"
+        echo -e "${YELLOW}To install missing dependencies on Ubuntu/Debian:${NC}"
+        echo "sudo apt update && sudo apt install -y ${missing_deps[*]}"
+        echo
+        echo -e "${YELLOW}Or use the DevContainer for automatic dependency management.${NC}"
+        exit 1
     fi
     
     print_success "All dependencies found"
 }
 
-find_cross_compiler() {
-    local prefix="$1"
-    local compiler=""
+setup_native_compilation() {
+    print_step "Setting up native compilation for ${TARGET_ARCH}..."
     
-    # First try the base name (might be a symlink to latest)
-    if command -v "${prefix}gcc" &> /dev/null && [ -x "$(command -v "${prefix}gcc")" ]; then
-        compiler="$(command -v "${prefix}gcc")"
-    else
-        # Find all versioned compilers and pick the latest that actually exists and is executable
-        local candidates=()
-        for candidate in $(ls /usr/bin/${prefix}gcc-* 2>/dev/null | sort -V); do
-            if [ -x "$candidate" ]; then
-                candidates+=("$candidate")
-            fi
-        done
-        if [ ${#candidates[@]} -gt 0 ]; then
-            compiler="${candidates[-1]}"
-        fi
-    fi
+    # Force native compilers
+    export CC=/usr/bin/cc
+    export CXX=/usr/bin/c++
+    export CMAKE_C_COMPILER=/usr/bin/cc
+    export CMAKE_CXX_COMPILER=/usr/bin/c++
     
-    if [ -n "$compiler" ] && [ -x "$compiler" ]; then
-        echo "$compiler"
-        return 0
-    else
-        return 1
-    fi
+    # Add compiler settings to CMAKE_ARGS
+    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_C_COMPILER=/usr/bin/cc"
+    CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_CXX_COMPILER=/usr/bin/c++"
+    
+    # Architecture-specific library paths for dependency detection
+    local multiarch_path
+    case $TARGET_ARCH in
+        amd64)
+            multiarch_path="x86_64-linux-gnu"
+            ;;
+        arm64)  
+            multiarch_path="aarch64-linux-gnu"
+            ;;
+        armhf)
+            multiarch_path="arm-linux-gnueabihf"
+            ;;
+        i386)
+            multiarch_path="i386-linux-gnu"
+            ;;
+        *)
+            print_error "Unsupported architecture: $TARGET_ARCH"
+            echo "Supported architectures: amd64, arm64, armhf, i386"
+            exit 1
+            ;;
+    esac
+    
+    # Add dependency paths to CMAKE_ARGS for common libraries
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_INCLUDE_DIR=/usr/include"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LIBRARIES=/usr/lib/${multiarch_path}/libprotobuf.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LIBRARY=/usr/lib/${multiarch_path}/libprotobuf.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_LITE_LIBRARY=/usr/lib/${multiarch_path}/libprotobuf-lite.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DProtobuf_PROTOC_EXECUTABLE=/usr/bin/protoc"
+    CMAKE_ARGS="$CMAKE_ARGS -DLIBUSB_1_INCLUDE_DIRS=/usr/include/libusb-1.0"
+    CMAKE_ARGS="$CMAKE_ARGS -DLIBUSB_1_LIBRARIES=/usr/lib/${multiarch_path}/libusb-1.0.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_INCLUDE_DIR=/usr/include/openssl"
+    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_CRYPTO_LIBRARY=/usr/lib/${multiarch_path}/libcrypto.so"
+    CMAKE_ARGS="$CMAKE_ARGS -DOPENSSL_SSL_LIBRARY=/usr/lib/${multiarch_path}/libssl.so"
+    
+    print_success "Native compilation configured for ${TARGET_ARCH}"
 }
 
 setup_cross_compilation() {
-    # if target arch equal actual arch, skip cross-compilation setup
-#    if [ "$TARGET_ARCH" = "$(dpkg --print-architecture)" ]; then
-#        print_step "Target architecture is native, skipping cross-compilation setup"
-#        return
-#    fi
-#
-#    if [ -f /.dockerenv ] || [ -f /proc/sys/fs/binfmt_misc/qemu-aarch64 ] || [ -f /proc/sys/fs/binfmt_misc/qemu-arm ]; then
-#        print_step "Running in Docker container for native build - skipping cross-compilation setup"
-#        return
-#    fi
-    
-    if [ "$TARGET_ARCH" != "amd64" ]; then
+    if [ "$TARGET_ARCH" != "amd64" ] && [ "$CROSS_COMPILE" = "true" ]; then
         print_step "Setting up cross-compilation for ${TARGET_ARCH}..."
         
         case $TARGET_ARCH in
             arm64)
-                local c_compiler=$(find_cross_compiler "aarch64-linux-gnu-")
-                if [ $? -eq 0 ]; then
-                    export CMAKE_C_COMPILER="$c_compiler"
-                    export CMAKE_CXX_COMPILER="${c_compiler/gcc/g++}"
-                else
+                export CMAKE_C_COMPILER=aarch64-linux-gnu-gcc
+                export CMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
+                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu"
+                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER"
+                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY"
+                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
+                
+                if ! command -v aarch64-linux-gnu-gcc &> /dev/null; then
                     print_error "ARM64 cross-compiler not found"
                     echo "Install with: sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu"
                     exit 1
                 fi
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu;/usr"
+                ;;
+            armhf)
+                export CMAKE_C_COMPILER=arm-linux-gnueabihf-gcc
+                export CMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++
+                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH=/usr/arm-linux-gnueabihf"
                 CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER"
                 CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY"
                 CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
-                ;;
-            armhf)
-                local c_compiler=$(find_cross_compiler "arm-linux-gnueabihf-")
-                if [ $? -eq 0 ]; then
-                    export CMAKE_C_COMPILER="$c_compiler"
-                    export CMAKE_CXX_COMPILER="${c_compiler/gcc/g++}"
-                else
+                
+                if ! command -v arm-linux-gnueabihf-gcc &> /dev/null; then
                     print_error "ARMHF cross-compiler not found"
                     echo "Install with: sudo apt install gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf"
                     exit 1
                 fi
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH=/usr/arm-linux-gnueabihf;/usr"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_PROGRAM=NEVER"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_LIBRARY=ONLY"
-                CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_FIND_ROOT_PATH_MODE_INCLUDE=ONLY"
                 ;;
             i386)
                 CMAKE_ARGS="$CMAKE_ARGS -DCMAKE_C_FLAGS=-m32 -DCMAKE_CXX_FLAGS=-m32"
@@ -225,12 +291,14 @@ setup_cross_compilation() {
         esac
         
         print_success "Cross-compilation configured for ${TARGET_ARCH}"
+    elif [ "$CROSS_COMPILE" = "false" ]; then
+        setup_native_compilation
     fi
 }
 
 build_protobuf() {
     if [ ! -d "protobuf/build" ] || [ "$CLEAN" = true ]; then
-        print_step "Building protobuf dependency..."
+        print_step "Building AAP Protobuf dependency..."
         
         if [ "$CLEAN" = true ] && [ -d "protobuf/build" ]; then
             rm -rf protobuf/build
@@ -238,36 +306,27 @@ build_protobuf() {
         
         mkdir -p protobuf/build
         cd protobuf/build
+        # Stage installs under the project to avoid requiring root
+        STAGING_DIR="$(pwd)/_staging"
+        mkdir -p "$STAGING_DIR"
         
-        local protobuf_cmake_args="$CMAKE_ARGS"
-        if [ "$TARGET_ARCH" != "amd64" ]; then
-            case $TARGET_ARCH in
-                arm64)
-                    protobuf_cmake_args="$protobuf_cmake_args -DCMAKE_INSTALL_PREFIX=/usr/aarch64-linux-gnu"
-                    ;;
-                armhf)
-                    protobuf_cmake_args="$protobuf_cmake_args -DCMAKE_INSTALL_PREFIX=/usr/arm-linux-gnueabihf"
-                    ;;
-                i386)
-                    # For i386, install to default location since it's not true cross-compilation
-                    ;;
-            esac
-        fi
+      cmake -DCMAKE_BUILD_TYPE=Release \
+          -DTARGET_ARCH=$TARGET_ARCH \
+          -DCMAKE_INSTALL_PREFIX="/usr/local" \
+          $CMAKE_ARGS \
+          ..
         
-        export CC="$CMAKE_C_COMPILER"
-        export CXX="$CMAKE_CXX_COMPILER"
-        cmake -DCMAKE_BUILD_TYPE=Release \
-              -DTARGET_ARCH=$TARGET_ARCH \
-              $protobuf_cmake_args \
-              ..
+    make -j$JOBS
+    # Install to a local staging dir so no sudo is required
+    make install DESTDIR="$STAGING_DIR"
         
-        make -j$JOBS
-        make install
+    # Ensure main build can discover the staged install if it uses find_package
+    export CMAKE_PREFIX_PATH="$STAGING_DIR/usr/local:${CMAKE_PREFIX_PATH}"
         cd ../..
         
-        print_success "Protobuf built successfully"
+        print_success "AAP Protobuf built successfully"
     else
-        print_step "Protobuf already built, skipping..."
+        print_step "AAP Protobuf already built, skipping..."
     fi
 }
 
@@ -353,6 +412,10 @@ run_tests() {
 
 install_project() {
     if [ "$INSTALL" = true ]; then
+        if [ "$DRY_RUN" = true ] || [ "$DRY_RUN" = 1 ]; then
+            print_step "Dry run enabled: skipping system installation"
+            return 0
+        fi
         print_step "Installing AASDK..."
         
         cd "$BUILD_DIR"
@@ -465,22 +528,31 @@ show_usage() {
     echo "  release     Release build with optimizations enabled"
     echo
     echo "OPTIONS:"
-    echo "  clean       Clean build directory before building"
-    echo "  test        Run tests after building"
-    echo "  install     Install after building"
-    echo "  package     Create packages after building"
+    echo "  clean          Clean build directory before building"
+    echo "  test           Run tests after building"
+    echo "  install        Install after building"
+    echo "  package        Create packages after building"
+    echo "  --skip-protobuf  Skip building protobuf, use system-installed version"
+    echo "  --skip-absl      Skip building Abseil, use system-installed version"
     echo
     echo "Environment Variables:"
     echo "  TARGET_ARCH    Target architecture (amd64, arm64, armhf, i386)"
-    echo "  JOBS           Number of parallel build jobs (default: nproc)"
+    echo "  JOBS           Number of parallel build jobs (default: nproc-1)"
     echo "  CMAKE_ARGS     Additional CMake arguments"
+    echo "  CROSS_COMPILE  Enable cross-compilation (true/false, default: true)"
     echo
     echo "Examples:"
     echo "  $0 debug                    # Debug build"
     echo "  $0 release clean           # Clean release build"
     echo "  $0 debug test              # Debug build with tests"
+    echo "  $0 debug --skip-protobuf   # Debug build using system protobuf"
+    echo "  $0 release --skip-absl     # Release build using system Abseil"
     echo "  TARGET_ARCH=arm64 $0 release  # Cross-compile for ARM64"
     echo "  JOBS=4 $0 debug clean     # Build with 4 parallel jobs"
+    echo
+    echo "Backward Compatibility:"
+    echo "  This version includes API changes from AASDK v4.x. For migration help,"
+    echo "  see include/aasdk/BackwardCompatibility.hpp and the migration guide."
     echo
     echo "For complete documentation, see BUILD.md"
 }
@@ -505,7 +577,9 @@ main() {
     # Build process
     check_dependencies
     setup_cross_compilation
-    # build_protobuf  # Skipped since protobuf packages are installed
+    # NOTE: aap_protobuf is built via add_subdirectory(protobuf) inside the main CMake build.
+    # Prebuilding and installing it separately is unnecessary and can require elevated privileges.
+    # The previous step has been disabled to keep dry runs Pi-safe and rootless.
     configure_cmake
     build_project
     validate_build
