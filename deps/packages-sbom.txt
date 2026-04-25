@@ -1,0 +1,2 @@
+# Optional SBOM package dependencies.
+# syft is installed via upstream installer when unavailable in apt.

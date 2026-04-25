@@ -1,314 +1,387 @@
 name: CI
 
 on:
+  pull_request:
   push:
     branches:
       - main
-      - develop
-      - 'feature/*'
-      - 'bugfix/*'
       - newdev
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - '.github/**'
-
-  pull_request:
-    branches:
-      - main
-      - develop
-      - newdev
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - '.gitignore'
-      - '.github/**'
-
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Build version (leave empty for auto-generated)'
-        required: false
-        default: ''
-        type: string
-      architecture:
-        description: 'Architecture to build (all, amd64, arm64, armhf)'
-        required: false
-        default: 'amd64'
-        type: choice
-        options:
-          - all
-          - amd64
-          - arm64
-          - armhf
-      distribution:
-        description: 'Debian distribution to build (trixie, bookworm, all)'
-        required: false
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - trixie
-          - bookworm
 
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}/aasdk
+permissions:
+  contents: read
 
 jobs:
-  prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      matrix: ${{ steps.matrix.outputs.matrix }}
-      distribution: ${{ steps.matrix.outputs.distribution }}
+  quality-coverage-quick-build:
+    name: Quality + Coverage + Quick Build
+    runs-on: ubuntu-24.04
     steps:
-      - name: Generate build matrix
-        id: matrix
-        run: |
-          # Determine distributions
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            DISTRO_INPUT="${{ github.event.inputs.distribution }}"
-          else
-            DISTRO_INPUT="all"
-          fi
-
-          # Determine architectures
-          ARCH_INPUT="${{ github.event.inputs.architecture }}"
-          if [ -z "$ARCH_INPUT" ] || [ "$ARCH_INPUT" = "all" ]; then
-            ARCHES="amd64 arm64 armhf"
-          else
-            ARCHES="$ARCH_INPUT"
-          fi
-
-          # Limit to amd64 for non-main/develop branches to speed up cycle time during debugging
-          if [ "${{ github.ref }}" != "refs/heads/newdev" ] && [ "${{ github.ref }}" != "refs/heads/main" ] && [ "${{ github.ref }}" != "refs/heads/develop" ] && [ "${{ github.event_name }}" != "workflow_dispatch" ]; then
-            ARCHES="amd64"
-            echo "Building only amd64 for feature/bugfix branch (automatic push)"
-          fi
-
-          # Expand distributions list
-          if [ "$DISTRO_INPUT" = "all" ]; then
-            DISTROS="bookworm trixie"
-            echo "distribution=all" >> $GITHUB_OUTPUT
-          else
-            DISTROS="$DISTRO_INPUT"
-            echo "distribution=$DISTRO_INPUT" >> $GITHUB_OUTPUT
-          fi
-
-          # Helper to map arch to platform
-          platform_for_arch() {
-            case "$1" in
-              amd64) echo "linux/amd64";;
-              arm64) echo "linux/arm64";;
-              armhf) echo "linux/arm/v7";;
-              *) echo "linux/amd64";;
-            esac
-          }
-
-          # Build matrix JSON (ensure valid JSON without over-escaping)
-          MATRIX='{"include":['
-          first=true
-          for d in $DISTROS; do
-            for a in $ARCHES; do
-              plat=$(platform_for_arch "$a")
-              entry=$(printf '{"arch":"%s","platform":"%s","distro":"%s"}' "$a" "$plat" "$d")
-              if [ "$first" = true ]; then
-                MATRIX+="$entry"
-                first=false
-              else
-                MATRIX+=",$entry"
-              fi
-            done
-          done
-          MATRIX+=']}'
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
-
-  build:
-    name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
-    needs: prepare
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.prepare.outputs.matrix) }}
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: Checkout
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Set up QEMU for cross-platform builds
-        uses: docker/setup-qemu-action@v4
-        with:
-          platforms: all
-
-      - name: Generate build info
-        id: build_info
+      - name: Install dependencies
         run: |
-          # Use manual version if provided, otherwise generate using same scheme as CMake
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
+          chmod +x ./build.sh
+          CODE_QUALITY=ON ENABLE_COVERAGE=ON BUILD_SBOM=ON ./build.sh --install-deps
+
+      - name: Resolve and sanitize build version from git tags (SemVer)
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          sanitize_semver() {
+            local v="$1"
+            v="${v#v}"
+
+            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([-+][0-9A-Za-z.-]+)?$ ]]; then
+              echo "$v"
+              return 0
+            fi
+            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+              echo "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
+              return 0
+            fi
+            if [[ "$v" =~ ^([0-9]+)$ ]]; then
+              echo "${BASH_REMATCH[1]}.0.0"
+              return 0
+            fi
+
+            echo "0.1.0"
+          }
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            base_version="$(sanitize_semver "${GITHUB_REF_NAME}")"
+            version="${base_version}"
           else
-            BUILD_YEAR=$(date -u +"%Y")
-            BUILD_MONTH=$(date -u +"%m")
-            BUILD_DAY=$(date -u +"%d")
-            VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
-            COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-            if [ "$COMMIT_SHA" != "unknown" ]; then
-              VERSION="${VERSION}+git.${COMMIT_SHA}"
-              if [ "${{ github.event_name }}" = "workflow_dispatch" ] && ! git diff --quiet 2>/dev/null; then
-                VERSION="${VERSION}.dirty"
-              fi
+            latest_tag="$(git tag --sort=-v:refname | head -n1 || true)"
+            base_version="$(sanitize_semver "${latest_tag}")"
+            if [[ -z "${base_version}" ]]; then
+              base_version="0.1.0"
             fi
+            version="${base_version}+${GITHUB_SHA::7}"
           fi
-          COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
-          RELEASE_VERSION="${VERSION}"
-          if [ "${{ github.event.inputs.create_release }}" = "true" ] || [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            if [ -z "${{ github.event.inputs.version }}" ]; then
-              RELEASE_VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
-              if [ "$COMMIT_SHA" != "unknown" ]; then
-                RELEASE_VERSION="${RELEASE_VERSION}+git.${COMMIT_SHA}"
-              fi
-            fi
-          fi
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
-          echo "commit_sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
-          echo "build_date=${BUILD_DATE}" >> $GITHUB_OUTPUT
-          echo "package_name=aasdk-${{ matrix.arch }}-${VERSION}" >> $GITHUB_OUTPUT
+          echo "base_version=${base_version}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
 
-      - name: Build AASDK for ${{ matrix.arch }} on ${{ matrix.distro }}
+      - name: Run unified quality + coverage + quick package build
         run: |
-          echo "Building AASDK for ${{ matrix.arch }} architecture"
-          RUN_TESTS=false
-          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/develop" ]; then
-            RUN_TESTS=true
-          fi
-          echo "RUN_TESTS=${RUN_TESTS} for this build"
-          if [ "${{ github.ref }}" = "refs/heads/main" ] || [ "${{ github.ref }}" = "refs/heads/newdev" ]; then
-            BUILD_TYPE="release"
-            echo "Building release packages for main branch"
-          else
-            BUILD_TYPE="debug"
-            echo "Building debug packages for ${{ github.ref_name }} branch"
-          fi
-          mkdir -p ./build-output
-          docker buildx build \
-            --platform ${{ matrix.platform }} \
-            --build-arg TARGET_ARCH=${{ matrix.arch }} \
-            --build-arg DEBIAN_VERSION=${{ matrix.distro }} \
-            --build-arg BUILD_TYPE=${BUILD_TYPE} \
-            --build-arg RUN_TESTS=${RUN_TESTS} \
-            --tag aasdk-build:${{ matrix.arch }} \
-            --load \
-            .
-          container_id=$(docker create aasdk-build:${{ matrix.arch }})
-          docker cp ${container_id}:/output/. ./build-output/
-          docker rm ${container_id}
-          echo "Build completed for ${{ matrix.arch }}"
-          ls -la ./build-output/
+          chmod +x ./build.sh
+          BUILD_DIR=build-quality \
+          BUILD_TESTS=ON \
+          BUILD_PACKAGE=ON \
+          BUILD_SBOM=ON \
+          CODE_QUALITY=ON \
+          FORMAT_CHECK=ON \
+          ENABLE_COVERAGE=ON \
+          VERSION="${{ steps.version.outputs.version }}" \
+          ./build.sh --clean
 
-      - name: Validate packages
-        run: |
-          echo "Validating packages for ${{ matrix.arch }}..."
-          if [ ! "$(ls -A ./build-output/*.deb 2>/dev/null)" ]; then
-            echo "Error: No .deb packages found for ${{ matrix.arch }}"
-            exit 1
-          fi
-          for package in ./build-output/*.deb; do
-            if [ -f "$package" ]; then
-              echo "Package: $(basename $package)"
-              dpkg-deb --info "$package" | head -20
-              echo "---"
-            fi
-          done
-
-      - name: Generate version report
-        run: |
-          out="deb-versions-${{ matrix.distro }}-${{ matrix.arch }}.md"
-          echo "# AASDK DEB Versions for ${{ matrix.distro }} / ${{ matrix.arch }}" > "$out"
-          echo "" >> "$out"
-          for package in ./build-output/*.deb; do
-            [ -f "$package" ] || continue
-            pkg=$(dpkg-deb --field "$package" Package)
-            ver=$(dpkg-deb --field "$package" Version)
-            arch=$(dpkg-deb --field "$package" Architecture)
-            echo "- $(basename "$package"): $pkg $ver ($arch)" >> "$out"
-          done
-          echo "Wrote $out"
-
-      - name: Upload version report
+      - name: Upload quick build artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: "aasdk-deb-versions-${{ matrix.distro }}-${{ matrix.arch }}"
-          path: "deb-versions-${{ matrix.distro }}-${{ matrix.arch }}.md"
-          retention-days: 60
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: "aasdk-packages-${{ matrix.distro }}-${{ matrix.arch }}"
+          name: quick-build-amd64-artifacts
+          if-no-files-found: warn
           path: |
-            ./build-output/*.deb
-            ./build-output/*.tar.*
-          retention-days: 30
+            build-quality/packages/*.deb
+            build-quality/packages/*.tgz
 
-  test:
-    needs: build
-    runs-on: ubuntu-latest
-    if: success()
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v6
-        with:
-          pattern: aasdk-packages-*
-          merge-multiple: true
-          path: ./test-packages
-
-      - name: Test package installation
-        run: |
-          echo "Testing package installation..."
-          for package in ./test-packages/*amd64*.deb; do
-            if [ -f "$package" ]; then
-              echo "Testing installation of $(basename $package)"
-              dpkg-deb --contents "$package" | head -20
-              dpkg-deb --field "$package" Depends
-              echo "Package $(basename $package) structure looks good"
-            fi
-          done
-
-      - name: Generate test report
-        run: |
-          echo "# AASDK Build Test Report" > test-report.md
-          echo "" >> test-report.md
-          echo "## Build Summary" >> test-report.md
-          echo "- Build Date: $(date -u)" >> test-report.md
-          echo "- Commit: ${{ github.sha }}" >> test-report.md
-          echo "- Branch: ${{ github.ref_name }}" >> test-report.md
-          echo "" >> test-report.md
-          echo "## Package Information" >> test-report.md
-          for package in ./test-packages/*.deb; do
-            if [ -f "$package" ]; then
-              echo "### $(basename $package)" >> test-report.md
-              echo '```' >> test-report.md
-              dpkg-deb --field "$package" Package Architecture Version Depends >> test-report.md
-              echo '```' >> test-report.md
-              echo "" >> test-report.md
-            fi
-          done
-
-      - name: Upload test report
+      - name: Upload quick build SBOM artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: aasdk-test-report-${{ github.run_number }}
-          path: test-report.md
-          retention-days: 90
+          name: quick-build-amd64-sbom
+          if-no-files-found: error
+          path: |
+            build-quality/sbom/*.spdx.json
+
+      - name: Generate coverage reports
+        run: |
+          lcov --capture --ignore-errors mismatch --rc geninfo_unexecuted_blocks=1 --directory build-quality --output-file build-quality/coverage.info
+          lcov --ignore-errors unused,mismatch --remove build-quality/coverage.info '/usr/*' '*/unit_test/*' '*/src/*.ut.cpp' --output-file build-quality/coverage.filtered.info
+          lcov --summary build-quality/coverage.filtered.info > build-quality/coverage-summary.txt
+          genhtml build-quality/coverage.filtered.info --output-directory build-quality/coverage-html
+
+      - name: Publish coverage summary to workflow page
+        shell: bash
+        run: |
+          {
+            echo "## Test Coverage"
+            echo
+            echo "Source: build-quality/coverage.filtered.info"
+            echo
+            echo '```text'
+            cat build-quality/coverage-summary.txt
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: |
+            build-quality/coverage.filtered.info
+            build-quality/coverage-summary.txt
+            build-quality/coverage-html/
+
+  full-multiarch-build-test:
+    name: Full Build + Unit Tests (${{ matrix.distro_id }}-${{ matrix.arch_id }})
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [quality-coverage-quick-build]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: ubuntu:24.04
+            distro_id: ubuntu24
+            platform: linux/amd64
+            arch_id: amd64
+          - distro: ubuntu:24.04
+            distro_id: ubuntu24
+            platform: linux/arm64
+            arch_id: arm64
+          - distro: ubuntu:24.04
+            distro_id: ubuntu24
+            platform: linux/arm/v7
+            arch_id: armhf
+          - distro: debian:trixie-slim
+            distro_id: trixie
+            platform: linux/amd64
+            arch_id: amd64
+          - distro: debian:trixie-slim
+            distro_id: trixie
+            platform: linux/arm64
+            arch_id: arm64
+          - distro: debian:trixie-slim
+            distro_id: trixie
+            platform: linux/arm/v7
+            arch_id: armhf
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up QEMU emulation
+        uses: docker/setup-qemu-action@v4
+
+      - name: Resolve and sanitize build version from git tags (SemVer)
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          sanitize_semver() {
+            local v="$1"
+            v="${v#v}"
+
+            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([-+][0-9A-Za-z.-]+)?$ ]]; then
+              echo "$v"
+              return 0
+            fi
+            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+              echo "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
+              return 0
+            fi
+            if [[ "$v" =~ ^([0-9]+)$ ]]; then
+              echo "${BASH_REMATCH[1]}.0.0"
+              return 0
+            fi
+
+            echo "0.1.0"
+          }
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            base_version="$(sanitize_semver "${GITHUB_REF_NAME}")"
+            version="${base_version}"
+          else
+            latest_tag="$(git tag --sort=-v:refname | head -n1 || true)"
+            base_version="$(sanitize_semver "${latest_tag}")"
+            if [[ -z "${base_version}" ]]; then
+              base_version="0.1.0"
+            fi
+            version="${base_version}+${GITHUB_SHA::7}"
+          fi
+          echo "base_version=${base_version}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Build and test in multiarch Docker container
+        env:
+          DISTRO_IMAGE: ${{ matrix.distro }}
+          DISTRO_ID: ${{ matrix.distro_id }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH_ID: ${{ matrix.arch_id }}
+          BUILD_VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          chmod +x ./build.sh
+
+          docker run --rm \
+            --platform "${PLATFORM}" \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -e BUILD_VERSION="${BUILD_VERSION}" \
+            -e DISTRO_ID="${DISTRO_ID}" \
+            -e ARCH_ID="${ARCH_ID}" \
+            -v "${PWD}:/work" \
+            -w /work \
+            "${DISTRO_IMAGE}" \
+            bash -lc '
+              set -euo pipefail
+              ./build.sh --install-deps
+
+              BUILD_DIR="build-${DISTRO_ID}-${ARCH_ID}" \
+              BUILD_TESTS=ON \
+              BUILD_PACKAGE=ON \
+              VERSION="${BUILD_VERSION}" \
+              ./build.sh --clean
+
+              workspace_owner="$(stat -c "%u:%g" /work)"
+              chown -R "${workspace_owner}" "build-${DISTRO_ID}-${ARCH_ID}"
+            '
+
+      - name: Install syft on runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v syft >/dev/null 2>&1; then
+            curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          fi
+
+      - name: Generate matrix SBOMs on runner
+        env:
+          DISTRO_ID: ${{ matrix.distro_id }}
+          ARCH_ID: ${{ matrix.arch_id }}
+        run: |
+          set -euo pipefail
+          chmod +x ./build.sh
+          BUILD_DIR="build-${DISTRO_ID}-${ARCH_ID}" \
+          BUILD_SBOM=ON \
+          ./build.sh --sbom-only
+
+      - name: Upload matrix build artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-${{ matrix.distro_id }}-${{ matrix.arch_id }}-artifacts
+          if-no-files-found: error
+          path: |
+            build-${{ matrix.distro_id }}-${{ matrix.arch_id }}/packages/*.deb
+            build-${{ matrix.distro_id }}-${{ matrix.arch_id }}/packages/*.tgz
+
+      - name: Upload matrix SBOM artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: full-${{ matrix.distro_id }}-${{ matrix.arch_id }}-sbom
+          if-no-files-found: error
+          path: |
+            build-${{ matrix.distro_id }}-${{ matrix.arch_id }}/sbom/*.spdx.json
+
+  release-notes:
+    name: Changelog and Release Notes
+    if: github.event_name == 'push'
+    needs: [quality-coverage-quick-build, full-multiarch-build-test]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and sanitize release version from git tags (SemVer)
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          sanitize_semver() {
+            local v="$1"
+            v="${v#v}"
+
+            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([-+][0-9A-Za-z.-]+)?$ ]]; then
+              echo "$v"
+              return 0
+            fi
+            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
+              echo "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
+              return 0
+            fi
+            if [[ "$v" =~ ^([0-9]+)$ ]]; then
+              echo "${BASH_REMATCH[1]}.0.0"
+              return 0
+            fi
+
+            echo "0.1.0"
+          }
+
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            base_version="$(sanitize_semver "${GITHUB_REF_NAME}")"
+            version="${base_version}"
+          else
+            latest_tag="$(git tag --sort=-v:refname | head -n1 || true)"
+            base_version="$(sanitize_semver "${latest_tag}")"
+            version="${base_version}+${GITHUB_SHA::7}"
+          fi
+
+          echo "base_version=${base_version}" >> "${GITHUB_OUTPUT}"
+          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+
+      - name: Generate changelog and release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          release_version="${{ steps.version.outputs.version }}"
+
+          latest_tag="$(git tag --sort=-v:refname | head -n1 || true)"
+          if [[ -n "${latest_tag}" ]]; then
+            range="${latest_tag}..HEAD"
+          else
+            range="HEAD"
+          fi
+
+          {
+            echo "# Changelog ${release_version}"
+            echo
+            if [[ -n "${latest_tag}" ]]; then
+              echo "Version: ${release_version}"
+              echo "Changes since ${latest_tag}."
+            else
+              echo "Version: ${release_version}"
+              echo "Changes for initial release baseline."
+            fi
+            echo
+            git log ${range} --pretty='- %h %s (%an)'
+          } > changelog.md
+
+          {
+            echo "# Release Notes ${release_version}"
+            echo
+            echo "Version: ${release_version}"
+            echo
+            echo "## Highlights"
+            echo "- Automated build/test matrix across Debian Trixie and Ubuntu 24 for amd64/arm64/armhf"
+            echo "- DEB and TGZ artifact export"
+            echo "- Coverage and SBOM generation"
+            echo
+            echo "## Commit Summary"
+            git log ${range} --pretty='- %s'
+          } > release-notes.md
+
+      - name: Download generated SBOM artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: '*-sbom'
+          path: sbom-artifacts
+
+      - name: Upload changelog and release notes
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-metadata
+          path: |
+            changelog.md
+            release-notes.md
+            sbom-artifacts/

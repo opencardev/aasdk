@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
+if(POLICY CMP0167)
+    cmake_policy(SET CMP0167 NEW)
+endif()
+
 project(aasdk)
 message(STATUS "AASDK Library")
 message(STATUS "Cross Compiling?")
@@ -7,6 +11,8 @@ message(STATUS "Cross Compiling?")
 # Options to skip building dependencies
 option(SKIP_BUILD_PROTOBUF "Skip building protobuf, use system-installed version" OFF)
 option(SKIP_BUILD_ABSL "Skip building Abseil, use system-installed version" OFF)
+option(AASDK_TEST "Build AASDK unit tests" ON)
+option(AASDK_CODE_COVERAGE "Enable coverage build options for AASDK tests" OFF)
 
 # Cross Compiling Architecture and Package Architecture Detection
 if( TARGET_ARCH STREQUAL "amd64" )
@@ -71,10 +77,38 @@ else()
     endif()
 endif()
 
-# Set Compile Versions - Date-based semantic versioning
-string(TIMESTAMP LIBRARY_BUILD_YEAR "%Y" UTC)      # Major version = Year (e.g., 2025)
-string(TIMESTAMP LIBRARY_BUILD_MONTH "%m" UTC)     # Minor version = Month (01-12)
-string(TIMESTAMP LIBRARY_BUILD_DAY "%d" UTC)       # Patch version = Day (01-31)
+# Resolve version override first (from -DAASDK_VERSION_OVERRIDE or env VERSION/BUILD_VERSION).
+set(AASDK_VERSION_OVERRIDE "${AASDK_VERSION_OVERRIDE}" CACHE STRING "Override build/package version (SemVer)")
+if(NOT AASDK_VERSION_OVERRIDE AND DEFINED ENV{VERSION} AND NOT "$ENV{VERSION}" STREQUAL "")
+    set(AASDK_VERSION_OVERRIDE "$ENV{VERSION}")
+endif()
+if(NOT AASDK_VERSION_OVERRIDE AND DEFINED ENV{BUILD_VERSION} AND NOT "$ENV{BUILD_VERSION}" STREQUAL "")
+    set(AASDK_VERSION_OVERRIDE "$ENV{BUILD_VERSION}")
+endif()
+
+set(AASDK_HAS_VERSION_OVERRIDE OFF)
+if(AASDK_VERSION_OVERRIDE)
+    string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)([-+][0-9A-Za-z.-]+)?$" AASDK_VERSION_MATCH "${AASDK_VERSION_OVERRIDE}")
+    if(AASDK_VERSION_MATCH)
+        set(AASDK_HAS_VERSION_OVERRIDE ON)
+        set(LIBRARY_BUILD_MAJOR_RELEASE "${CMAKE_MATCH_1}")
+        set(LIBRARY_BUILD_MINOR_RELEASE "${CMAKE_MATCH_2}")
+        set(LIBRARY_BUILD_PATCH_RELEASE "${CMAKE_MATCH_3}")
+        set(AASDK_VERSION_SUFFIX "${CMAKE_MATCH_4}")
+    else()
+        message(WARNING "Ignoring invalid AASDK_VERSION_OVERRIDE='${AASDK_VERSION_OVERRIDE}'; expected SemVer x.y.z[-suffix|+metadata]")
+    endif()
+endif()
+
+if(NOT AASDK_HAS_VERSION_OVERRIDE)
+    # Date-based semantic versioning fallback.
+    string(TIMESTAMP LIBRARY_BUILD_YEAR "%Y" UTC)
+    string(TIMESTAMP LIBRARY_BUILD_MONTH "%m" UTC)
+    string(TIMESTAMP LIBRARY_BUILD_DAY "%d" UTC)
+    set(LIBRARY_BUILD_MAJOR_RELEASE ${LIBRARY_BUILD_YEAR})
+    set(LIBRARY_BUILD_MINOR_RELEASE ${LIBRARY_BUILD_MONTH})
+    set(LIBRARY_BUILD_PATCH_RELEASE ${LIBRARY_BUILD_DAY})
+endif()
 
 # Set CMAKE_MODULE_PATH early so we can include gitversion.cmake
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake_modules/")
@@ -97,10 +131,7 @@ if(NOT GIT_DESCRIBE OR GIT_DESCRIBE STREQUAL "")
     set(GIT_DESCRIBE "unknown")
 endif()
 
-# Set version components
-set(LIBRARY_BUILD_MAJOR_RELEASE ${LIBRARY_BUILD_YEAR})
-set(LIBRARY_BUILD_MINOR_RELEASE ${LIBRARY_BUILD_MONTH})
-set(LIBRARY_BUILD_PATCH_RELEASE ${LIBRARY_BUILD_DAY})
+set(AASDK_BASE_VERSION "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE}")
 
 # Cache
 find_program(CCACHE_PROGRAM ccache)
@@ -119,7 +150,7 @@ message(STATUS "Configuring CMAKE")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT} -fPIC -Wall -pedantic")
+string(APPEND CMAKE_CXX_FLAGS " -fPIC -Wall -pedantic")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -DNDEBUG")
 
@@ -291,19 +322,23 @@ if(ENABLE_JSON_LOGGING AND nlohmann_json_FOUND)
 endif()
 
 
-set(LIBRARY_VERSION_STRING "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE}")
+if(AASDK_HAS_VERSION_OVERRIDE)
+    set(LIBRARY_VERSION_STRING "${AASDK_VERSION_OVERRIDE}")
+else()
+    set(LIBRARY_VERSION_STRING "${AASDK_BASE_VERSION}")
 
-# Add git commit info to version if available
-if(GIT_COMMIT_ID AND NOT GIT_COMMIT_ID STREQUAL "unknown")
-    set(LIBRARY_VERSION_STRING "${LIBRARY_VERSION_STRING}+git.${GIT_COMMIT_ID}")
-    if(GIT_DIRTY GREATER 0)
-        set(LIBRARY_VERSION_STRING "${LIBRARY_VERSION_STRING}.dirty")
+    # Add git commit info to version if available
+    if(GIT_COMMIT_ID AND NOT GIT_COMMIT_ID STREQUAL "unknown")
+        set(LIBRARY_VERSION_STRING "${LIBRARY_VERSION_STRING}+git.${GIT_COMMIT_ID}")
+        if(GIT_DIRTY GREATER 0)
+            set(LIBRARY_VERSION_STRING "${LIBRARY_VERSION_STRING}.dirty")
+        endif()
     endif()
-endif()
 
-# Add build type suffix for debug builds
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(LIBRARY_VERSION_STRING "${LIBRARY_VERSION_STRING}.debug")
+    # Add build type suffix for debug builds
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(LIBRARY_VERSION_STRING "${LIBRARY_VERSION_STRING}.debug")
+    endif()
 endif()
 
 message(STATUS "Project Version: ${LIBRARY_VERSION_STRING}")
@@ -454,7 +489,7 @@ endif()
 
 set(CPACK_PACKAGE_VENDOR "AASDK")
 set(CPACK_PACKAGE_CONTACT "OpenCarDev Team <opencardevuk@gmail.com>")
-set(CPACK_PACKAGE_VERSION ${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE})
+set(CPACK_PACKAGE_VERSION ${AASDK_BASE_VERSION})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library")
 set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications.")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/opencardev/aasdk")
@@ -508,11 +543,11 @@ set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_SECTION "libdevel")
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_PRIORITY "optional")
 # Construct the full Debian package version including any CPACK release suffix
 if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE AND NOT "${CPACK_DEBIAN_PACKAGE_RELEASE}" STREQUAL "")
-    # Full version: <YYYY.MM.DD>-<CPACK_DEBIAN_PACKAGE_RELEASE>
-    set(_full_package_version "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE}-${CPACK_DEBIAN_PACKAGE_RELEASE}")
+    # Full version: <base-version>-<CPACK_DEBIAN_PACKAGE_RELEASE>
+    set(_full_package_version "${AASDK_BASE_VERSION}-${CPACK_DEBIAN_PACKAGE_RELEASE}")
 else()
-    # Fallback to the simple date based version
-    set(_full_package_version "${LIBRARY_BUILD_MAJOR_RELEASE}.${LIBRARY_BUILD_MINOR_RELEASE}.${LIBRARY_BUILD_PATCH_RELEASE}")
+    # Fallback to the base semantic version
+    set(_full_package_version "${AASDK_BASE_VERSION}")
 endif()
 
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_PACKAGE_NAME} (= ${_full_package_version})")

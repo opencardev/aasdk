@@ -1,0 +1,14 @@
+# Build dependencies for Debian 13 (Trixie)
+ca-certificates
+git
+build-essential
+cmake
+ninja-build
+pkg-config
+libboost-all-dev
+libprotobuf-dev
+protobuf-compiler
+libusb-1.0-0-dev
+libssl-dev
+libabsl-dev
+file

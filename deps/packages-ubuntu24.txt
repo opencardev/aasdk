@@ -1,0 +1,14 @@
+# Build dependencies for Ubuntu 24.04 (Noble Numbat)
+ca-certificates
+git
+build-essential
+cmake
+ninja-build
+pkg-config
+libboost-all-dev
+libprotobuf-dev
+protobuf-compiler
+libusb-1.0-0-dev
+libssl-dev
+libabsl-dev
+file

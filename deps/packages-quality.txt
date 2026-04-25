@@ -1,0 +1,2 @@
+cppcheck
+clang-format
