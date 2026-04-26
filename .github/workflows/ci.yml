@@ -10,11 +10,14 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   quality-coverage-quick-build:
     name: Quality + Coverage + Quick Build
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -313,3 +316,16 @@ jobs:
             changelog.md
             release-notes.md
             sbom-artifacts/
+
+  create-release:
+    name: Create GitHub Release
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [quality-coverage-quick-build, full-multiarch-build-test]
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/release.yml
+    with:
+      build_run_id: ${{ github.run_id }}
+      version: ${{ needs.quality-coverage-quick-build.outputs.version }}
+      create_draft: false

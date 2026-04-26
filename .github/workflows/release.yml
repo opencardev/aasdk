@@ -8,9 +8,8 @@ on:
         required: true
         type: string
       version:
-        description: 'Release version (leave empty for auto-generated)'
-        required: false
-        default: ''
+        description: 'Release version'
+        required: true
         type: string
       create_draft:
         description: 'Create as draft release'
@@ -25,9 +24,8 @@ on:
         required: true
         type: string
       version:
-        description: 'Release version (leave empty for auto-generated)'
-        required: false
-        default: ''
+        description: 'Release version'
+        required: true
         type: string
       create_draft:
         description: 'Create as draft release'
@@ -48,22 +46,7 @@ jobs:
       - name: Generate release info
         id: release_info
         run: |
-          # Use manual version if provided, otherwise generate using same scheme as CMake
-          if [ -n "${{ inputs.version }}" ]; then
-            VERSION="${{ inputs.version }}"
-          else
-            # Match CMakeLists.txt date-based versioning: YYYY.MM.DD
-            BUILD_YEAR=$(date -u +"%Y")
-            BUILD_MONTH=$(date -u +"%m")
-            BUILD_DAY=$(date -u +"%d")
-            VERSION="${BUILD_YEAR}.${BUILD_MONTH}.${BUILD_DAY}"
-
-            # Add git commit info if available (match CMake logic)
-            COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-            if [ "$COMMIT_SHA" != "unknown" ]; then
-              VERSION="${VERSION}+git.${COMMIT_SHA}"
-            fi
-          fi
+          VERSION="${{ inputs.version }}"
 
           COMMIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
           BUILD_DATE=$(date -u +"%Y%m%d_%H%M%S")
@@ -153,8 +136,14 @@ jobs:
           # Move build artifacts to release packages directory
           if [ -d "./downloaded-artifacts" ]; then
             find ./downloaded-artifacts -name "*.deb" -exec cp {} ./release-packages/ \;
+            find ./downloaded-artifacts -name "*.tgz" -exec cp {} ./release-packages/ \;
             find ./downloaded-artifacts -name "*.tar.*" -exec cp {} ./release-packages/ \;
-            find ./downloaded-artifacts -name "test-report.md" -exec cp {} ./release-packages/ \;
+          fi
+
+          PACKAGE_COUNT=$(find ./release-packages -maxdepth 1 -type f \( -name "*.deb" -o -name "*.tgz" -o -name "*.tar.*" \) | wc -l)
+          if [ "${PACKAGE_COUNT}" -eq 0 ]; then
+            echo "❌ No package artifacts found (.deb/.tgz/.tar.*)"
+            exit 1
           fi
 
           echo "Downloaded artifacts:"
@@ -168,7 +157,7 @@ jobs:
           cd ./release-packages
 
           # Generate individual hash files for each package
-          for pattern in "*.deb" "*.tar.*"; do
+          for pattern in "*.deb" "*.tgz" "*.tar.*"; do
             for file in $pattern; do
               if [ -f "$file" ]; then
                 echo "Generating hash for $file"
@@ -186,6 +175,11 @@ jobs:
           # Add checksums for .deb files
           if ls *.deb >/dev/null 2>&1; then
             sha256sum *.deb >> SHA256SUMS
+          fi
+
+          # Add checksums for .tar.* files
+          if ls *.tgz >/dev/null 2>&1; then
+            sha256sum *.tgz >> SHA256SUMS
           fi
 
           # Add checksums for .tar.* files
@@ -240,6 +234,12 @@ jobs:
           tag_name: ${{ steps.release_info.outputs.version || github.run_number }}
           name: "AASDK Release ${{ steps.release_info.outputs.version || github.run_number }}"
           body_path: RELEASE_NOTES.md
+          files: |
+            release-packages/*.deb
+            release-packages/*.tgz
+            release-packages/*.tar.*
+            release-packages/*.sha256
+            release-packages/SHA256SUMS
           draft: ${{ inputs.create_draft || false }}
           prerelease: ${{ contains(steps.release_info.outputs.version, 'git') }}
         env:
