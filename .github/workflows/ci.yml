@@ -26,45 +26,21 @@ jobs:
           chmod +x ./build.sh
           CODE_QUALITY=ON ENABLE_COVERAGE=ON BUILD_SBOM=ON ./build.sh --install-deps
 
-      - name: Resolve and sanitize build version from git tags (SemVer)
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: 6.x
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
+
+      - name: Export build version outputs
         id: version
         shell: bash
         run: |
-          set -euo pipefail
-          git fetch --tags --force
-          sanitize_semver() {
-            local v="$1"
-            v="${v#v}"
-
-            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([-+][0-9A-Za-z.-]+)?$ ]]; then
-              echo "$v"
-              return 0
-            fi
-            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
-              echo "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
-              return 0
-            fi
-            if [[ "$v" =~ ^([0-9]+)$ ]]; then
-              echo "${BASH_REMATCH[1]}.0.0"
-              return 0
-            fi
-
-            echo "0.1.0"
-          }
-
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            base_version="$(sanitize_semver "${GITHUB_REF_NAME}")"
-            version="${base_version}"
-          else
-            latest_tag="$(git tag --sort=-v:refname | head -n1 || true)"
-            base_version="$(sanitize_semver "${latest_tag}")"
-            if [[ -z "${base_version}" ]]; then
-              base_version="0.1.0"
-            fi
-            version="${base_version}+${GITHUB_SHA::7}"
-          fi
-          echo "base_version=${base_version}" >> "${GITHUB_OUTPUT}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "base_version=${{ steps.gitversion.outputs.MajorMinorPatch }}" >> "${GITHUB_OUTPUT}"
+          echo "version=${{ steps.gitversion.outputs.SemVer }}" >> "${GITHUB_OUTPUT}"
 
       - name: Run unified quality + coverage + quick package build
         run: |
@@ -167,46 +143,21 @@ jobs:
       - name: Set up QEMU emulation
         uses: docker/setup-qemu-action@v4
 
-      - name: Resolve and sanitize build version from git tags (SemVer)
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: 6.x
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
+
+      - name: Export build version outputs
         id: version
         shell: bash
         run: |
-          set -euo pipefail
-          git fetch --tags --force
-
-          sanitize_semver() {
-            local v="$1"
-            v="${v#v}"
-
-            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([-+][0-9A-Za-z.-]+)?$ ]]; then
-              echo "$v"
-              return 0
-            fi
-            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
-              echo "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
-              return 0
-            fi
-            if [[ "$v" =~ ^([0-9]+)$ ]]; then
-              echo "${BASH_REMATCH[1]}.0.0"
-              return 0
-            fi
-
-            echo "0.1.0"
-          }
-
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            base_version="$(sanitize_semver "${GITHUB_REF_NAME}")"
-            version="${base_version}"
-          else
-            latest_tag="$(git tag --sort=-v:refname | head -n1 || true)"
-            base_version="$(sanitize_semver "${latest_tag}")"
-            if [[ -z "${base_version}" ]]; then
-              base_version="0.1.0"
-            fi
-            version="${base_version}+${GITHUB_SHA::7}"
-          fi
-          echo "base_version=${base_version}" >> "${GITHUB_OUTPUT}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "base_version=${{ steps.gitversion.outputs.MajorMinorPatch }}" >> "${GITHUB_OUTPUT}"
+          echo "version=${{ steps.gitversion.outputs.SemVer }}" >> "${GITHUB_OUTPUT}"
 
       - name: Build and test in multiarch Docker container
         env:
@@ -289,44 +240,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve and sanitize release version from git tags (SemVer)
+      - name: Setup GitVersion
+        uses: gittools/actions/gitversion/setup@v3
+        with:
+          versionSpec: 6.x
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v3
+
+      - name: Export build version outputs
         id: version
         shell: bash
         run: |
-          set -euo pipefail
-          git fetch --tags --force
-
-          sanitize_semver() {
-            local v="$1"
-            v="${v#v}"
-
-            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)([-+][0-9A-Za-z.-]+)?$ ]]; then
-              echo "$v"
-              return 0
-            fi
-            if [[ "$v" =~ ^([0-9]+)\.([0-9]+)$ ]]; then
-              echo "${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.0"
-              return 0
-            fi
-            if [[ "$v" =~ ^([0-9]+)$ ]]; then
-              echo "${BASH_REMATCH[1]}.0.0"
-              return 0
-            fi
-
-            echo "0.1.0"
-          }
-
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            base_version="$(sanitize_semver "${GITHUB_REF_NAME}")"
-            version="${base_version}"
-          else
-            latest_tag="$(git tag --sort=-v:refname | head -n1 || true)"
-            base_version="$(sanitize_semver "${latest_tag}")"
-            version="${base_version}+${GITHUB_SHA::7}"
-          fi
-
-          echo "base_version=${base_version}" >> "${GITHUB_OUTPUT}"
-          echo "version=${version}" >> "${GITHUB_OUTPUT}"
+          echo "base_version=${{ steps.gitversion.outputs.MajorMinorPatch }}" >> "${GITHUB_OUTPUT}"
+          echo "version=${{ steps.gitversion.outputs.SemVer }}" >> "${GITHUB_OUTPUT}"
 
       - name: Generate changelog and release notes
         shell: bash
