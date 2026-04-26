@@ -35,7 +35,7 @@ namespace aasdk {
       if (offset > _size || _data == nullptr || _size == 0) {
         data = nullptr;
         size = 0;
-      } else if (offset <= _size) {
+      } else {
         data = _data + offset;
         size = _size - offset;
       }
@@ -72,7 +72,7 @@ namespace aasdk {
       if (offset > _size || _data == nullptr || _size == 0) {
         cdata = nullptr;
         size = 0;
-      } else if (offset <= _size) {
+      } else {
         cdata = _data + offset;
         size = _size - offset;
       }
