@@ -1,5 +1,13 @@
 Release Notes
 =============
+20260427 - 4.1.20260427
+- Adopt GitVersion-driven CI versioning in build and release jobs.
+- Wire CI to call reusable release workflow with explicit version and build run ID.
+- Harden release artifacts: require version input and publish .deb/.tgz/.tar.* with SHA256 files.
+
+20260426 - 4.1.20260426
+- Refactor CI pipeline and add Ubuntu build coverage.
+
 20241120 - 2.0.1
 - Restructure AASDK Proto Protobuf files for Android Auto 1.6 Support based on information from https://milek7.pl/.stuff/galdocs/readme.md
 This fleshes out enums and other methods with their full naming conventions for better readability and understanding.
@@ -7,4 +15,3 @@ This fleshes out enums and other methods with their full naming conventions for 
 - Added initial GenericNotification, MediaBrowser, MediaPlaybackStatus, PhoneStatus, Radio, VendorExtension and WifiProjection services.
 - Update AASDK_LOG entries for extra consistency
 - Simplify CMAKE to build and install keeping parameters to a minimum. Default to Release mode and Raspberry PI build unless otherwise specified.
--

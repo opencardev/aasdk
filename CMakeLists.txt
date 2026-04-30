@@ -489,7 +489,7 @@ endif()
 
 set(CPACK_PACKAGE_VENDOR "AASDK")
 set(CPACK_PACKAGE_CONTACT "OpenCarDev Team <opencardevuk@gmail.com>")
-set(CPACK_PACKAGE_VERSION ${AASDK_BASE_VERSION})
+set(CPACK_PACKAGE_VERSION ${LIBRARY_VERSION_STRING})
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Android Auto SDK Library")
 set(CPACK_PACKAGE_DESCRIPTION "Android Auto SDK (AASDK) is a library for implementing Android Auto functionality in C++ applications.")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/opencardev/aasdk")
@@ -544,10 +544,10 @@ set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_PRIORITY "optional")
 # Construct the full Debian package version including any CPACK release suffix
 if(DEFINED CPACK_DEBIAN_PACKAGE_RELEASE AND NOT "${CPACK_DEBIAN_PACKAGE_RELEASE}" STREQUAL "")
     # Full version: <base-version>-<CPACK_DEBIAN_PACKAGE_RELEASE>
-    set(_full_package_version "${AASDK_BASE_VERSION}-${CPACK_DEBIAN_PACKAGE_RELEASE}")
+    set(_full_package_version "${LIBRARY_VERSION_STRING}-${CPACK_DEBIAN_PACKAGE_RELEASE}")
 else()
-    # Fallback to the base semantic version
-    set(_full_package_version "${AASDK_BASE_VERSION}")
+    # Fallback to the git-aware version used for runtime package metadata
+    set(_full_package_version "${LIBRARY_VERSION_STRING}")
 endif()
 
 set(CPACK_DEBIAN_DEVELOPMENT_PACKAGE_DEPENDS "${CPACK_PACKAGE_NAME} (= ${_full_package_version})")
