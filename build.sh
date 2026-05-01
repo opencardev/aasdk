@@ -274,6 +274,8 @@ fi
 
 if [[ -n "${VERSION}" ]]; then
   cmake_args+=("-DAASDK_VERSION_OVERRIDE=${VERSION}")
+else
+  cmake_args+=("-UAASDK_VERSION_OVERRIDE")
 fi
 
 if [[ -n "${CMAKE_EXTRA_ARGS}" ]]; then

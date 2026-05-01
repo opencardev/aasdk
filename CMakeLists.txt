@@ -88,7 +88,7 @@ endif()
 
 set(AASDK_HAS_VERSION_OVERRIDE OFF)
 if(AASDK_VERSION_OVERRIDE)
-    string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)([-+][0-9A-Za-z.-]+)?$" AASDK_VERSION_MATCH "${AASDK_VERSION_OVERRIDE}")
+    string(REGEX MATCH "^([0-9]+)\\.([0-9]+)\\.([0-9]+)(-[0-9A-Za-z.-]+)?(\\+[0-9A-Za-z.-]+)?$" AASDK_VERSION_MATCH "${AASDK_VERSION_OVERRIDE}")
     if(AASDK_VERSION_MATCH)
         set(AASDK_HAS_VERSION_OVERRIDE ON)
         set(LIBRARY_BUILD_MAJOR_RELEASE "${CMAKE_MATCH_1}")
