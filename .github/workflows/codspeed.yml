@@ -1,0 +1,48 @@
+name: CodSpeed
+
+on:
+  push:
+    branches:
+      - main
+      - newdev
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  benchmarks:
+    name: Run benchmarks
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            build-essential cmake git \
+            libboost-all-dev libusb-1.0-0-dev libssl-dev \
+            libprotobuf-dev protobuf-compiler
+
+      - name: Build benchmarks
+        run: |
+          mkdir -p build && cd build
+          cmake \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DAASDK_TEST=OFF \
+            -DAASDK_BENCHMARK=ON \
+            -DCODSPEED_MODE=simulation \
+            -DSKIP_BUILD_PROTOBUF=ON \
+            -DSKIP_BUILD_ABSL=ON \
+            ..
+          make -j$(nproc) aasdk_benchmarks
+
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v4
+        with:
+          mode: simulation
+          run: ./build/bin/aasdk_benchmarks
