@@ -13,6 +13,7 @@ option(SKIP_BUILD_PROTOBUF "Skip building protobuf, use system-installed version
 option(SKIP_BUILD_ABSL "Skip building Abseil, use system-installed version" OFF)
 option(AASDK_TEST "Build AASDK unit tests" ON)
 option(AASDK_CODE_COVERAGE "Enable coverage build options for AASDK tests" OFF)
+option(AASDK_BENCHMARK "Build AASDK benchmarks" OFF)
 
 # Cross Compiling Architecture and Package Architecture Detection
 if( TARGET_ARCH STREQUAL "amd64" )
@@ -475,6 +476,10 @@ if(AASDK_TEST)
         setup_target_for_coverage(NAME aasdk_coverage EXECUTABLE aasdk_ut DEPENDENCIES aasdk_ut)
     endif(AASDK_CODE_COVERAGE)
 endif(AASDK_TEST)
+
+if(AASDK_BENCHMARK)
+    add_subdirectory(benchmarks)
+endif(AASDK_BENCHMARK)
 
 
 # CPack Configuration for DEB packages

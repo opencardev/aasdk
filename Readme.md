@@ -4,6 +4,7 @@
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](code_of_conduct.md)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](BUILD.md)
 [![Documentation](https://img.shields.io/badge/docs-comprehensive-blue)](DOCUMENTATION.md)
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/opencardev/aasdk?utm_source=badge)
 
 ## Overview
 
