@@ -16,6 +16,8 @@ jobs:
   quality-coverage-quick-build:
     name: Quality + Coverage + Quick Build
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
@@ -57,6 +59,34 @@ jobs:
           ENABLE_COVERAGE=ON \
           VERSION="${{ steps.version.outputs.version }}" \
           ./build.sh --clean
+
+      - name: Tag current commit with CI version
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/newdev')
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+
+          raw_version="${{ steps.version.outputs.version }}"
+          tag_version="${raw_version%%+*}"
+          tag_name="v${tag_version}"
+
+          existing_tag_commit="$(git rev-list -n1 "${tag_name}" 2>/dev/null || true)"
+          head_commit="$(git rev-parse HEAD)"
+
+          if [[ -n "${existing_tag_commit}" ]]; then
+            if [[ "${existing_tag_commit}" == "${head_commit}" ]]; then
+              echo "Tag ${tag_name} already points at HEAD; nothing to do."
+            else
+              echo "Tag ${tag_name} already exists on ${existing_tag_commit}; skipping to keep tags immutable."
+            fi
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${tag_name}" -m "CI tag ${tag_name} for ${GITHUB_SHA}"
+          git push origin "refs/tags/${tag_name}"
 
       - name: Upload quick build artifacts
         uses: actions/upload-artifact@v7
@@ -146,29 +176,13 @@ jobs:
       - name: Set up QEMU emulation
         uses: docker/setup-qemu-action@v4
 
-      - name: Setup GitVersion
-        uses: gittools/actions/gitversion/setup@v3
-        with:
-          versionSpec: 6.x
-
-      - name: Determine Version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v3
-
-      - name: Export build version outputs
-        id: version
-        shell: bash
-        run: |
-          echo "base_version=${{ steps.gitversion.outputs.MajorMinorPatch }}" >> "${GITHUB_OUTPUT}"
-          echo "version=${{ steps.gitversion.outputs.SemVer }}" >> "${GITHUB_OUTPUT}"
-
       - name: Build and test in multiarch Docker container
         env:
           DISTRO_IMAGE: ${{ matrix.distro }}
           DISTRO_ID: ${{ matrix.distro_id }}
           PLATFORM: ${{ matrix.platform }}
           ARCH_ID: ${{ matrix.arch_id }}
-          BUILD_VERSION: ${{ steps.version.outputs.version }}
+          BUILD_VERSION: ${{ needs.quality-coverage-quick-build.outputs.version }}
         run: |
           set -euo pipefail
           chmod +x ./build.sh
@@ -324,7 +338,7 @@ jobs:
     permissions:
       contents: write
       actions: read
-    uses: ./.github/workflows/release.yml
+    uses: opencardev/aasdk/.github/workflows/release.yml@newdev
     with:
       build_run_id: ${{ github.run_id }}
       version: ${{ needs.quality-coverage-quick-build.outputs.version }}
