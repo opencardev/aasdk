@@ -59,7 +59,11 @@ namespace aasdk {
       size_t remainingSize_;
       SendPromise::Pointer promise_;
 
-      static constexpr size_t cMaxFramePayloadSize = 0x4000;
+      // Plain payload per frame. Android Auto reads a frame into a 16384 byte buffer, and encryption (TLS record)
+      // adds to the payload: with 16384 byte fragments every encrypted frame of a large message overflowed it and
+      // the phone dropped the connection (BufferOverflowException in its GAL reader). The phone itself sends
+      // fragments of 16128 bytes (Android Auto flag fragment_size).
+      static constexpr size_t cMaxFramePayloadSize = 16128;
     };
 
   }

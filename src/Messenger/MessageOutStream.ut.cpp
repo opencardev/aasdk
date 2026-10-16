@@ -166,7 +166,7 @@ TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendError)
 
 TEST_F(MessageOutStreamUnitTest, MessageOutStream_SendSplittedMessage)
 {
-    const size_t maxFramePayloadSize = 0x4000;
+    const size_t maxFramePayloadSize = 16128;  // MessageOutStream::cMaxFramePayloadSize
 
     const common::Data frame1Payload(maxFramePayloadSize, 0x5E);
     const common::Data frame2Payload(maxFramePayloadSize, 0x5E);
